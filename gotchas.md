@@ -39,9 +39,11 @@ Traps that already bit us, by area. Add to this when something surprises you.
   not per lifetime.
 
 ## Time and aging
-- **Collapses add `collapse_age_penalty` (150) of age.** With ~2 collapses per NPC
-  per 250 ticks, NPCs hit `old_age` (1500) in roughly 700 ticks. Most "deaths" are
-  collapse-accelerated aging, not real old age.
+- **Collapses add `collapse_age_penalty` of age** (300 since 2026-11-02, 600 in
+  the nursery). A few collapses can use up most of the 1,500 years before
+  `old_age`, so many "deaths" are collapse-accelerated aging, not real old age.
+  (Under the old rules, 150 per collapse and ~2 collapses per 250 ticks, NPCs
+  hit `old_age` in roughly 700 ticks.)
 - `age` only advances while `clock.aging_active` is true. Headless runs default to
   `player_active=True`, so they age normally. `lifetime` always advances.
 
@@ -73,7 +75,10 @@ Traps that already bit us, by area. Add to this when something surprises you.
   reach ~8 cells, so each food type can hold a full bite on 44–71% of the map,
   even with no thin layer. "Standing on food" checks pass almost everywhere.
 - **Results before 2026-11-02 used older rules:** eating counted as idle (2.5×
-  hunger while eating) and a thin food layer grew everywhere. Old snapshots
+  hunger while eating), a thin food layer grew everywhere, hunger was faster
+  (`nutrient_decay` 0.004) and collapses cheaper (`collapse_age_penalty` 150).
+  Don't compare numbers across those changes; the plan's tables say which rules
+  each used. Old snapshots
   still resume that way (`snapshot.py: LEGACY`, `food_baseline_fraction` saved
   in their config).
 - **A new sense shows nothing from scratch.** Gentle worlds barely select, so a

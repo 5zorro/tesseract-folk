@@ -1,8 +1,8 @@
 # Plan: M1 Survival
 
-Status: **slices 1–3, 4b (nursery) and 6 (food scent) done; criteria settled
-(2026-11-02). Criteria 1–2 met; 3 (nutrients above 0.4) is the gap; 4 (4D) not
-yet measured.** Slices are ordered;
+Status: **slices 1–3, 4b (nursery), 6 (food scent) and the economy retune done
+(2026-11-02). In 2D all three criteria are met (3 only easily; see below).
+Criterion 4 (4D) isn't measured yet: next is a 4D nursery.** Slices are ordered;
 each one ends with tests passing and a commit. Open decisions (bottom) are 5zorro's.
 
 **For a new session:** read `handoff.md`, `gotchas.md` and this file. Do the
@@ -38,15 +38,16 @@ Births and a top-up-free population are M3's job, not M1's. Don't chase them her
 **Smiting is off for M1** (5zorro, 2026-11-02: `Config.smiting = False`). M1 is
 judged on hunger alone; piety and smiting come back for M5.
 
-**Where the criteria stand** (2026-11-02, after food scent; nursery-4, slice 6):
-1. **Met:** the scent nursery's rate fell 3.2 (g0) → about 1.7–2.2 (g5+) in
-   stage 1, and sat around 1.5 in stage 2.
-2. **Met:** 2.7 ± 0.1 from nursery-4 vs 4.1 ± 0.3 from scratch.
-3. **Not met:** the lowest nutrient is 0.34 ± 0.01 (nursery-4), against a bar
-   of 0.4. Scent barely moved it (0.33 with nursery-2). The diagnosis under slice 6
-   found the cause is intake (small bites, idle penalty while eating), not diet
-   balance, and that the scripted forager only reaches 0.40–0.42.
-4. **Not measured** with a 4D nursery yet. 4D from scratch is flat (3.0 → 3.1).
+**Where the criteria stand** (2026-11-02, today's rules; nursery-7/8, "Economy retune"
+under slice 6):
+1. **Met:** nursery-7's rate fell 2.2 (g0) → about 1.0 (g3–6); nursery-8 sat
+   around 0.6.
+2. **Met:** 0.9 ± 0.3 from nursery-8 vs 1.8 ± 0.4 from scratch.
+3. **Met, but easily:** the lowest nutrient is 0.51 ± 0.06 (nursery-8). Slower
+   hunger did most of that: from scratch it's 0.44 too. Brains no longer have to
+   be good to pass this one; criterion 2 carries the weight.
+4. **Not measured** with a 4D nursery yet. 4D from scratch was flat (3.0 → 3.1)
+   under the old rules.
 
 ## What we know already (probe on 2026-11-02, single seed, 3,000 ticks)
 | Run | Collapses, first 1k ticks | Collapses, last 1k ticks | Births |
@@ -491,6 +492,43 @@ Reading:
 - The lowest nutrient stays at 0.30–0.37 in every variant. Criterion 3 hasn't
   moved; the scripted forager's 0.42 is still the ceiling.
 
+**Economy retune** (5zorro, 2026-11-02: "richer patches… grow faster in the
+patches, or hunger should decrease less, but collapses more dire"). Nursery-6
+brains, patches only, 5 seeds × 10,000 ticks (`runs/2026-11-02-richer.csv`):
+| Variant | Collapses | Lowest nutrient | Births | Top-ups |
+|---|---|---|---|---|
+| Rules from earlier today | 2.3 ± 0.5 | 0.33 | 85 | 157 |
+| `food_growth_rate` 0.02 → 0.04 | 2.2 ± 0.3 | 0.34 | 90 | 147 |
+| `food_growth_rate` 0.02 → 0.06 | 2.2 ± 0.3 | 0.32 | 81 | 159 |
+| `nutrient_decay` 0.004 → 0.003 | 0.9 ± 0.3 | 0.52 | 85 | 110 |
+| **…and `collapse_age_penalty` 150 → 300** | **0.8 ± 0.2** | **0.55** | 94 | 116 |
+| Growth 0.04 and penalty 300 | 1.8 ± 0.3 | 0.35 | 76 | 183 |
+
+- **Faster growth does almost nothing.** Food in patches isn't the limit;
+  how fast NPCs can eat it is.
+- **Slower hunger is the big lever:** collapses fall about 60%.
+- The harsher collapse penalty adds a little on top and gives play worlds some
+  selection. Both are now the defaults (`nutrient_decay=0.003`,
+  `collapse_age_penalty=300`). Growth stays 0.02.
+- Retrained under the new defaults: `snapshots/nursery-7` (seed 100) fell
+  2.2 → 1.0; `snapshots/nursery-8` (from it, seed 101) about 0.6.
+
+Play worlds under today's defaults (`runs/2026-11-02-slowhunger-scratch.csv`,
+`-nursery-8.csv`):
+| Brains | Collapses | Lowest nutrient | Births | Top-ups | Collapse causes |
+|---|---|---|---|---|---|
+| Scratch | 1.8 ± 0.4 | 0.44 | 19 | 215 | nutrients 58%, body 41% |
+| Scripted | 3.9 ± 0.8 | 0.38 | 0 | 361 | body 66%, stink 15% |
+| Nursery-6 | 0.8 ± 0.2 | 0.55 | 94 | 116 | nutrients 54%, body 43% |
+| Nursery-8 | 0.9 ± 0.3 | 0.51 | 85 | 129 | nutrients 61%, body 33% |
+
+Reading:
+- Nursery brains halve collapses compared with scratch. Retraining under the new
+  rules (nursery-8) didn't beat nursery-6; both are within noise.
+- **Body starvation is now a third to two-fifths of collapses** (body mass under
+  `min_body_mass`): NPCs keep nutrients up but don't take in enough mass.
+- Births still trail top-ups (85 vs 129): M3's problem.
+
 ## Open decisions (5zorro)
 - ~~Raise criterion 2's nutrient bar?~~ Decided: 0.4 (now criterion 3).
 - ~~Reword or drop "starvation is no longer the top cause"?~~ Decided: dropped.
@@ -504,12 +542,10 @@ Reading:
   loafing is punished, as pillar 2 meant), or keep it. Removing the penalty
   entirely was the probe; the targeted fix is untested. Changes the rules the
   nursery trained under, so retrain afterwards.
-- **Patches only: keep it, and add food back?** Defaults are now patches only
-  (5zorro's request), which costs food. Options: put the thin layer back, or keep
-  patches only and restore the lost food inside patches (higher `food_capacity`
-  or `food_growth_rate`), or make patches smaller but richer for real "biomes".
-  Untested.
-- **Is 0.4 the right nutrient bar?** A scripted forager reaches only 0.40–0.42
+- ~~Patches only: keep it, and add food back?~~ Decided (5zorro): keep patches
+  only; hunger slower and collapses costlier instead (faster growth didn't help).
+- **Is 0.4 still the right nutrient bar?** With slower hunger even scratch
+  brains pass it (0.44). Raise it, or judge against scratch? Old note: A scripted forager reaches only 0.40–0.42
   under today's rules. Either keep 0.4 and change the economy so it's reachable
   (eating not idle, bigger bites in thin food, slower decay), or set the bar
   relative to the scripted forager (e.g. "brains match or beat it").
@@ -518,6 +554,7 @@ Reading:
 ## Tuning log
 | Date | Change | Why | Effect (seeds × ticks) |
 |---|---|---|---|
+| 2026-11-02 | `nutrient_decay` 0.004 → 0.003, `collapse_age_penalty` 150 → 300 | 5zorro: slower hunger, more dire collapses (faster growth tested: no effect) | Nursery-6: collapses 2.3 → 0.8, lowest nutrient 0.33 → 0.55; scratch 3.8 → 1.8 (5 × 10k) |
 | 2026-11-02 | `busy_resets_idle = True` (new) | 5zorro: eating shouldn't count as standing still | Nursery-4, thin layer kept: collapses 2.7 → 2.3, top-ups 64 → 34, lowest nutrient 0.34 → 0.37 (5 × 10k) |
 | 2026-11-02 | `food_baseline_fraction` 0.05 → 0 | 5zorro: with scent, NPCs should seek patches | Less food: scripted 3.2 → 5.6; nursery-6 (trained under it) 2.3 with 85 births vs 1.8 / 185 with the layer back (5 × 10k). Open decision |
 | 2026-11-02 | `food_scent = True` (new; slice 6) | 5zorro: NPCs short on a nutrient should be able to smell the food that has it | Scratch: no change. Nursery-4 play worlds vs nursery-2: collapses 2.9 → 2.7, births 156 → 243, top-ups 130 → 64, lowest nutrient 0.33 → 0.34 (5 × 10k) |

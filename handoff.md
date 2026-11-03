@@ -25,8 +25,10 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
 - **M1 survival in progress.** Plan: `docs/plan-m1-survival.md`. Done: slices
   1–3 (collapse causes, multi-seed `scripts/sweep.py`, honest stability check),
   **4b, the nursery** (`sim/nursery.py`, `--brains-from`) and **6, food scent**
-  (`Config.food_scent`, on by default). Criteria settled by 5zorro (plan, Goal):
-  1–2 met, **3 (lowest nutrient above 0.4) is the gap**, 4 (4D) not measured.
+  (`Config.food_scent`, on by default), plus an economy retune with 5zorro:
+  eating counts as busy, food only in patches, slower hunger (0.003), costlier
+  collapses (300). Criteria settled by 5zorro (plan, Goal): **1–3 met in 2D** (3 only
+  easily); **4 (4D) not measured yet.**
 - `--until-stable` honestly fails (top-ups, population on the floor) and prints
   why. Expect that until M3.
 - **Smiting is off** (`Config.smiting = False`, 5zorro 2026-11-02) until a snapshot
@@ -34,31 +36,26 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
 - **Decided:** keep pillar 4 ("young can't die") in play. Evolution's deaths
   happen offline in the nursery (harsh `collapse_age_penalty=600`), and gentle
   play worlds start from its best brains.
-- Honest state, hunger only (5 seeds × 10,000 ticks, 2D, gentle rules, unseen maps):
-  | | From scratch | From `nursery-2` (no scent) | From `nursery-4` (scent) |
-  |---|---|---|---|
-  | Collapses / 1,000 NPC-ticks | 4.1 | 2.9 | **2.7** |
-  | Lowest nutrient (bar: 0.4) | 0.30 | 0.33 | 0.34 |
-  | Births vs top-ups | 15 vs 258 | 156 vs 130 | **243 vs 64** |
-  - Starvation causes most collapses (nutrients ~76%, body ~12%, stink ~13%).
-  - Scent only helps through the nursery; from scratch it changes nothing.
-  - Drift in gentle worlds is much smaller with scent (late generations +0.3
-    instead of +1.1). One world in five passed the stability check.
+- Honest state, hunger only (5 seeds × 10,000 ticks, 2D, today's defaults, unseen maps):
+  | | From scratch | From `nursery-8` |
+  |---|---|---|
+  | Collapses / 1,000 NPC-ticks | 1.8 | **0.9** |
+  | Lowest nutrient (bar: 0.4) | 0.44 | 0.51 |
+  | Births vs top-ups | 19 vs 215 | 85 vs 129 |
+  - Collapse causes: nutrients ~60%, body mass ~35% (new: NPCs keep nutrients
+    up but don't take in enough mass).
+  - Food scent only pays off through the nursery.
   - Nursery snapshots are local only (`snapshots/` is gitignored, ~1 MB each).
-    `nursery-5/6` are trained under today's rules (scent, busy rule, patches only);
-    `nursery-3/4` have scent but older rules; `nursery-1/2` need `--set food_scent=false`.
-    Retrain with the commands in `scripts/run_headless.py`'s docstring.
+    `nursery-7/8` match today's rules. Older ones were trained under older rules
+    (`nursery-1/2` also need `--set food_scent=false`). Retrain with the
+    commands in `scripts/run_headless.py`'s docstring.
   - Nobody learns or shares secrets, and there's no channel for food
     locations. No social structure is measurable yet (`openitems.md`).
   - In 4D the scripted forager never collapses, so the 4D economy is easy.
 
 ## Where to pick up
-1. **Criterion 3** (plan, under slice 6): not diet balance but intake. 5zorro's
-   fixes are in: real actions reset the idle streak (`busy_resets_idle`), and
-   food grows only in patches (`food_baseline_fraction=0`). The busy rule helps;
-   patches-only costs food (nursery-6, trained under it: 2.3 collapses, 85 births).
-   The lowest nutrient is still 0.33–0.37. Waiting on 5zorro: put food back (thin
-   layer, or richer patches), and is 0.4 the right bar?
+1. **Criterion 3** is met in 2D but easily (scratch passes too). 5zorro: raise the
+   bar or judge against scratch? (plan, open decisions)
 2. **Criterion 4:** train a 4D nursery (`--dims 4 --size 10`) and measure.
 3. Other levers: **seasons** as a config schedule (famine winters, mostly for
    consistency); play-world drift fixes (re-seed, lower mutation in play).
