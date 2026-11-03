@@ -11,8 +11,15 @@ Traps that already bit us, by area. Add to this when something surprises you.
 - **`ScriptedController` overrides don't survive the top-up.** Overrides are keyed
   by NPC id. Spawned and born NPCs get new ids and run their random or evolved
   brain, so a "scripted population" run is scripted only for the starting NPCs.
+  Use `scripts/sweep.py --variant controller=scripted`, which re-covers every NPC
+  each tick (`cover_with`).
 - **One seed is an anecdote.** Collapse counts swing a lot between windows and
-  seeds. Compare configs over several seeds.
+  seeds. Compare configs with `scripts/sweep.py` (5+ seeds).
+- **Generation 0 is gone by the late window.** By halfway through a 10,000-tick
+  run, every generation-0 NPC has died. So late-window comparisons start at g1–2,
+  and a "-" in the g0 column there is expected, not a bug.
+- **`sweep.py` uses every CPU core by default** (one process per run). Pass
+  `--jobs N` if the machine needs to stay responsive.
 - **Cause attribution favors big single hits.** A collapse is blamed on the cause
   with the most damage since the NPC was last at full health. One smiting
   (0.3) outweighs 14 ticks of starvation (0.02 each), so an NPC weakened by

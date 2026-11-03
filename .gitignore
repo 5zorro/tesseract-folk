@@ -10,3 +10,6 @@ snapshots/*
 
 # Private brainstorming, kept local (see handoff.md)
 openitems.md
+
+# Sweep output (scripts/sweep.py --csv)
+runs/

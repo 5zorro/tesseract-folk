@@ -1,7 +1,7 @@
 # Plan: M1 Survival
 
-Status: **slice 1 done (2026-11-02). Next: slice 2.** Slices are ordered; each
-one ends with tests passing and a commit. Open decisions (bottom) are 5zorro's.
+Status: **slices 1–2 done (2026-11-02). Next: slice 3.** Slices are ordered;
+each one ends with tests passing and a commit. Open decisions (bottom) are 5zorro's.
 
 **For a new session:** read `handoff.md`, `gotchas.md` and this file. Do the
 slices in order. Don't tune numbers (slice 4) before slices 1 to 3 exist: without
@@ -20,6 +20,19 @@ To make that testable, M1 passes when, **over 5 seeds × 10,000 ticks** (2D, def
 4. The same holds at `--dims 4 --size 10` (a shorter run is fine).
 
 Births and a top-up-free population are M3's job, not M1's. Don't chase them here.
+
+**Where the criteria stand (first sweep, 2026-11-02; details under slice 2):**
+1. **Met in 2D (provisional).** In the late window, the rate falls from
+   6.8 ± 1.0 (g1–2) to 4.6 ± 1.3 (g6–10), about 3 standard errors. The scripted
+   control stays flat, so the trend is evolution, not measurement.
+   *Wording fix:* compare g1–2 with later buckets, because by the late window
+   generation 0 is gone.
+2. **Met, but too easy:** 0.33 vs a threshold of 0.1. Consider a tighter bar
+   (decision below).
+3. **Met only on a technicality.** Smiting (70%) outranks starvation (30%).
+   With smiting off, starvation is 100% of collapses. Needs rewording (decision below).
+4. **Not shown yet.** 4D late-window rates are flat (5.2 → 5.2 → 4.4, n=2) after
+   4,000 ticks. Needs a longer run.
 
 ## What we know already (probe on 2026-11-02, single seed, 3,000 ticks)
 | Run | Collapses, first 1k ticks | Collapses, last 1k ticks | Births |
@@ -68,7 +81,42 @@ Reading:
 - "Deaths" are mostly smite-driven: collapse age penalties push NPCs past
   `old_age`, and then the next smiting kills them.
 
-### Slice 2: Experiment harness (`scripts/sweep.py`, new)
+### Slice 2: Experiment harness ✅ (2026-11-02)
+**Built:** `scripts/sweep.py`, as specified below:
+- `--variant` / `--set` overrides are typed and validated against `Config`.
+- The `controller=scripted` pseudo-key re-covers every NPC each tick.
+- Late-window per-generation rates, CSV output to `runs/` (gitignored).
+- Runs in parallel across CPU cores: 15 runs × 10,000 ticks in about 1 minute.
+- Tests: `tests/test_sweep.py`.
+
+**First sweep, 2D** (5 seeds × 10,000 ticks; `runs/2026-11-02-m1-first.csv`, local only):
+| | Baseline | `smite_damage=0` | Scripted forager |
+|---|---|---|---|
+| Collapses / 1,000 NPC-ticks, whole run | 6.9 ± 0.5 | 4.6 ± 0.2 | 6.9 ± 0.9 |
+| Late window: g1–2 → g3–5 → g6–10 | 6.8 → 4.9 → 4.6 | 4.1 → 3.8 → 2.9 | 6.7 → 6.4 → 6.5 (flat) |
+| Causes: smite / nutrient / body / stink | 70 / 25 / 5 / 0% | 0 / 77 / 23 / 0% | 0 / 90 / 0 / 10% |
+| Mean lowest nutrient, last quarter | 0.33 | 0.30 | 0.39 |
+| Births / top-up spawns | 13 / 328 | 7 / 276 | 0 / 360 |
+
+**First sweep, 4D** (`--set dims=4,size=10`, 5 seeds × 4,000 ticks):
+| | Baseline | Scripted forager |
+|---|---|---|
+| Collapses / 1,000 NPC-ticks | 7.6 ± 0.6 | **0.0** |
+| Late window: g1–2 → g3–5 → g6–10 | 5.2 → 5.2 → 4.4 (n=2) | no collapses |
+| Causes: smite / starvation | 80 / 19% | none |
+
+Reading:
+- Evolution is working in 2D. Late-generation brains (4.6) now collapse less
+  than the hand-coded forager (6.5), and the forager's flat line is the control
+  that proves it.
+- In 4D the forager never collapses, so the 4D economy is easy, and smiting
+  (80%) is all that stands between evolved brains and the forager's record.
+  In 2D the forager starves (90% of its collapses), so the 2D economy is harsh.
+  Slice 4 should tune these separately rather than assume one fix fits both.
+- Smiting off cuts collapses by a third, but starvation then takes over.
+- Top-up spawns (~330 per run) still dwarf births (~13). That's M3, as expected.
+
+**Original spec:**
 - `--seeds 5 --ticks 10000 --set metabolism_rate=0.008 --set smite_damage=0.1`
   (repeatable `--set`, parsed through `Config.from_dict`).
 - `--scripted` mode re-applies `ScriptedController` to every NPC each tick, so
@@ -113,6 +161,11 @@ Make **instinct viable first, then learning:**
   passes); the brain JSON format is unchanged.
 
 ## Open decisions (5zorro)
+- Criterion 2 is easy to meet (0.33 vs 0.1). Raise the bar, e.g. "lowest nutrient
+  above 0.4, the level at which NPCs heal"?
+- Criterion 3 as worded is met only because smiting outranks starvation. Reword
+  it as "starvation collapses fall by generation", or "starvation is under X% of
+  collapses with smiting at its final setting"?
 - Should M1 be judged with smiting softened, or must evolution learn to avoid
   praying under today's numbers? (It affects slice 4 step 2.)
 - Is the `eat` starting bias acceptable as an "instinct", or should M1 pass on

@@ -28,6 +28,7 @@ More:
 python scripts/run_headless.py --dims 4 --size 10 --ticks 500     # try 4D
 python scripts/run_headless.py --until-stable --save snapshots/baseline
 python scripts/run_headless.py --load snapshots/baseline --ticks 2000
+python scripts/sweep.py --seeds 5 --variant smite_damage=0   # compare configs over seeds
 ```
 
 Viewer keys: SPACE pause, A toggle AFK (aging pauses), F turn the clock
@@ -46,8 +47,8 @@ sim/            engine-agnostic simulation core (no rendering)
   clock.py      activity-gated aging
   snapshot.py   save/load baseline worlds
   controllers.py scripted / Claude-controlled NPC hooks
-  stats.py      metrics for the roadmap pass criteria
-scripts/        headless runner and pygame viewer
+  stats.py      metrics for the roadmap pass criteria (incl. collapse causes)
+scripts/        headless runner, multi-seed sweep, pygame viewer
 tests/          pytest suite (includes the mass-conservation invariant)
 docs/           DESIGN.md (all ideas), ROADMAP.md (milestones), SAFETY.md (threat model)
 ```

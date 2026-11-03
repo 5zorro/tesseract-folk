@@ -22,15 +22,23 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
   monetizing, contributors and the 4D Miner mod in `openitems.md`). Still open:
   CI, private vulnerability reporting, and a contributor agreement before
   accepting outside PRs.
-- **M1 survival in progress.** Plan: `docs/plan-m1-survival.md`. Slice 1
-  (collapse-cause instrumentation) is done; slice 2 (multi-seed harness) is next.
-- Honest state: births ≈ 0, the population is held at `min_population` by top-ups,
-  and prayers are never answered. **Smiting finishes off 80–84% of collapsing
-  NPCs** (95% in 4D); starvation accounts for most of the rest. Collapse rates do
-  fall by generation, but that's confounded by time (`gotchas.md`).
+- **M1 survival in progress.** Plan: `docs/plan-m1-survival.md`. Slices 1–2
+  (collapse causes, multi-seed `scripts/sweep.py`) are done; slice 3 (honest
+  stability check) is next. Two decisions on criteria wording are open (bottom
+  of the plan).
+- Honest state (5 seeds × 10,000 ticks):
+  - Evolution works in 2D: late-window collapse rates fall from 6.8 to 4.6 per
+    1,000 NPC-ticks across generations, while the scripted forager stays flat at
+    about 6.5.
+  - Smiting finishes off about 70% of collapses (80% in 4D), and starvation most
+    of the rest.
+  - In 4D the scripted forager never collapses, so the 4D economy is easy.
+  - Births ≈ 13 per run vs about 330 top-up spawns, and prayers are never
+    answered. Those belong to M3/M5.
 
 ## Where to pick up
-1. `docs/plan-m1-survival.md`, slice 2 (`scripts/sweep.py`, multi-seed harness).
+1. `docs/plan-m1-survival.md`, slice 3 (`Simulation.is_stable` must not pass on
+   the top-up floor).
 
 ## Setup (Windows)
 ```bash
@@ -47,6 +55,7 @@ In WSL, make a separate venv (`.venv/bin/python`); see `gotchas.md`.
 | Tick order (sense → think → act → metabolize) | `sim/simulation.py: step` |
 | Every damage source | `sim/simulation.py: _metabolize`, `sim/deity.py: pray`; always via `NPC.take_damage` so the cause is recorded |
 | Collapse causes, per-generation rates | `sim/stats.py: CAUSES, collapse_rate_by_generation`; printed by `run_headless.py: print_summary` |
+| Comparing configs over many seeds | `scripts/sweep.py` (e.g. `--seeds 5 --ticks 10000 --variant smite_damage=0 --variant controller=scripted`) |
 | Collapse vs death, the hall-of-fame top-up | `sim/simulation.py: _collapse, _die, _top_up` |
 | Adding a tunable | `sim/config.py` (every number lives here) |
 | Adding a stats counter | `sim/stats.py: COUNTERS`, then `run_headless.py: COLUMNS/HEADERS` |
