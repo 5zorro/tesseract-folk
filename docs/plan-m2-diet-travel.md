@@ -1,7 +1,7 @@
 # Plan: M2 Diet drives travel
 
-Status: **drafted 2026-11-02; not started. 5zorro settles the criteria (bottom), then
-slice 1.** Slices are ordered; each one ends with tests passing and a commit.
+Status: **slice 1 done (2026-11-02). Next: slice 2, the baseline. Draft criteria
+accepted by 5zorro; thresholds get settled after slice 2.** Slices are ordered; each one ends with tests passing and a commit.
 Open decisions (bottom) are 5zorro's.
 
 **For a new session:** read `handoff.md`, `gotchas.md` and this file. M1's plan
@@ -45,7 +45,26 @@ from the nursery, as in M1):
 
 ## Slices
 
-### Slice 1: Zones and travel metrics (`sim/world.py`, `sim/npc.py`, `sim/stats.py`, sweep)
+### Slice 1: Zones and travel metrics ✅ (2026-11-02)
+**Built:**
+- `World.patch_centers`, `World.zones` (types × cells; patch index or -1) and
+  `World.zone_at`, made in `_make_capacity` with no extra random draws.
+  `Config.zone_core` (0.5) sets the core.
+- `NPC.zones_eaten`, `last_zone`, `zone_switches`, `record_zone`. Only bites
+  taken from the ground count (carried food isn't a place). A collapse keeps the
+  zones but resets `last_zone`, so waking up elsewhere isn't a switch.
+- `Stats.record_life` (at each death) and `travel_summary`; the `zone_switches`
+  counter. `run_headless.py` prints a travel line; `sweep.py` prints a "Diet and
+  travel" table (diet over the last quarter; travel over lives ending in the late
+  window that lasted 500+ ticks).
+- Snapshot format 3 saves the zone map; older snapshots rebuild it from the seed.
+- Tests: `tests/test_zones.py` (2D and 4D).
+
+First look (3 seeds × 6,000 ticks, nursery-8, smoke test only): diet 0.96,
+6.3 zones eaten in per life (of 9), 2.8 of 3 food types, 10.7 zone switches per
+1,000 NPC-ticks. Slice 2 does this properly, with controls.
+
+**Original proposal:**
 - **World keeps its patch centers:** `world.patch_centers[t]`, a list per food
   type, recorded while making capacity (same rng draws, so worlds don't change).
   Saved in snapshots (format 3; older snapshots recompute them, since the same

@@ -13,7 +13,7 @@ CAUSES = DAMAGE_CAUSES + ["unknown"]
 COUNTERS = [
     "births", "deaths", "collapses", "spawns", "eats", "gives", "poops", "accidents",
     "prayers_answered", "prayers_silent", "prayers_ignored", "smitings", "worships",
-    "secrets_claimed", "secrets_shared", "secrets_stale",
+    "secrets_claimed", "secrets_shared", "secrets_stale", "zone_switches",
 ] + [f"collapse_{c}" for c in CAUSES] + [f"death_{c}" for c in CAUSES]
 
 
@@ -26,9 +26,32 @@ class Stats:
         # "collapses per NPC fall over generations". Not saved in snapshots.
         self.generation_lifetime: dict[int, int] = defaultdict(int)
         self.generation_collapses: dict[int, int] = defaultdict(int)
+        # One entry per completed life (death), for M2's travel metrics.
+        # Cumulative, not saved in snapshots.
+        self.lives: list[dict] = []
 
     def count(self, name: str, n: int = 1) -> None:
         self.window[name] += n
+
+    def record_life(self, npc, tick: int) -> None:
+        self.lives.append({
+            "tick": tick, "lifetime": npc.lifetime, "zones": len(npc.zones_eaten),
+            "zone_types": len({t for t, _ in npc.zones_eaten}), "switches": npc.zone_switches,
+        })
+
+    def travel_summary(self, since_tick: int = 0, min_lifetime: int = 500) -> dict:
+        """M2 metrics over lives that ended at or after `since_tick` and lasted
+        at least `min_lifetime` ticks (short lives can't have travelled much)."""
+        lives = [l for l in self.lives if l["tick"] >= since_tick and l["lifetime"] >= min_lifetime]
+        if not lives:
+            return {"lives": 0, "zones": float("nan"), "zone_types": float("nan"),
+                    "switch_rate": float("nan")}
+        return {
+            "lives": len(lives),
+            "zones": float(np.mean([l["zones"] for l in lives])),
+            "zone_types": float(np.mean([l["zone_types"] for l in lives])),
+            "switch_rate": 1000 * sum(l["switches"] for l in lives) / sum(l["lifetime"] for l in lives),
+        }
 
     def collapse_rate_by_generation(self, per: int = 1000) -> dict[int, float]:
         """Collapses per `per` ticks of NPC lifetime, for each generation."""

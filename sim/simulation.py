@@ -237,6 +237,9 @@ class Simulation:
             t = int(np.argmax(np.where(here > 1e-9, value, -np.inf)))
             amount = min(cfg.bite_size, float(here[t]))
             here[t] -= amount
+            zone = w.zone_at(t, npc.pos)
+            if zone >= 0 and npc.record_zone((t, zone)):   # carried food isn't a place
+                self.stats.count("zone_switches")
         elif (npc.inventory > 1e-9).any():
             t = int(np.argmax(np.where(npc.inventory > 1e-9, value, -np.inf)))
             amount = min(cfg.bite_size, float(npc.inventory[t]))
@@ -391,6 +394,7 @@ class Simulation:
         npc.age += cfg.collapse_age_penalty
         npc.collapses += 1
         npc.known_secret = None
+        npc.last_zone = None               # waking up elsewhere isn't travel
         self.stats.count("collapses")
         self.stats.count(f"collapse_{npc.main_damage_cause()}")
         self.stats.generation_collapses[npc.generation] += 1
@@ -406,6 +410,7 @@ class Simulation:
         self._record_hall_of_fame(npc)
         self.stats.count("deaths")
         self.stats.count(f"death_{npc.main_damage_cause()}")
+        self.stats.record_life(npc, self.tick)
 
     # ========================================================= population
     def _random_brain(self) -> Brain:

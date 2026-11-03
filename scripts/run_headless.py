@@ -59,14 +59,20 @@ def cause_line(label: str, prefix: str, history: list[dict]) -> str:
 
 
 def print_summary(sim) -> None:
-    """The M1 readout: what knocks NPCs down, and whether later generations
-    collapse less often (see docs/plan-m1-survival.md)."""
+    """The M1 readout (what knocks NPCs down, whether later generations
+    collapse less often) and M2's travel line (docs/plan-m2-diet-travel.md)."""
     print(cause_line("Collapse causes", "collapse", sim.stats.history))
     print(cause_line("Death causes", "death", sim.stats.history))
     rates = sim.stats.collapse_rate_by_generation()
     lifetimes = sim.stats.generation_lifetime
     print("Collapses per 1,000 NPC-ticks, by generation: " + ", ".join(
         f"g{g} {r:.1f} (n={lifetimes[g]})" for g, r in rates.items()))
+    travel = sim.stats.travel_summary()
+    if travel["lives"]:
+        print(f"Travel (M2), over {travel['lives']} completed lives of 500+ ticks: "
+              f"{travel['zones']:.1f} zones eaten in per life, "
+              f"{travel['zone_types']:.1f} of {sim.cfg.n_food_types} food types' zones, "
+              f"{travel['switch_rate']:.1f} zone switches per 1,000 NPC-ticks")
 
 
 def main() -> None:

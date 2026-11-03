@@ -129,6 +129,13 @@ def run_one(overrides: dict, seed: int, ticks: int, late_from: float, log_every:
     for cause in CAUSES:
         out[f"cause_{cause}"] = total(f"collapse_{cause}") / collapses if collapses else math.nan
     out["min_nutrient"] = float(np.mean(min_nutrients)) if min_nutrients else math.nan
+    diets = [r["diet_diversity"] for r in rows if r.get("tick", 0) > nutrient_from and "diet_diversity" in r]
+    out["diet_diversity"] = float(np.mean(diets)) if diets else math.nan
+    travel = stats.travel_summary(since_tick=late_start)
+    out["lives"] = travel["lives"]
+    out["zones_per_life"] = travel["zones"]
+    out["zone_types_per_life"] = travel["zone_types"]
+    out["zone_switch_rate"] = travel["switch_rate"]
     out["births"] = total("births")
     out["spawns"] = total("spawns")
     out["max_generation"] = max((n.generation for n in sim.npcs), default=0)
@@ -185,6 +192,12 @@ def summarize(results: dict, ticks: int, late_from: float, seeds: list[int]) -> 
                 + [("min-nutr", "min_nutrient", {"digits": 2}), ("births", "births", {}),
                    ("spawns", "spawns", {}), ("max-gen", "max_generation", {}),
                    ("pop", "population", {}), ("stable%", "stable", {"pct": True, "digits": 0})],
+                results)
+    print_table(f"Diet and travel (M2): diet over the last quarter; travel over lives "
+                f"ending after tick {late_start} that lasted 500+ ticks",
+                [("diet", "diet_diversity", {"digits": 2}), ("lives", "lives", {"digits": 0}),
+                 ("zones/life", "zones_per_life", {}), ("types/life", "zone_types_per_life", {}),
+                 ("switches/1k", "zone_switch_rate", {})],
                 results)
 
 

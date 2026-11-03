@@ -50,6 +50,11 @@ class NPC:
     alive: bool = True
     eaten: np.ndarray = field(default=None)  # per food type, reset each stats window
     damage: dict = field(default_factory=dict)  # cause -> damage since last at full health
+    # M2 travel: zones (food type, patch index) it has eaten in this lifetime,
+    # the zone of its last in-zone bite, and how often that zone changed.
+    zones_eaten: set = field(default_factory=set)
+    last_zone: tuple | None = None
+    zone_switches: int = 0
 
     def __post_init__(self):
         if self.eaten is None:
@@ -70,12 +75,23 @@ class NPC:
         """
         return self.offspring * 500.0 + self.lifetime - self.collapses * 100.0
 
+    def record_zone(self, zone: tuple) -> bool:
+        """A bite eaten inside `zone` (food type, patch index). True if it's a
+        different zone from the last in-zone bite (a switch)."""
+        self.zones_eaten.add(zone)
+        switched = self.last_zone is not None and zone != self.last_zone
+        self.zone_switches += switched
+        self.last_zone = zone
+        return switched
+
     def to_dict(self) -> dict:
         d = {k: v for k, v in self.__dict__.items() if k != "brain"}
         for k, v in d.items():
             if isinstance(v, np.ndarray):
                 d[k] = v.tolist()
         d["pos"] = list(self.pos)
+        d["zones_eaten"] = sorted(list(z) for z in self.zones_eaten)
+        d["last_zone"] = list(self.last_zone) if self.last_zone is not None else None
         d["brain"] = self.brain.to_dict()
         return d
 
@@ -86,4 +102,7 @@ class NPC:
         d["pos"] = tuple(d["pos"])
         for k in ("nutrients", "satiation", "inventory", "memory", "eaten"):
             d[k] = np.asarray(d[k], dtype=float)
+        d["zones_eaten"] = {tuple(z) for z in d.get("zones_eaten", [])}   # absent before M2
+        if d.get("last_zone") is not None:
+            d["last_zone"] = tuple(d["last_zone"])
         return cls(**d)

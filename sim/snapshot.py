@@ -20,8 +20,8 @@ from .config import Config
 from .npc import NPC
 from .simulation import Simulation
 
-ARRAYS = ("soil", "food", "poop", "stink", "scent", "capacity", "profiles")
-FORMAT = 2   # 2 added food scent (M1 slice 6)
+ARRAYS = ("soil", "food", "poop", "stink", "scent", "capacity", "profiles", "zones")
+FORMAT = 3   # 2 added food scent (M1 slice 6); 3 added the zone map (M2)
 
 # Config fields added after snapshots existed, with the value that reproduces
 # the behavior from before them. A snapshot saved without a field gets this
@@ -60,7 +60,7 @@ def load_snapshot(path: str | Path, log_every: int = 100) -> Simulation:
     sim = Simulation(Config.from_dict(config), populate=False, log_every=log_every)
     arrays = np.load(path / "world.npz")
     for k in ARRAYS:
-        if k in arrays:                    # format 1 has no scent; it stays zeros
+        if k in arrays:   # older formats lack scent (stays zeros) or zones (World rebuilt them from the seed)
             setattr(sim.world, k, arrays[k].copy())
     sim.world.shrines = [tuple(s) for s in state["shrines"]]
     sim.tick = state["tick"]

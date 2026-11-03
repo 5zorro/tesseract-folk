@@ -28,6 +28,8 @@ class World:
         self.cfg = cfg
         self.shape = (cfg.size,) * cfg.dims
         self.soil = np.full(self.shape, cfg.initial_soil_per_cell, dtype=float)
+        self.patch_centers: list[list[Pos]] = []          # per food type
+        self.zones = np.empty(0)                           # set by _make_capacity
         self.capacity = self._make_capacity(rng)          # (types, *shape)
         self.food = self.capacity * cfg.initial_food_fraction
         self.poop = np.zeros(self.shape)
@@ -38,12 +40,18 @@ class World:
 
     # ----------------------------------------------------------------- setup
     def _make_capacity(self, rng: np.random.Generator) -> np.ndarray:
-        """Each food type grows best in its own patches, so NPCs must travel."""
+        """Each food type grows best in its own patches, so NPCs must travel.
+
+        Also records the patch centers and the zone map (M2): zones[t][cell] is
+        the index of the nearest type-t patch if the cell is in that patch's
+        core (capacity at least `zone_core` of `food_capacity`), else -1.
+        """
         cfg = self.cfg
         idx = np.indices(self.shape)
-        caps = []
+        caps, zones = [], []
         for _ in range(cfg.n_food_types):
             field = np.zeros(self.shape)
+            centers, dists = [], []
             for _ in range(cfg.food_patches_per_type):
                 center = rng.integers(0, cfg.size, cfg.dims)
                 dist2 = np.zeros(self.shape)
@@ -51,9 +59,16 @@ class World:
                     d = (idx[axis] - center[axis] + cfg.size // 2) % cfg.size - cfg.size // 2
                     dist2 += d.astype(float) ** 2
                 field += np.exp(-dist2 / (2 * cfg.food_patch_radius ** 2))
+                centers.append(tuple(int(c) for c in center))
+                dists.append(dist2)
             field /= field.max()
             base = cfg.food_baseline_fraction
-            caps.append((base + (1 - base) * field) * cfg.food_capacity)
+            cap = (base + (1 - base) * field) * cfg.food_capacity
+            caps.append(cap)
+            nearest = np.argmin(np.stack(dists), axis=0)
+            zones.append(np.where(cap >= cfg.zone_core * cfg.food_capacity, nearest, -1))
+            self.patch_centers.append(centers)
+        self.zones = np.stack(zones)                       # (types, *shape), int
         return np.stack(caps)
 
     def _make_profiles(self) -> np.ndarray:
@@ -120,6 +135,10 @@ class World:
     def food_at(self, pos: Pos) -> np.ndarray:
         """A view of every food type at one cell (writes go through)."""
         return self.food[(slice(None),) + pos]
+
+    def zone_at(self, food_type: int, pos: Pos) -> int:
+        """Index of the type-`food_type` patch whose core holds `pos`, or -1."""
+        return int(self.zones[(food_type,) + pos])
 
     def scent_at(self, pos: Pos) -> np.ndarray:
         """The scent of every food type at one cell."""

@@ -55,9 +55,9 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
   - In 4D the scripted forager never collapses, so the 4D economy is easy.
 
 ## Where to pick up
-1. **M2: diet drives travel.** Plan: `docs/plan-m2-diet-travel.md` (drafted, not
-   started). 5zorro: settle its draft criteria (bottom of the plan), then slice 1
-   (zones and travel metrics). Key worry: food types overlap on 57–75% of 2D
+1. **M2: diet drives travel.** Plan: `docs/plan-m2-diet-travel.md`. Slice 1
+   (zones and travel metrics) is done; next is slice 2, the baseline measurement,
+   then 5zorro settles the thresholds. Key worry: food types overlap on 57–75% of 2D
    cells, so diets may balance without travel; slice 3's shared-patches control
    tests that.
 2. Known gaps carried from M1: body starvation is ~35% of collapses; births

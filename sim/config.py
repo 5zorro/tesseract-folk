@@ -28,6 +28,9 @@ class Config:
     food_growth_rate: float = 0.02
     soil_half_saturation: float = 0.5     # growth slows as soil runs out
     nutrition_per_bite: float = 0.15
+    # A patch's "zone" (M2 travel metrics) is its core: cells whose capacity for
+    # that food is at least this fraction of food_capacity. Measurement only.
+    zone_core: float = 0.5
 
     # --- conserved mass loop: soil -> food -> body -> bowel -> poop -> soil -
     initial_soil_per_cell: float = 1.0
