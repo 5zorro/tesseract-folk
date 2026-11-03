@@ -50,8 +50,16 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
 
 ## Where to pick up
 1. 5zorro: settle the M1 criteria questions (plan bottom, and under slice 4b).
-2. Then pick one: keep play worlds from drifting (re-seed, lower play mutation,
-   or mild selection), or slice 5 (bigger brains) to push the nursery further.
+2. Then pick a lever (details in `openitems.md` and the plan):
+   - **Food scent**: a long-range smell per food type, built like stink. It
+     targets foraging directly. It changes the brain shape, so retrain the
+     nursery afterwards.
+   - **Seasons** as a config schedule (famine winters), which mostly makes
+     worlds more consistent.
+   - Play-world drift fixes: re-seed, or lower mutation in play.
+   - Slice 5: bigger brains.
+3. Later (M5): the piety lifecycle (full until adulthood, then declines; share
+   piety like a secret) as the path to answered prayers and shared secrets.
 
 ## Setup (Windows)
 ```bash
