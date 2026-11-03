@@ -26,7 +26,7 @@ More:
 
 ```bash
 python scripts/run_headless.py --dims 4 --size 10 --ticks 500     # try 4D
-python scripts/run_headless.py --until-stable --save snapshots/baseline
+python scripts/run_headless.py --until-stable --max-ticks 20000 --save snapshots/baseline
 python scripts/run_headless.py --load snapshots/baseline --ticks 2000
 python scripts/sweep.py --seeds 5 --variant metabolism_rate=0.008   # compare configs over seeds
 python scripts/run_headless.py --set collapse_age_penalty=600 --ticks 20000 --save snapshots/nursery-1  # evolve offline

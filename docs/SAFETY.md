@@ -61,9 +61,13 @@ Players may share snapshots, so treat every snapshot as untrusted input.
 - **[enforced]** The format is data only: `state.json` plus `world.npz`.
   NumPy is never allowed to load pickled objects (`tests/test_safety.py` checks
   that `allow_pickle` is never turned on in `sim/`).
+- **[enforced]** Every loaded brain is checked for exact array shapes and
+  finite weights (`Brain.check`, used by `load_snapshot` and `seed_brains`).
+  JSON accepts `NaN` and `Infinity`, so without this a crafted file would crash
+  mid-run. Tests: `tests/test_nursery.py`.
 - **[planned]** Before snapshots are shared publicly: size limits on both files,
-  and a check that array shapes and brain sizes match the config, so a crafted
-  file fails with a clear error instead of exhausting memory.
+  and shape checks on the world arrays (`world.npz`), so a crafted file fails
+  with a clear error instead of exhausting memory.
 - The nursery (`sim/nursery.py: load_brain_pool`) reads the same `state.json`,
   so brain pools shared between players are untrusted input under the same rules.
   It already refuses brains whose shape doesn't fit the world.

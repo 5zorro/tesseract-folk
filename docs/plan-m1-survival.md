@@ -1,6 +1,7 @@
 # Plan: M1 Survival
 
-Status: **slices 1–3 done (2026-11-02). Next: slice 4.** Slices are ordered;
+Status: **slices 1–3 and 4b (nursery) done (2026-11-02). Next: 5zorro settles the
+criteria questions, then a lever (handoff.md, "Where to pick up").** Slices are ordered;
 each one ends with tests passing and a commit. Open decisions (bottom) are 5zorro's.
 
 **For a new session:** read `handoff.md`, `gotchas.md` and this file. Do the

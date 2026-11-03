@@ -29,6 +29,12 @@ Traps that already bit us, by area. Add to this when something surprises you.
 - **Per-generation collapse rates are confounded by time.** Generation 0 lives
   through the chaotic start of a run; later generations live later. Compare
   generations within the same time window (M1 plan, slice 2).
+- **Old snapshots resume with today's defaults for new config fields.**
+  `Config.from_dict` fills missing keys with current defaults, so a snapshot
+  saved before `smiting` existed resumes with smiting off. Resumes are
+  identical only within one code version.
+- **Per-generation tallies aren't saved in snapshots.** A `--load` run starts its
+  `generation_lifetime` and `generation_collapses` from zero.
 - **The stats window resets `npc.eaten`.** `diet_diversity` is per sampling window,
   not per lifetime.
 
@@ -48,6 +54,9 @@ Traps that already bit us, by area. Add to this when something surprises you.
   needs its own venv (`.venv/bin/python`); don't share one between the two.
 
 ## Nursery
+- **Probe scripts were throwaway.** The deadlier-collapse, pretraining and seasons
+  probes (2026-11-02) ran from a temp folder that's gone now. Their results and
+  methods are in the M1 plan. Rebuild them with `sweep.py` features, not from memory.
 - **Gentle worlds slowly lose the nursery's advantage.** Generations born under
   the play rules get worse (1.9 → 2.4 → 3.5 collapses per 1,000 NPC-ticks with
   nursery-2), because weak selection lets mutations pile up. Compare whole-run

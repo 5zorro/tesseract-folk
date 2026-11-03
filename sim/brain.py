@@ -31,6 +31,18 @@ class Brain:
     def _arrays(self):
         return (self.w1, self.b1, self.w2, self.b2)
 
+    def check(self, n_in: int, n_hidden: int, n_out: int) -> None:
+        """Raise ValueError unless every array has exactly the expected shape and
+        only finite weights. Brains can come from shared files, and JSON happily
+        loads NaN and Infinity (docs/SAFETY.md §4)."""
+        expected = {"w1": (n_hidden, n_in), "b1": (n_hidden,),
+                    "w2": (n_out, n_hidden), "b2": (n_out,)}
+        for (name, shape), a in zip(expected.items(), self._arrays()):
+            if a.shape != shape:
+                raise ValueError(f"brain {name} has shape {a.shape}, expected {shape}")
+            if not np.isfinite(a).all():
+                raise ValueError(f"brain {name} contains NaN or infinite weights")
+
     @classmethod
     def random(cls, n_in: int, n_hidden: int, n_out: int, rng: np.random.Generator) -> "Brain":
         return cls(

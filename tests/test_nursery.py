@@ -68,6 +68,26 @@ def test_mismatched_brain_shapes_fail_clearly(trained):
         seed_brains(sim, [])
 
 
+def test_tampered_brains_are_refused(trained):
+    import json
+    from sim.snapshot import load_snapshot
+    state_file = trained / "state.json"
+    state = json.loads(state_file.read_text())
+    state["npcs"][0]["brain"]["w1"][0][0] = float("nan")       # JSON writes this as NaN
+    state_file.write_text(json.dumps(state))
+    with pytest.raises(ValueError, match="NaN"):
+        load_snapshot(trained)
+    sim = Simulation(Config(**SMALL), log_every=1000)
+    with pytest.raises(ValueError, match="doesn't fit"):
+        seed_brains(sim, load_brain_pool(trained))
+
+    state["npcs"][0]["brain"]["w1"][0][0] = 0.0
+    state["npcs"][0]["brain"]["b1"] = state["npcs"][0]["brain"]["b1"][:-1]   # one bias short
+    state_file.write_text(json.dumps(state))
+    with pytest.raises(ValueError, match="b1"):
+        load_snapshot(trained)
+
+
 def test_sweep_can_start_worlds_from_a_pool(trained):
     out = run_one({**SMALL, "brains_from": str(trained)}, seed=1, ticks=100,
                   late_from=0.5, log_every=50)

@@ -33,6 +33,17 @@ stub or simplified version, **[idea]** is design only.
 - *Black & White*, *Populous*: player as deity.
 - *RimWorld*: pawns with needs, filth, moods, religion (Ideology DLC).
 
+Closest current projects (checked 2026-11-02):
+- **Skyrim AI-NPC mods: Mantella, CHIM (with MinAI), SkyrimNet.** Large AI models
+  give NPCs conversation, memory and a few triggered actions (follow, attack).
+  They're dialogue-first and nothing evolves. *Immersive Citizens* improves
+  schedules with hand-made rules.
+- **Project Sid** (Altera, 2024): up to 1,000 large-AI-model agents in Minecraft
+  formed roles, an economy, taxes and a religion. That's research, with one
+  costly model call per agent decision. Also Stanford's "Generative Agents" (2023).
+- **4D Miner:** a modding framework exists (see §13), with block and item mods,
+  but no NPC or society mods were found.
+
 What's new here: learned brains across a whole society + aging-gated death +
 an economy emerging from a thermodynamic resource loop.
 

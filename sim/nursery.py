@@ -39,14 +39,13 @@ def seed_brains(sim, pool: list[dict]) -> None:
     """
     if not pool:
         raise ValueError("the brain pool is empty")
-    want = (sim.n_inputs, sim.cfg.hidden_units, sim.n_outputs)
     for entry in pool:
-        b = entry["brain"]
-        if (b.n_in, b.n_hidden, b.n_out) != want:
+        try:
+            entry["brain"].check(sim.n_inputs, sim.cfg.hidden_units, sim.n_outputs)
+        except ValueError as e:
             raise ValueError(
-                f"brain shape {(b.n_in, b.n_hidden, b.n_out)} doesn't fit this world's "
-                f"{want} (inputs, hidden, outputs). dims, n_food_types, n_nutrients, "
-                f"hidden_units and memory_units must match the snapshot's.")
+                f"a pool brain doesn't fit this world: {e}. dims, n_food_types, "
+                f"n_nutrients, hidden_units and memory_units must match the snapshot's.") from e
     cfg = sim.cfg
     for i, npc in enumerate(sim.npcs):
         entry = pool[i % len(pool)]

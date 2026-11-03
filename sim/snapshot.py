@@ -60,4 +60,6 @@ def load_snapshot(path: str | Path, log_every: int = 100) -> Simulation:
     sim.hall_of_fame = [{"fitness": e["fitness"], "generation": e["generation"],
                          "brain": Brain.from_dict(e["brain"])} for e in state["hall_of_fame"]]
     sim.rng.bit_generator.state = state["rng_state"]
+    for brain in [n.brain for n in sim.npcs] + [e["brain"] for e in sim.hall_of_fame]:
+        brain.check(sim.n_inputs, sim.cfg.hidden_units, sim.n_outputs)
     return sim
