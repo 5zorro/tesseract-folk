@@ -27,8 +27,8 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
   **4b, the nursery** (`sim/nursery.py`, `--brains-from`) and **6, food scent**
   (`Config.food_scent`, on by default), plus an economy retune with 5zorro:
   eating counts as busy, food only in patches, slower hunger (0.003), costlier
-  collapses (300). Criteria settled by 5zorro (plan, Goal): **1–3 met in 2D** (3 only
-  easily); **4 (4D) not measured yet.**
+  collapses (300). Criteria settled by 5zorro (plan, Goal): **all four met, in 2D
+  and 4D** (3 only easily). 4D uses `food_patch_radius=2.0`.
 - `--until-stable` honestly fails (top-ups, population on the floor) and prints
   why. Expect that until M3.
 - **Smiting is off** (`Config.smiting = False`, 5zorro 2026-11-02) until a snapshot
@@ -46,7 +46,8 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
     up but don't take in enough mass).
   - Food scent only pays off through the nursery.
   - Nursery snapshots are local only (`snapshots/` is gitignored, ~1 MB each).
-    `nursery-7/8` match today's rules. Older ones were trained under older rules
+    `nursery-7/8` match today's rules; so do `nursery-scarce-1/2` (trained on
+    half food) and `nursery-4d-1/2` (4D, `--dims 4 --size 10`, radius 2). Older ones were trained under older rules
     (`nursery-1/2` also need `--set food_scent=false`). Retrain with the
     commands in `scripts/run_headless.py`'s docstring.
   - Nobody learns or shares secrets, and there's no channel for food
@@ -54,10 +55,11 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
   - In 4D the scripted forager never collapses, so the 4D economy is easy.
 
 ## Where to pick up
-1. **Criterion 3** is met in 2D but easily (scratch passes too). 5zorro: raise the
-   bar or judge against scratch? (plan, open decisions)
-2. **Criterion 4:** train a 4D nursery (`--dims 4 --size 10`) and measure.
-3. Other levers: **seasons** as a config schedule (famine winters, mostly for
+1. **5zorro: call M1 done?** All criteria pass (plan, top). Criterion 3 is easy
+   (scratch passes too): raise the bar, or accept it?
+2. Then M2 (diet drives travel; `docs/ROADMAP.md`). Known gaps to carry along:
+   body starvation is ~35% of collapses; births still trail top-ups in 2D (M3).
+3. Other levers: a harsher scarcity nursery (half food gave a mild win); **seasons** as a config schedule (famine winters, mostly for
    consistency); play-world drift fixes (re-seed, lower mutation in play).
 4. Later (M5): the piety lifecycle (full until adulthood, then declines; share
    piety like a secret) as the path to answered prayers and shared secrets.

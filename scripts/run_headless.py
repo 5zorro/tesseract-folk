@@ -11,6 +11,10 @@ Nursery (evolve under harsh rules, then start fresh worlds from the best brains)
     python scripts/run_headless.py --brains-from snapshots/nursery-1 --set collapse_age_penalty=600 \\
         --ticks 20000 --save snapshots/nursery-2
     python scripts/run_headless.py --brains-from snapshots/nursery-2 --seed 7 --ticks 5000
+
+4D nursery (radius 2, or every 4D cell grows every food):
+    python scripts/run_headless.py --dims 4 --size 10 --set food_patch_radius=2.0,collapse_age_penalty=600 \
+        --ticks 20000 --save snapshots/nursery-4d-1
 """
 from __future__ import annotations
 

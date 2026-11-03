@@ -1,8 +1,7 @@
 # Plan: M1 Survival
 
-Status: **slices 1–3, 4b (nursery), 6 (food scent) and the economy retune done
-(2026-11-02). In 2D all three criteria are met (3 only easily; see below).
-Criterion 4 (4D) isn't measured yet: next is a 4D nursery.** Slices are ordered;
+Status: **all four criteria met (2026-11-02), in 2D and 4D. Criterion 3 passes
+only easily (see below). Waiting on 5zorro to call M1 done.** Slices are ordered;
 each one ends with tests passing and a commit. Open decisions (bottom) are 5zorro's.
 
 **For a new session:** read `handoff.md`, `gotchas.md` and this file. Do the
@@ -23,7 +22,9 @@ To make that testable, M1 passes when, **over 5 seeds × 10,000 ticks** (2D, def
    noise. Births and top-ups are reported alongside, not required (M3 owns them).
 3. **NPCs keep nutrients up.** In those play worlds, the mean of each NPC's lowest
    nutrient stays above **0.4** (the level at which NPCs heal) in the last quarter.
-4. The same holds at `--dims 4 --size 10` (a shorter run is fine).
+4. The same holds at `--dims 4 --size 10` (a shorter run is fine), with
+   `food_patch_radius=2.0` so food covers about half the map as in 2D (at the
+   default radius 4, every 4D cell holds every food).
 
 Why judged this way: pillar 4 ("young can't die") keeps play worlds gentle, so
 they have almost no selection and can't show a trend over generations. Evolution
@@ -46,8 +47,9 @@ under slice 6):
 3. **Met, but easily:** the lowest nutrient is 0.51 ± 0.06 (nursery-8). Slower
    hunger did most of that: from scratch it's 0.44 too. Brains no longer have to
    be good to pass this one; criterion 2 carries the weight.
-4. **Not measured** with a 4D nursery yet. 4D from scratch was flat (3.0 → 3.1)
-   under the old rules.
+4. **Met** (see "4D nursery" below): the 4D nursery fell 1.6 → about 0.4, and
+   4D play worlds from it collapse 0.6 ± 0.0 vs 1.4 ± 0.2 from scratch, with the
+   lowest nutrient at 0.55.
 
 ## What we know already (probe on 2026-11-02, single seed, 3,000 ticks)
 | Run | Collapses, first 1k ticks | Collapses, last 1k ticks | Births |
@@ -529,6 +531,43 @@ Reading:
   `min_body_mass`): NPCs keep nutrients up but don't take in enough mass.
 - Births still trail top-ups (85 vs 129): M3's problem.
 
+**4D nursery** (5zorro, 2026-11-02). At `--dims 4 --size 10` the default patches
+(radius 4) cover the whole map: every cell can hold a full bite of every food.
+That's why the scripted forager never collapsed in 4D. Radius 2 gives about the
+same coverage as 2D (48–55% of cells per food type, vs 44–71% in 2D), so 4D
+training and tests use `food_patch_radius=2.0`. About 8 s per 1,000 ticks.
+- `snapshots/nursery-4d-1`: seed 100, `collapse_age_penalty=600`, 20,000 ticks.
+  1.6 (g0) → about 0.4 (g3+).
+- `snapshots/nursery-4d-2`: from it, seed 101. About 0.3–0.7.
+
+4D play worlds (5 seeds × 5,000 ticks, today's defaults plus radius 2;
+`runs/2026-11-02-4d-scratch.csv`, `-4d-nursery.csv`):
+| Brains | Collapses | Lowest nutrient | Births | Top-ups |
+|---|---|---|---|---|
+| Scratch, default radius 4 | 0.9 ± 0.1 | 0.53 | 9 | 75 |
+| Scratch, radius 2 | 1.4 ± 0.2 | 0.50 | 3 | 88 |
+| Scripted, radius 2 | 2.3 ± 1.5 | 0.45 | 0 | 125 |
+| **4D nursery-2, radius 2** | **0.6 ± 0.0** | **0.55** | **69** | **43** |
+
+Births beat top-ups in 4D. The late-window drift is small (0.4 → 0.6 → 0.8).
+
+**Scarcity nursery** (5zorro, 2026-11-02: harsh food scarcity to weed out weak
+brains, while play-world hunger stays easy). Nursery with `food_capacity=1.0`
+(half) plus `collapse_age_penalty=600`:
+- `snapshots/nursery-scarce-1` (seed 100): 3.0 → about 0.9–1.3; `nursery-scarce-2`
+  (from it, seed 101): about 0.5–0.7.
+
+Play worlds, today's easy defaults (5 seeds × 10,000 ticks; `runs/2026-11-02-scarce-nursery.csv`):
+| Brains | Collapses | Lowest nutrient | Births | Top-ups | Late window, g11+ |
+|---|---|---|---|---|---|
+| Nursery-8 (normal food) | 0.9 ± 0.3 | 0.51 | 85 | 129 | 1.4 ± 0.3 |
+| Nursery-scarce-2 (half food) | 0.9 ± 0.2 | 0.53 | 111 | 111 | **0.9 ± 0.4** |
+
+Same collapse rate. Scarcity-trained brains drift less in later generations and
+breed a little more (within noise). A mild win; not worth changing the recipe
+on this alone. Harsher scarcity (a quarter of the food) or scarcity plus faster
+hunger in the nursery are untested.
+
 ## Open decisions (5zorro)
 - ~~Raise criterion 2's nutrient bar?~~ Decided: 0.4 (now criterion 3).
 - ~~Reword or drop "starvation is no longer the top cause"?~~ Decided: dropped.
@@ -544,6 +583,9 @@ Reading:
   nursery trained under, so retrain afterwards.
 - ~~Patches only: keep it, and add food back?~~ Decided (5zorro): keep patches
   only; hunger slower and collapses costlier instead (faster growth didn't help).
+- **Call M1 done?** All four criteria pass. Criterion 3 passes easily (scratch
+  brains reach 0.44); criterion 2 is where brains prove themselves (0.9 vs 1.8
+  in 2D, 0.6 vs 1.4 in 4D).
 - **Is 0.4 still the right nutrient bar?** With slower hunger even scratch
   brains pass it (0.44). Raise it, or judge against scratch? Old note: A scripted forager reaches only 0.40–0.42
   under today's rules. Either keep 0.4 and change the economy so it's reachable
@@ -554,6 +596,7 @@ Reading:
 ## Tuning log
 | Date | Change | Why | Effect (seeds × ticks) |
 |---|---|---|---|
+| 2026-11-02 | 4D runs use `food_patch_radius=2.0` (not a default; set per run) | Radius 4 covers every 4D cell, so 4D foraging was trivial | 4D scratch 0.9 → 1.4 (a real economy); 4D nursery 0.6 (5 × 5k) |
 | 2026-11-02 | `nutrient_decay` 0.004 → 0.003, `collapse_age_penalty` 150 → 300 | 5zorro: slower hunger, more dire collapses (faster growth tested: no effect) | Nursery-6: collapses 2.3 → 0.8, lowest nutrient 0.33 → 0.55; scratch 3.8 → 1.8 (5 × 10k) |
 | 2026-11-02 | `busy_resets_idle = True` (new) | 5zorro: eating shouldn't count as standing still | Nursery-4, thin layer kept: collapses 2.7 → 2.3, top-ups 64 → 34, lowest nutrient 0.34 → 0.37 (5 × 10k) |
 | 2026-11-02 | `food_baseline_fraction` 0.05 → 0 | 5zorro: with scent, NPCs should seek patches | Less food: scripted 3.2 → 5.6; nursery-6 (trained under it) 2.3 with 85 births vs 1.8 / 185 with the layer back (5 × 10k). Open decision |

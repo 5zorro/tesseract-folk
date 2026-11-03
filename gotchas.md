@@ -71,6 +71,9 @@ Traps that already bit us, by area. Add to this when something surprises you.
 - **Pools saved before food scent need `--set food_scent=false`** (nursery-1/2):
   scent adds brain inputs, so `seed_brains` refuses them otherwise. Old
   snapshots `--load` fine: format 1 loads with scent off automatically.
+- **In 4D at size 10, default patches cover everything.** Radius 4 reaches every
+  cell, so every food grows everywhere and foraging is trivial. Use
+  `--set food_patch_radius=2.0` for 4D runs (about half the map per food, like 2D).
 - **"Patches" cover most of the map.** With `food_patch_radius=4`, Gaussian tails
   reach ~8 cells, so each food type can hold a full bite on 44–71% of the map,
   even with no thin layer. "Standing on food" checks pass almost everywhere.
