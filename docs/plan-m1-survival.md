@@ -188,6 +188,31 @@ Make **instinct viable first, then learning:**
    Try variants such as a harsher collapse (lower respawn health or nutrients)
    or a bigger `collapse_age_penalty`. Rule 6 still applies: don't add fitness
    rewards for specific behaviors.
+
+   **Probe, 2026-11-02** (throwaway script that patched `_collapse`; 5 seeds × 8,000 ticks, 2D, smiting off):
+   | Variant | Late window: g1–2 → g3–5 → g6–10 | Lowest nutrient | Births | Top-ups |
+   |---|---|---|---|---|
+   | Today (collapse = respawn) | 3.5 → 3.8 → 3.6 (flat) | 0.30 | 16 | 198 |
+   | Collapse = death | 2.7 → 2.0 → 1.6 | 0.42 | 29 | 478 |
+   | 3rd collapse = death | 3.8 → 3.1 → 2.8 | 0.33 | 21 | 270 |
+   | `collapse_age_penalty=400` | 3.1 → 2.8 → 2.5 | 0.33 | 21 | 268 |
+   | Easier births (`adult_age=150`, `reproduce_min_mass=1.0`) | 4.1 → 4.0 → 4.2 (flat) | 0.30 | 44 | 187 |
+
+   Reading:
+   - **The flat trend is weak selection, and costlier collapses fix it.** All
+     three harsher variants bring the generational improvement back.
+   - Collapse = death works best (it would even meet a 0.4 nutrient bar), but it
+     breaks DESIGN pillar 4 ("young NPCs can't die permanently"). It also more
+     than doubles top-ups, so evolution would run through hall-of-fame copies
+     instead of births. That pulls against M3.
+   - A bigger age penalty gets part of the effect from one config number, and
+     the pillar survives.
+   - More births alone don't help. Births aren't selective enough, since easier
+     rules let anyone breed. Selective births (M3) and costly collapses (M1)
+     are separate levers.
+   - **Decision (5zorro):** which way? (a) keep the pillar and tune
+     `collapse_age_penalty` (plus maybe N strikes), or (b) make collapse = death
+     and rewrite pillar 4.
 3. Rerun with evolved brains and check the pass criteria.
 - Record each kept change and its reason in a short table at the bottom of this
   file, so the tuning history isn't lost.
