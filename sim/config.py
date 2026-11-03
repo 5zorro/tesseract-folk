@@ -39,6 +39,16 @@ class Config:
     stink_threshold: float = 0.5          # above this, standing here hurts
     stink_damage: float = 0.02
 
+    # --- food scent (a signal, not mass; M1 slice 6) -------------------------
+    # Each food type has a smell that spreads farther than stink, so NPCs can
+    # find patches they can't see. Fixed for a world's life: it changes the
+    # brain's input size. Snapshots saved before it existed load with it off.
+    food_scent: bool = True
+    scent_emission: float = 0.05          # per unit of food per tick
+    scent_diffusion: float = 0.3
+    scent_decay: float = 0.01             # slower than stink, so it reaches farther
+    scent_half: float = 1.0               # sensed level is s / (s + scent_half)
+
     # --- npc body ----------------------------------------------------------
     initial_npcs: int = 60
     min_population: int = 30              # below this, top up from hall of fame

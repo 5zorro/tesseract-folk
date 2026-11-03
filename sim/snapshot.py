@@ -20,7 +20,8 @@ from .config import Config
 from .npc import NPC
 from .simulation import Simulation
 
-ARRAYS = ("soil", "food", "poop", "stink", "capacity", "profiles")
+ARRAYS = ("soil", "food", "poop", "stink", "scent", "capacity", "profiles")
+FORMAT = 2   # 2 added food scent (M1 slice 6)
 
 
 def save_snapshot(sim: Simulation, path: str | Path) -> Path:
@@ -28,7 +29,7 @@ def save_snapshot(sim: Simulation, path: str | Path) -> Path:
     path.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(path / "world.npz", **{k: getattr(sim.world, k) for k in ARRAYS})
     state = {
-        "format": 1,
+        "format": FORMAT,
         "config": sim.cfg.to_dict(),
         "tick": sim.tick,
         "next_id": sim.next_id,
@@ -47,10 +48,14 @@ def save_snapshot(sim: Simulation, path: str | Path) -> Path:
 def load_snapshot(path: str | Path, log_every: int = 100) -> Simulation:
     path = Path(path)
     state = json.loads((path / "state.json").read_text())
-    sim = Simulation(Config.from_dict(state["config"]), populate=False, log_every=log_every)
+    config = dict(state["config"])
+    if state.get("format", 1) < 2:
+        config["food_scent"] = False       # saved before scent existed; brains fit without it
+    sim = Simulation(Config.from_dict(config), populate=False, log_every=log_every)
     arrays = np.load(path / "world.npz")
     for k in ARRAYS:
-        setattr(sim.world, k, arrays[k].copy())
+        if k in arrays:                    # format 1 has no scent; it stays zeros
+            setattr(sim.world, k, arrays[k].copy())
     sim.world.shrines = [tuple(s) for s in state["shrines"]]
     sim.tick = state["tick"]
     sim.next_id = state["next_id"]

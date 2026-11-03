@@ -67,7 +67,13 @@ an economy emerging from a thermodynamic resource loop.
 Nutrients, health, age, body mass, bowel fullness, per-food satiation, food here,
 food gradient per axis, stink here and gradient, nearby NPC count, inventory,
 piety, smite, known-secret direction, nearest-shrine direction, moved-last-tick,
-memory, bias. Input size scales with dimensions automatically.
+memory, bias, and food scent per type (level here and which way it's stronger).
+Input size scales with dimensions automatically.
+
+- **[built] Food scent** (`Config.food_scent`): each food type has a smell that
+  spreads farther than stink, so an NPC short on a nutrient can follow the smell
+  of the food that has it. The brain gets raw scents; linking them to its own
+  deficits is left to evolution.
 
 ### Actions (outputs)
 Move ± along each axis (4 in 2D, 8 in 4D), stay, eat, pick up, give, poop,

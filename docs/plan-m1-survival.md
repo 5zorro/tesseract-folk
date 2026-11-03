@@ -1,7 +1,7 @@
 # Plan: M1 Survival
 
-Status: **slices 1–3 and 4b (nursery) done (2026-11-02). Next: 5zorro settles the
-criteria questions, then a lever (handoff.md, "Where to pick up").** Slices are ordered;
+Status: **slices 1–3 and 4b (nursery) done; criteria settled (2026-11-02).
+Now: slice 6, food scent.** Slices are ordered;
 each one ends with tests passing and a commit. Open decisions (bottom) are 5zorro's.
 
 **For a new session:** read `handoff.md`, `gotchas.md` and this file. Do the
@@ -12,29 +12,37 @@ them you can't tell whether a change helped.
 **Pass:** collapses per NPC fall over generations, and NPCs keep nutrients up
 without help.
 
-To make that testable, M1 passes when, **over 5 seeds × 10,000 ticks** (2D, default size):
-1. Collapse rate (collapses per NPC per 1,000 ticks of lifetime) is lower for late
-   generations than for generation 0–1, beyond seed-to-seed noise.
-2. Mean of each NPC's lowest nutrient stays above `starving_threshold` in the last
-   quarter of the run.
-3. Starvation is no longer the top collapse cause (slice 1 measures this).
+To make that testable, M1 passes when, **over 5 seeds × 10,000 ticks** (2D, default size)
+(criteria settled by 5zorro, 2026-11-02):
+1. **The nursery learns.** Under nursery rules (`collapse_age_penalty=600`), the
+   collapse rate (collapses per NPC per 1,000 ticks of lifetime) falls from g1–2
+   to later generations in the late window, beyond seed-to-seed noise.
+2. **Play worlds benefit.** Gentle play worlds started from the nursery's brains
+   (`--brains-from`) collapse less than worlds started from scratch, beyond seed
+   noise. Births and top-ups are reported alongside, not required (M3 owns them).
+3. **NPCs keep nutrients up.** In those play worlds, the mean of each NPC's lowest
+   nutrient stays above **0.4** (the level at which NPCs heal) in the last quarter.
 4. The same holds at `--dims 4 --size 10` (a shorter run is fine).
+
+Why judged this way: pillar 4 ("young can't die") keeps play worlds gentle, so
+they have almost no selection and can't show a trend over generations. Evolution
+happens in the nursery; play worlds show what it bought.
+Dropped: "starvation is no longer the top cause". With smiting off, starvation is
+nearly all that's left, so it just repeated criterion 1.
+No `eat` starting bias for now: food scent (slice 6) is tried first, so we learn
+whether brains can forage unaided.
 
 Births and a top-up-free population are M3's job, not M1's. Don't chase them here.
 
 **Smiting is off for M1** (5zorro, 2026-11-02: `Config.smiting = False`). M1 is
 judged on hunger alone; piety and smiting come back for M5.
 
-**Where the criteria stand, with smiting off** (2026-11-02 sweep, see "Hunger-only baseline" below):
-1. **Not met.** In the late window, the 2D rate is flat across generations:
-   3.5 → 3.5 → 3.7 (g1–2 → g3–5 → g6–10). 4D is flat too (3.0 → 3.1).
-   The trend seen with smiting on (6.8 → 4.6) was mostly NPCs learning
-   not to pray. *Wording fix kept:* compare g1–2 with later buckets, because by
-   the late window generation 0 is gone.
-2. **Met, but too easy:** 0.30 vs a threshold of 0.1 (decision below).
-3. **Not met:** starvation causes about 99% of collapses (nutrients 92%, body 7%).
-   With smiting off, the decision below is about rewording this criterion.
-4. **Not met:** 4D is also flat.
+**Where the criteria stand** (2026-11-02, before food scent; nursery-2, slice 4b):
+1. **Met:** the nursery's rate fell 3.3 (g0) → about 1.8 (g3+); the penalty-600
+   sweep fell 2.9 → 2.0 (g1–2 → g6–10).
+2. **Met:** 2.9 ± 0.1 from nursery-2 vs 3.9 ± 0.2 from scratch.
+3. **Not met:** the lowest nutrient is about 0.30–0.33. This is the gap slice 6 targets.
+4. **Not measured** with a 4D nursery yet. 4D from scratch is flat (3.0 → 3.1).
 
 ## What we know already (probe on 2026-11-02, single seed, 3,000 ticks)
 | Run | Collapses, first 1k ticks | Collapses, last 1k ticks | Births |
@@ -282,9 +290,8 @@ Reading:
   - Keep mild selection in play (e.g. `collapse_age_penalty` around 300).
 - The second nursery stage barely beat the first. Longer or harsher training,
   or more hidden units (slice 5), may be needed to go further.
-- **Criteria question for 5zorro:** criterion 1 ("collapses fall over generations")
-  holds in the nursery but not in the play world. Should M1 be judged on the
-  nursery's trend plus play-world collapse rate and births?
+- ~~Criteria question for 5zorro~~ Decided: judge M1 on the nursery's trend plus
+  play-world collapse rate (see Goal).
 
 **Seasons probe** (5zorro's question: can harsh and gentle alternate?). Throwaway
 script that switched `collapse_age_penalty` between 600 and 150 on a cycle,
@@ -335,15 +342,37 @@ Reading:
 - **Tests:** bias 0 gives bit-identical brains to today (the snapshot test still
   passes); the brain JSON format is unchanged.
 
+### Slice 6: Food scent (`sim/world.py`, `sim/simulation.py: sense`, `sim/config.py`)
+5zorro's idea (2026-11-02): an NPC short on a nutrient can smell the food that has
+it, so brains that follow the right scent get rewarded. Today NPCs only sense
+food in the cells right next to them, so a patch a few cells away is invisible.
+- **World:** a `scent` field per food type, shaped like `food`. Each tick, food
+  emits scent in proportion to how much is there, and the scent spreads and fades
+  like stink, but fades slower so it reaches farther. It's a signal, not mass.
+- **Senses, per food type:** the scent level here, squashed to 0..1
+  (`s / (s + scent_half)`), and a relative gradient per axis,
+  `(s+ - s-) / (s+ + s-)`. The relative gradient points uphill at any distance,
+  the way real noses compare concentrations. 2D: 38 → 47 inputs; 4D: +15.
+- **No scripting:** the brain gets the raw scents and its own nutrient levels.
+  Linking "short on nutrient 2" to "follow scent 2" is for evolution to find.
+- **Config:** `food_scent` (on/off; fixed for a world's life, because it changes
+  the brain shape), `scent_emission`, `scent_diffusion`, `scent_decay`, `scent_half`.
+- **Old snapshots:** snapshot format 2 saves the scent field. Format-1 snapshots
+  load with `food_scent=False`, so they resume exactly as before, and their
+  brains still fit. `--brains-from` an old pool needs `--set food_scent=false`.
+- **Tests:** scent spreads and points toward food; scent doesn't change mass;
+  sensor size matches at dims 2 and 4; off gives today's 38 inputs; old
+  snapshots still load.
+- **Measure:** from scratch, scent vs no scent (5 × 10k). Then retrain the nursery
+  with scent and compare play worlds against nursery-2, mainly on criterion 3.
+
 ## Open decisions (5zorro)
-- Criterion 2 is easy to meet (0.33 vs 0.1). Raise the bar, e.g. "lowest nutrient
-  above 0.4, the level at which NPCs heal"?
-- Criterion 3 ("starvation is no longer the top cause") can't hold with smiting
-  off, since starvation is then about all that's left. Reword it as
-  "starvation collapses fall by generation", or drop it in favor of criterion 1?
+- ~~Raise criterion 2's nutrient bar?~~ Decided: 0.4 (now criterion 3).
+- ~~Reword or drop "starvation is no longer the top cause"?~~ Decided: dropped.
 - ~~Judge M1 with smiting softened or not?~~ Decided: smiting off for M1.
-- Is the `eat` starting bias acceptable as an "instinct", or should M1 pass on
-  random initialization alone?
+- ~~Judge criterion 1 in the play world?~~ Decided: in the nursery; play worlds
+  are judged on collapse rate vs scratch.
+- `eat` starting bias as an "instinct": deferred until food scent is measured.
 - Run length for the pass criteria: 10k ticks is ~35 s per seed in 2D today.
 
 ## Tuning log

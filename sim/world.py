@@ -5,7 +5,8 @@ in 2D for the prototype and 4D for 4D Miner. The world wraps around on every
 axis (a torus), which avoids edge cases at the borders.
 
 Mass is conserved across soil, food, and poop (plus whatever NPCs and the
-deity are holding; see Simulation.total_mass). Stink is a signal, not mass.
+deity are holding; see Simulation.total_mass). Stink and food scent are
+signals, not mass.
 """
 from __future__ import annotations
 
@@ -31,6 +32,7 @@ class World:
         self.food = self.capacity * cfg.initial_food_fraction
         self.poop = np.zeros(self.shape)
         self.stink = np.zeros(self.shape)
+        self.scent = np.zeros_like(self.food)              # (types, *shape)
         self.profiles = self._make_profiles()              # (types, nutrients)
         self.shrines: list[Pos] = [self.random_cell(rng) for _ in range(cfg.n_shrines)]
 
@@ -83,13 +85,25 @@ class World:
         self.stink += self.poop * cfg.stink_emission
 
         # Stink spreads to neighbors and fades.
-        neighbor_mean = sum(
-            np.roll(self.stink, shift, axis=axis)
-            for axis in range(cfg.dims)
-            for shift in (1, -1)
-        ) / (2 * cfg.dims)
-        self.stink += cfg.stink_diffusion * (neighbor_mean - self.stink)
+        self.stink += cfg.stink_diffusion * (self._neighbor_mean(self.stink) - self.stink)
         self.stink *= 1.0 - cfg.stink_decay
+
+        # Food smells, in proportion to how much is there; the smell spreads the
+        # same way but fades slower, so it reaches farther.
+        if cfg.food_scent:
+            self.scent += self.food * cfg.scent_emission
+            self.scent += cfg.scent_diffusion * (self._neighbor_mean(self.scent, first_axis=1)
+                                                 - self.scent)
+            self.scent *= 1.0 - cfg.scent_decay
+
+    def _neighbor_mean(self, field: np.ndarray, first_axis: int = 0) -> np.ndarray:
+        """Mean of each cell's 2 * dims neighbors (fields may have leading non-space axes)."""
+        dims = self.cfg.dims
+        return sum(
+            np.roll(field, shift, axis=first_axis + axis)
+            for axis in range(dims)
+            for shift in (1, -1)
+        ) / (2 * dims)
 
     # -------------------------------------------------------------- helpers
     def random_cell(self, rng: np.random.Generator) -> Pos:
@@ -106,6 +120,10 @@ class World:
     def food_at(self, pos: Pos) -> np.ndarray:
         """A view of every food type at one cell (writes go through)."""
         return self.food[(slice(None),) + pos]
+
+    def scent_at(self, pos: Pos) -> np.ndarray:
+        """The scent of every food type at one cell."""
+        return self.scent[(slice(None),) + pos]
 
     def mass(self) -> float:
         return float(self.soil.sum() + self.food.sum() + self.poop.sum())

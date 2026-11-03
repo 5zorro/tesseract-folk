@@ -45,7 +45,8 @@ def seed_brains(sim, pool: list[dict]) -> None:
         except ValueError as e:
             raise ValueError(
                 f"a pool brain doesn't fit this world: {e}. dims, n_food_types, "
-                f"n_nutrients, hidden_units and memory_units must match the snapshot's.") from e
+                f"n_nutrients, hidden_units, memory_units and food_scent must match the "
+                f"snapshot's (pools saved before food scent need food_scent=false).") from e
     cfg = sim.cfg
     for i, npc in enumerate(sim.npcs):
         entry = pool[i % len(pool)]

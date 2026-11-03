@@ -118,17 +118,22 @@ class Simulation:
     def sensor_size(self) -> int:
         c = self.cfg
         t, n, d, m = c.n_food_types, c.n_nutrients, c.dims, c.memory_units
+        scent = t + d * t if c.food_scent else 0
         return (n + 4 + t + t + d * t + 1 + d + 1 + t + 2
-                + 1 + d + d + 1 + 1 + m + 1)
+                + 1 + d + d + 1 + 1 + m + 1 + scent)
 
     def sense(self, npc: NPC, index: dict) -> np.ndarray:
         cfg, w, p = self.cfg, self.world, npc.pos
         half = cfg.size / 2
-        food_grad, stink_grad = [], []
+        food_grad, stink_grad, scent_grad = [], [], []
         for axis in range(cfg.dims):
             plus, minus = w.neighbor(p, axis, 1), w.neighbor(p, axis, -1)
             food_grad.append((w.food_at(plus) - w.food_at(minus)) / cfg.food_capacity)
             stink_grad.append(w.stink[plus] - w.stink[minus])
+            if cfg.food_scent:
+                # Relative difference: points uphill at any distance, like a nose.
+                s_plus, s_minus = w.scent_at(plus), w.scent_at(minus)
+                scent_grad.append((s_plus - s_minus) / (s_plus + s_minus + 1e-12))
 
         secret = self.deity.secrets.get(npc.known_secret) if npc.known_secret is not None else None
         if secret is None:
@@ -161,6 +166,9 @@ class Simulation:
             npc.memory,
             [1.0],
         ]
+        if cfg.food_scent:
+            here = w.scent_at(p)
+            parts += [here / (here + cfg.scent_half), np.concatenate(scent_grad)]
         obs = np.concatenate([np.asarray(x, dtype=float).ravel() for x in parts])
         assert obs.size == self.n_inputs, (obs.size, self.n_inputs)
         return obs
