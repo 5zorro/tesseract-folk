@@ -52,7 +52,8 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
     commands in `scripts/run_headless.py`'s docstring.
   - Nobody learns or shares secrets, and there's no channel for food
     locations. No social structure is measurable yet (`openitems.md`).
-  - In 4D the scripted forager never collapses, so the 4D economy is easy.
+  - 4D needs `food_patch_radius=2.0`: at the default radius every 4D cell grows
+    every food, and foraging is trivial (`gotchas.md`).
 
 ## Where to pick up
 1. **M2: diet drives travel.** Plan: `docs/plan-m2-diet-travel.md`. Slice 1
@@ -66,3 +67,42 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
    consistency); play-world drift fixes (re-seed, lower mutation in play).
 4. Later (M5): the piety lifecycle (full until adulthood, then declines; share
    piety like a secret) as the path to answered prayers and shared secrets.
+
+## Setup (Windows)
+```bash
+python -m venv .venv
+.venv/Scripts/python -m pip install -r requirements.txt
+.venv/Scripts/python -m pytest -q
+.venv/Scripts/python scripts/run_headless.py --ticks 3000
+```
+In WSL, make a separate venv (`.venv/bin/python`); see `gotchas.md`.
+
+## Where things are (examples to copy from)
+| Need | Look at |
+|---|---|
+| Tick order (sense → think → act → metabolize) | `sim/simulation.py: step` |
+| Every damage source | `sim/simulation.py: _metabolize`, `sim/deity.py: pray`; always via `NPC.take_damage` so the cause is recorded |
+| Collapse causes, per-generation rates | `sim/stats.py: CAUSES, collapse_rate_by_generation`; printed by `run_headless.py: print_summary` |
+| Nursery: evolve offline, start fresh worlds from the best brains | `sim/nursery.py`; commands in `scripts/run_headless.py` docstring; `sweep.py --variant brains_from=<snapshot>` |
+| Food scent (sense and field) | `sim/world.py: step, scent_at`, `sim/simulation.py: sense` |
+| Food zones, travel metrics (M2) | `sim/world.py: _make_capacity, zone_at`, `sim/npc.py: record_zone`, `sim/stats.py: record_life, travel_summary` |
+| What counts as busy vs idle | `sim/simulation.py: _act` (`did`), `Config.busy_resets_idle` |
+| Old snapshots keeping old rules | `sim/snapshot.py: LEGACY`, `FORMAT` |
+| A one-off diagnostic probe to copy | `scripts/probe_nutrients.py` |
+| Comparing configs over many seeds | `scripts/sweep.py` (e.g. `--seeds 5 --ticks 10000 --variant metabolism_rate=0.008 --variant controller=scripted`) |
+| Collapse vs death, the hall-of-fame top-up | `sim/simulation.py: _collapse, _die, _top_up` |
+| Adding a tunable | `sim/config.py` (every number lives here) |
+| Adding a stats counter | `sim/stats.py: COUNTERS`, then `run_headless.py: COLUMNS/HEADERS` |
+| Moving mass without breaking the invariant | `sim/simulation.py: _give`, `sim/deity.py: step` |
+| A non-brain controller | `sim/controllers.py: ScriptedController` |
+| Test style, small configs | `tests/test_simulation.py: small()` |
+| N-d helpers | `sim/world.py: neighbor, adjacent, wrapped_delta` |
+| Safety rules, threat model, release checklist | `docs/SAFETY.md`, guard tests in `tests/test_safety.py` |
+
+## Working rules (short version; the full list is in AGENT_CONVENTIONS.md)
+- Mass is conserved; new mechanics move matter between pools.
+- Stay N-dimensional; test new features at dims=4.
+- No ML frameworks; never script or reward the emergent behaviors.
+- All randomness through `sim.rng`.
+- 5zorro pushes. Agents may commit locally, with no Co-Authored-By or AI attribution
+  lines (a GitHub hook enforces this).
