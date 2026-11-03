@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+snapshots/*
+!snapshots/.gitkeep
+.env
+*.key
+
+# Private brainstorming, kept local (see handoff.md)
+openitems.md

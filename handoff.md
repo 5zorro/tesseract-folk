@@ -1,0 +1,60 @@
+# Handoff: Tesseract Folk
+
+Read this first instead of searching around. Read `gotchas.md` before measuring
+anything. Stray ideas go in `openitems.md`, not into the current plan.
+(`openitems.md` is 5zorro's private brainstorming: gitignored, local only.)
+
+## What it is
+An artificial-life society in Python: tiny neural-net NPCs (Creatures-style),
+aging, hunger with nutrients, poop → stink → fertilizer, prayer and stale secrets,
+all on a conserved-mass loop. It runs in N dimensions (2D now, 4D later) and is
+meant to be ported to a C++ mod for 4D Miner. Full design: `docs/DESIGN.md`.
+Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS.md`.
+
+## Status (2026-11-02)
+- **M0 (plumbing) is done and verified:** all tests pass, 2D and 4D headless runs
+  work, mass drift ~1e-13, snapshot resume is bit-identical.
+- **Safety first:** `docs/SAFETY.md` (threat model, rules marked
+  enforced/planned/decision) and `SECURITY.md` (how to report) exist. `sim/`'s
+  no-outside-I/O rule is enforced by `tests/test_safety.py`.
+- **Local git repo, branch `main`, initial commit made 2026-11-02. Not pushed;
+  no GitHub repo yet.** Still open (`openitems.md` "Next up"): license, CI, and
+  turning on private vulnerability reporting once the GitHub repo exists.
+- **Next: M1 survival.** Plan: `docs/plan-m1-survival.md`. No slice started.
+- Honest state: births ≈ 0, the population is held at `min_population` by top-ups,
+  prayers are never answered, and smiting causes ~40% of early collapses.
+
+## Where to pick up
+1. 5zorro: pick a license, create the GitHub repo, push.
+2. `docs/plan-m1-survival.md`, slice 1 (collapse-cause instrumentation).
+
+## Setup (Windows)
+```bash
+python -m venv .venv
+.venv/Scripts/python -m pip install -r requirements.txt
+.venv/Scripts/python -m pytest -q
+.venv/Scripts/python scripts/run_headless.py --ticks 3000
+```
+In WSL, make a separate venv (`.venv/bin/python`); see `gotchas.md`.
+
+## Where things are (examples to copy from)
+| Need | Look at |
+|---|---|
+| Tick order (sense → think → act → metabolize) | `sim/simulation.py: step` |
+| Every damage source | `sim/simulation.py: _metabolize`, `sim/deity.py: pray` |
+| Collapse vs death, the hall-of-fame top-up | `sim/simulation.py: _collapse, _die, _top_up` |
+| Adding a tunable | `sim/config.py` (every number lives here) |
+| Adding a stats counter | `sim/stats.py: COUNTERS`, then `run_headless.py: COLUMNS/HEADERS` |
+| Moving mass without breaking the invariant | `sim/simulation.py: _give`, `sim/deity.py: step` |
+| A non-brain controller | `sim/controllers.py: ScriptedController` |
+| Test style, small configs | `tests/test_simulation.py: small()` |
+| N-d helpers | `sim/world.py: neighbor, adjacent, wrapped_delta` |
+| Safety rules, threat model, release checklist | `docs/SAFETY.md`, guard tests in `tests/test_safety.py` |
+
+## Working rules (short version; the full list is in AGENT_CONVENTIONS.md)
+- Mass is conserved; new mechanics move matter between pools.
+- Stay N-dimensional; test new features at dims=4.
+- No ML frameworks; never script or reward the emergent behaviors.
+- All randomness through `sim.rng`.
+- 5zorro pushes. Agents may commit locally, with no Co-Authored-By or AI attribution
+  lines (a GitHub hook enforces this).

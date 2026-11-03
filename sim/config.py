@@ -1,0 +1,110 @@
+"""Every tunable number lives here so experiments are reproducible.
+
+Rule of thumb: if you find yourself typing a magic number in the sim code,
+add it to Config instead.
+"""
+from __future__ import annotations
+
+import json
+from dataclasses import asdict, dataclass, fields
+
+
+@dataclass
+class Config:
+    # --- world shape -------------------------------------------------------
+    dims: int = 2                 # 2 for the prototype, 4 for 4D Miner
+    size: int = 32                # cells per axis; the world wraps around
+    seed: int = 0
+
+    # --- food & nutrients --------------------------------------------------
+    n_food_types: int = 3
+    n_nutrients: int = 3
+    food_capacity: float = 2.0            # max food of one type in one cell
+    food_baseline_fraction: float = 0.05  # how much grows outside patches
+    food_patches_per_type: int = 3        # each food type has its own regions
+    food_patch_radius: float = 4.0
+    food_growth_rate: float = 0.02
+    soil_half_saturation: float = 0.5     # growth slows as soil runs out
+    nutrition_per_bite: float = 0.15
+
+    # --- conserved mass loop: soil -> food -> body -> bowel -> poop -> soil -
+    initial_soil_per_cell: float = 1.0
+    initial_food_fraction: float = 0.5
+    poop_decompose_rate: float = 0.01
+
+    # --- stink (a signal, not mass) ----------------------------------------
+    stink_emission: float = 0.2           # per unit of poop per tick
+    stink_diffusion: float = 0.3
+    stink_decay: float = 0.05
+    stink_threshold: float = 0.5          # above this, standing here hurts
+    stink_damage: float = 0.02
+
+    # --- npc body ----------------------------------------------------------
+    initial_npcs: int = 60
+    min_population: int = 30              # below this, top up from hall of fame
+    max_population: int = 250
+    npc_start_mass: float = 1.0
+    bite_size: float = 0.2
+    carry_capacity: float = 1.0
+    metabolism_rate: float = 0.01         # fraction of body mass -> bowel per tick
+    bowel_capacity: float = 0.4           # over this, an "accident" happens
+    nutrient_decay: float = 0.004
+    idle_grace_ticks: int = 5             # standing still longer than this...
+    idle_hunger_multiplier: float = 2.5   # ...makes hunger rise faster
+    satiation_gain: float = 0.35          # eating the same food gets less useful
+    satiation_decay: float = 0.01
+    starving_threshold: float = 0.1
+    starvation_damage: float = 0.02
+    heal_rate: float = 0.01
+    min_body_mass: float = 0.3
+
+    # --- aging & death -----------------------------------------------------
+    adult_age: int = 300
+    old_age: int = 1500                   # only elders can die permanently
+    elder_decline: float = 0.01
+    collapse_age_penalty: int = 150       # young NPCs collapse, respawn, age faster
+
+    # --- reproduction ------------------------------------------------------
+    reproduce_min_mass: float = 1.2
+    child_mass: float = 0.6               # paid half by each parent
+    mate_window: int = 5
+    mate_cooldown: int = 100
+
+    # --- brains ------------------------------------------------------------
+    hidden_units: int = 16
+    memory_units: int = 2                 # tiny recurrent memory
+    mutation_rate: float = 0.1
+    mutation_scale: float = 0.3
+    action_temperature: float = 0.5
+    hall_of_fame_size: int = 20
+
+    # --- deity, prayer, secrets --------------------------------------------
+    n_shrines: int = 2
+    secret_interval: int = 50
+    secret_amount: float = 1.0            # mass pulled from soil into a hidden cache
+    secret_lifetime: int = 400            # unclaimed secrets go stale
+    max_secrets: int = 5
+    worship_piety_gain: float = 0.05
+    piety_threshold: float = 0.5
+    prayer_piety_cost: float = 0.3
+    smite_threshold: float = 0.5
+    smite_gain: float = 0.35
+    smite_decay: float = 0.002
+    smite_damage: float = 0.3
+    prayer_cooldown: int = 30
+
+    # --- clock -------------------------------------------------------------
+    # False: only aging pauses while the player is AFK (NPCs still live).
+    # True: the whole world freezes while the player is AFK.
+    freeze_all_when_afk: bool = False
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+    def to_json(self) -> str:
+        return json.dumps(self.to_dict(), indent=2)
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "Config":
+        known = {f.name for f in fields(cls)}
+        return cls(**{k: v for k, v in data.items() if k in known})
