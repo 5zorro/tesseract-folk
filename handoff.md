@@ -33,13 +33,22 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
 - Honest state, hunger only (5 seeds × 10,000 ticks):
   - Collapses ≈ 3.9 per 1,000 NPC-ticks in 2D; starvation causes about 99% of them.
   - Brains beat the 2D scripted forager (3.5 vs 6.5) but **don't improve across
-    generations** (flat 3.5 → 3.5 → 3.7). The earlier trend was mostly learning
-    not to pray. Selection pressure is the next suspect (plan, slice 4 step 2b).
+    generations** under today's gentle rules (flat 3.5 → 3.5 → 3.7).
+  - Selection needs deaths: a bigger `collapse_age_penalty` restores the
+    improvement (600: 2.9 → 2.0; 1200: 1.9 → 1.4), at the cost of more top-ups.
+  - **Decided:** keep pillar 4 ("young can't die") for play. Evolve brains under
+    harsh rules in an offline "nursery", then start gentle worlds from them. A
+    probe showed pretrained brains collapse ~17% less under gentle rules. Next:
+    slice 4b in the plan.
+  - Nobody ever learns or shares a secret (0 answered prayers), and there's no way
+    to communicate food locations. No social structure is measurable yet
+    (`openitems.md`).
   - In 4D the scripted forager never collapses, so the 4D economy is easy.
   - Births ≈ 21 per run vs about 250 top-up spawns. That belongs to M3.
 
 ## Where to pick up
-1. `docs/plan-m1-survival.md`, slice 4 (economy tuning with `scripts/sweep.py`).
+1. `docs/plan-m1-survival.md`, slice 4b (nursery: start fresh worlds from a
+   snapshot's best brains, `--brains-from`).
 
 ## Setup (Windows)
 ```bash

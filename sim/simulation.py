@@ -368,8 +368,8 @@ class Simulation:
         cfg = self.cfg
         self._drop_inventory(npc)
         npc.pos = self.world.random_cell(self.rng)
-        npc.health = 0.5
-        npc.nutrients = np.maximum(npc.nutrients, 0.4)
+        npc.health = cfg.collapse_health
+        npc.nutrients = np.maximum(npc.nutrients, cfg.collapse_nutrient_floor)
         npc.age += cfg.collapse_age_penalty
         npc.collapses += 1
         npc.known_secret = None

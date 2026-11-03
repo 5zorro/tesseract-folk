@@ -212,7 +212,53 @@ Make **instinct viable first, then learning:**
      are separate levers.
    - **Decision (5zorro):** which way? (a) keep the pillar and tune
      `collapse_age_penalty` (plus maybe N strikes), or (b) make collapse = death
-     and rewrite pillar 4.
+     and rewrite pillar 4. **Decided: (a), keep the pillar** (2026-11-02).
+
+   **Penalty sweep, 2026-11-02** (5 seeds × 10,000 ticks, 2D; `runs/2026-11-02-m1-penalty.csv`).
+   `collapse_health` and `collapse_nutrient_floor` moved into config at the same
+   values (0.5 and 0.4), so they can be swept too.
+   | `collapse_age_penalty` | Late window: g1–2 → g3–5 → g6–10 | Lowest nutrient | Births | Top-ups |
+   |---|---|---|---|---|
+   | 150 (today) | 3.5 → 3.5 → 3.7 (flat) | 0.30 | 21 | 250 |
+   | 300 | 3.1 → 2.8 → 3.4 (noisy) | 0.33 | 27 | 300 |
+   | 400 | 3.1 → 2.6 → 2.5 | 0.33 | 27 | 330 |
+   | 600 | 2.9 → 2.2 → 2.0 | 0.35 | 20 | 366 |
+   | 900 | 2.5 → 2.0 → 2.0 | 0.36 | 25 | 411 |
+   | 1200 | 1.9 → 1.6 → 1.4 | 0.38 | 21 | 471 |
+
+   The bigger the penalty, the steeper the improvement, but it works the same
+   way collapse = death did: NPCs age out sooner and top-ups replace them. Selection
+   needs deaths. The open question is where those deaths happen.
+
+   **5zorro's reframe, and a probe:** we aren't starting from scratch, so evolve
+   brains under harsh rules first, then play under gentle ones. The probe
+   (5 seeds) trained for 10,000 ticks, switched `collapse_age_penalty` back to
+   150, and measured the next 5,000 ticks:
+   | Training | Collapses / 1,000 NPC-ticks in the gentle phase |
+   |---|---|
+   | Gentle all along (control) | 3.19 ± 0.38 |
+   | Penalty 600 | **2.65 ± 0.42** (about 17% fewer, ~2 SE) |
+   | Penalty 1200 | 2.82 ± 0.25 |
+
+   So pretrained brains carry their advantage into gentle play, even after short
+   training. This reconciles the two goals: deaths happen in an offline
+   "nursery", and the game world keeps pillar 4. Next step: the nursery slice
+   below. The play-time default for `collapse_age_penalty` stays 150 for now.
+
+### Slice 4b (new): Nursery, a pretrained brain pool
+Proposed 2026-11-02, after the probe above. Not started.
+- `run_headless.py --brains-from <snapshot>`: start a **fresh** world (any seed
+  or config) whose starting NPCs and hall of fame carry the best brains from a
+  snapshot, ranked by fitness. Fail clearly if the brain shapes don't match
+  (dims, hidden units, memory units).
+- Training runs: harsh settings (e.g. `collapse_age_penalty=600`), long, saved
+  with `--save`, and chainable (train → save → train more from those brains).
+- Measure with `sweep.py`: add a `brains_from=<path>` pseudo-key so pretrained
+  and from-scratch worlds can be compared over seeds.
+- Tests: brains load into a fresh world unchanged; mismatched shapes fail;
+  mass stays conserved; determinism holds.
+- Ties into DESIGN §12 ("baseline snapshot"): the shipped baseline would come
+  from the nursery.
 3. Rerun with evolved brains and check the pass criteria.
 - Record each kept change and its reason in a short table at the bottom of this
   file, so the tuning history isn't lost.
@@ -241,3 +287,4 @@ Make **instinct viable first, then learning:**
 | Date | Change | Why | Effect (seeds × ticks) |
 |---|---|---|---|
 | 2026-11-02 | `smiting = False` (new flag; was effectively on) | 5zorro: judge survival on hunger first; smiting caused ~70% of collapses | 2D collapses 6.9 → 3.9; births 13 → 21; generation trend went flat (5 × 10k) |
+| 2026-11-02 | `collapse_health`, `collapse_nutrient_floor` moved to config (same values) | Rule 5; makes respawn harshness sweepable | none (refactor) |

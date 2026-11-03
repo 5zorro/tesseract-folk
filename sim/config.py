@@ -63,6 +63,8 @@ class Config:
     old_age: int = 1500                   # only elders can die permanently
     elder_decline: float = 0.01
     collapse_age_penalty: int = 150       # young NPCs collapse, respawn, age faster
+    collapse_health: float = 0.5          # health on waking up after a collapse
+    collapse_nutrient_floor: float = 0.4  # nutrients are topped up to at least this
 
     # --- reproduction ------------------------------------------------------
     reproduce_min_mass: float = 1.2
