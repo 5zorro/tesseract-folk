@@ -75,7 +75,9 @@ class Deity:
 
         Praying needs enough piety, a low smite score, and patience. Praying
         when unqualified (including spamming during the cooldown) builds the
-        smite score, and crossing the smite threshold hurts.
+        smite score, and crossing the smite threshold hurts. With
+        `cfg.smiting` off (the default for now), unqualified prayers are just
+        ignored.
         """
         cfg = self.cfg
         eligible = (
@@ -91,6 +93,8 @@ class Deity:
             npc.piety -= cfg.prayer_piety_cost
             npc.known_secret = secret.id
             return "answered"
+        if not cfg.smiting:
+            return "ignored"
         npc.smite += cfg.smite_gain
         if npc.smite >= cfg.smite_threshold:
             npc.take_damage("smite", cfg.smite_damage)

@@ -21,18 +21,19 @@ To make that testable, M1 passes when, **over 5 seeds × 10,000 ticks** (2D, def
 
 Births and a top-up-free population are M3's job, not M1's. Don't chase them here.
 
-**Where the criteria stand (first sweep, 2026-11-02; details under slice 2):**
-1. **Met in 2D (provisional).** In the late window, the rate falls from
-   6.8 ± 1.0 (g1–2) to 4.6 ± 1.3 (g6–10), about 3 standard errors. The scripted
-   control stays flat, so the trend is evolution, not measurement.
-   *Wording fix:* compare g1–2 with later buckets, because by the late window
-   generation 0 is gone.
-2. **Met, but too easy:** 0.33 vs a threshold of 0.1. Consider a tighter bar
-   (decision below).
-3. **Met only on a technicality.** Smiting (70%) outranks starvation (30%).
-   With smiting off, starvation is 100% of collapses. Needs rewording (decision below).
-4. **Not shown yet.** 4D late-window rates are flat (5.2 → 5.2 → 4.4, n=2) after
-   4,000 ticks. Needs a longer run.
+**Smiting is off for M1** (5zorro, 2026-11-02: `Config.smiting = False`). M1 is
+judged on hunger alone; piety and smiting come back for M5.
+
+**Where the criteria stand, with smiting off** (2026-11-02 sweep, see "Hunger-only baseline" below):
+1. **Not met.** In the late window, the 2D rate is flat across generations:
+   3.5 → 3.5 → 3.7 (g1–2 → g3–5 → g6–10). 4D is flat too (3.0 → 3.1).
+   The trend seen with smiting on (6.8 → 4.6) was mostly NPCs learning
+   not to pray. *Wording fix kept:* compare g1–2 with later buckets, because by
+   the late window generation 0 is gone.
+2. **Met, but too easy:** 0.30 vs a threshold of 0.1 (decision below).
+3. **Not met:** starvation causes about 99% of collapses (nutrients 92%, body 7%).
+   With smiting off, the decision below is about rewording this criterion.
+4. **Not met:** 4D is also flat.
 
 ## What we know already (probe on 2026-11-02, single seed, 3,000 ticks)
 | Run | Collapses, first 1k ticks | Collapses, last 1k ticks | Births |
@@ -116,6 +117,26 @@ Reading:
 - Smiting off cuts collapses by a third, but starvation then takes over.
 - Top-up spawns (~330 per run) still dwarf births (~13). That's M3, as expected.
 
+**Hunger-only baseline** (smiting off; 5 seeds; `runs/2026-11-02-m1-nosmite*.csv`):
+| | 2D brains | 2D scripted | 4D brains (8k ticks) | 4D scripted |
+|---|---|---|---|---|
+| Collapses / 1,000 NPC-ticks | 3.9 ± 0.2 | 6.9 ± 0.9 | 3.1 ± 0.1 | 0.0 |
+| Late window: g1–2 → g3–5 → g6–10 | 3.5 → 3.5 → 3.7 | 6.7 → 6.4 → 6.5 | 3.0 → 3.1 → – | 0 → 0 |
+| Causes: nutrient / body / stink | 92 / 7 / 1% | 90 / 0 / 10% | 89 / 11 / 0% | – |
+| Mean lowest nutrient, last quarter | 0.30 | 0.39 | 0.32 | 0.66 |
+| Births / top-up spawns | 21 / 250 | 0 / 360 | 7 / 184 | 0 / 99 |
+
+Reading:
+- Turning smiting off halves collapses, and births rise from about 13 to 21.
+- **Evolution isn't improving foraging.** Brains are better than the 2D forager
+  from generation 0 onward (4.7 vs 8.1), but they don't get better over
+  generations. Selection pressure on hunger looks too weak. Possible reasons to
+  check in slice 4/5:
+  - Top-up fitness (`offspring × 500 + lifetime − collapses × 100`) barely
+    separates good foragers from bad ones.
+  - Collapses are forgiving (respawn at 0.5 health with nutrients reset to 0.4).
+  - Mutation and selection are mostly happening through top-ups, not births.
+
 **Original spec:**
 - `--seeds 5 --ticks 10000 --set metabolism_rate=0.008 --set smite_damage=0.1`
   (repeatable `--set`, parsed through `Config.from_dict`).
@@ -160,9 +181,13 @@ Make **instinct viable first, then learning:**
 1. Use `sweep.py --scripted` to find numbers where the forager rarely starves.
    Candidate knobs: `metabolism_rate`, `nutrient_decay`, `nutrition_per_bite`,
    `bite_size`, `food_growth_rate`, `idle_hunger_multiplier`.
-2. Soften the prayer trap for random brains: lower `smite_damage`, or raise
-   `smite_decay`. Keep smiting meaningful: it should still be a cost evolution can
-   learn to avoid.
+2. ~~Soften the prayer trap.~~ Resolved: smiting is off for M1 (5zorro,
+   2026-11-02). Revisit in M5.
+2b. **New, from the hunger-only baseline:** check selection pressure before
+   tuning food numbers. The trend is flat even though brains beat the forager.
+   Try variants such as a harsher collapse (lower respawn health or nutrients)
+   or a bigger `collapse_age_penalty`. Rule 6 still applies: don't add fitness
+   rewards for specific behaviors.
 3. Rerun with evolved brains and check the pass criteria.
 - Record each kept change and its reason in a short table at the bottom of this
   file, so the tuning history isn't lost.
@@ -179,11 +204,10 @@ Make **instinct viable first, then learning:**
 ## Open decisions (5zorro)
 - Criterion 2 is easy to meet (0.33 vs 0.1). Raise the bar, e.g. "lowest nutrient
   above 0.4, the level at which NPCs heal"?
-- Criterion 3 as worded is met only because smiting outranks starvation. Reword
-  it as "starvation collapses fall by generation", or "starvation is under X% of
-  collapses with smiting at its final setting"?
-- Should M1 be judged with smiting softened, or must evolution learn to avoid
-  praying under today's numbers? (It affects slice 4 step 2.)
+- Criterion 3 ("starvation is no longer the top cause") can't hold with smiting
+  off, since starvation is then about all that's left. Reword it as
+  "starvation collapses fall by generation", or drop it in favor of criterion 1?
+- ~~Judge M1 with smiting softened or not?~~ Decided: smiting off for M1.
 - Is the `eat` starting bias acceptable as an "instinct", or should M1 pass on
   random initialization alone?
 - Run length for the pass criteria: 10k ticks is ~35 s per seed in 2D today.
@@ -191,3 +215,4 @@ Make **instinct viable first, then learning:**
 ## Tuning log
 | Date | Change | Why | Effect (seeds × ticks) |
 |---|---|---|---|
+| 2026-11-02 | `smiting = False` (new flag; was effectively on) | 5zorro: judge survival on hunger first; smiting caused ~70% of collapses | 2D collapses 6.9 → 3.9; births 13 → 21; generation trend went flat (5 × 10k) |

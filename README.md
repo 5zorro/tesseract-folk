@@ -28,7 +28,7 @@ More:
 python scripts/run_headless.py --dims 4 --size 10 --ticks 500     # try 4D
 python scripts/run_headless.py --until-stable --save snapshots/baseline
 python scripts/run_headless.py --load snapshots/baseline --ticks 2000
-python scripts/sweep.py --seeds 5 --variant smite_damage=0   # compare configs over seeds
+python scripts/sweep.py --seeds 5 --variant metabolism_rate=0.008   # compare configs over seeds
 ```
 
 Viewer keys: SPACE pause, A toggle AFK (aging pauses), F turn the clock

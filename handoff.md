@@ -28,15 +28,15 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
   open (bottom of the plan).
 - `--until-stable` now honestly fails (top-ups, population on the floor) and
   prints why. It will keep failing until M3.
-- Honest state (5 seeds × 10,000 ticks):
-  - Evolution works in 2D: late-window collapse rates fall from 6.8 to 4.6 per
-    1,000 NPC-ticks across generations, while the scripted forager stays flat at
-    about 6.5.
-  - Smiting finishes off about 70% of collapses (80% in 4D), and starvation most
-    of the rest.
+- **Smiting is off** (`Config.smiting = False`, 5zorro 2026-11-02) until a snapshot
+  survives hunger. Piety and smiting return in M5.
+- Honest state, hunger only (5 seeds × 10,000 ticks):
+  - Collapses ≈ 3.9 per 1,000 NPC-ticks in 2D; starvation causes about 99% of them.
+  - Brains beat the 2D scripted forager (3.5 vs 6.5) but **don't improve across
+    generations** (flat 3.5 → 3.5 → 3.7). The earlier trend was mostly learning
+    not to pray. Selection pressure is the next suspect (plan, slice 4 step 2b).
   - In 4D the scripted forager never collapses, so the 4D economy is easy.
-  - Births ≈ 13 per run vs about 330 top-up spawns, and prayers are never
-    answered. Those belong to M3/M5.
+  - Births ≈ 21 per run vs about 250 top-up spawns. That belongs to M3.
 
 ## Where to pick up
 1. `docs/plan-m1-survival.md`, slice 4 (economy tuning with `scripts/sweep.py`).
@@ -56,7 +56,7 @@ In WSL, make a separate venv (`.venv/bin/python`); see `gotchas.md`.
 | Tick order (sense → think → act → metabolize) | `sim/simulation.py: step` |
 | Every damage source | `sim/simulation.py: _metabolize`, `sim/deity.py: pray`; always via `NPC.take_damage` so the cause is recorded |
 | Collapse causes, per-generation rates | `sim/stats.py: CAUSES, collapse_rate_by_generation`; printed by `run_headless.py: print_summary` |
-| Comparing configs over many seeds | `scripts/sweep.py` (e.g. `--seeds 5 --ticks 10000 --variant smite_damage=0 --variant controller=scripted`) |
+| Comparing configs over many seeds | `scripts/sweep.py` (e.g. `--seeds 5 --ticks 10000 --variant metabolism_rate=0.008 --variant controller=scripted`) |
 | Collapse vs death, the hall-of-fame top-up | `sim/simulation.py: _collapse, _die, _top_up` |
 | Adding a tunable | `sim/config.py` (every number lives here) |
 | Adding a stats counter | `sim/stats.py: COUNTERS`, then `run_headless.py: COLUMNS/HEADERS` |

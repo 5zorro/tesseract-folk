@@ -32,6 +32,9 @@ metric. Compare against a run where `give` is disabled.
 ## M5: Secrets spread
 **Pass:** prayers get answered (not just smitings), shared secrets get claimed,
 and NPCs who learn a secret head toward it.
+Smiting is off by default since M1 (`Config.smiting`). Turn it back on here,
+starting from a snapshot that already survives hunger, and expect it to need
+retuning.
 
 ## M6: Instinct vs. learning
 Implement the evolvable tradeoff (cheap decision tree vs. costly learning that

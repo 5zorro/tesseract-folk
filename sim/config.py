@@ -87,6 +87,9 @@ class Config:
     worship_piety_gain: float = 0.05
     piety_threshold: float = 0.5
     prayer_piety_cost: float = 0.3
+    # Off until NPCs survive hunger (5zorro, 2026-11-02): smiting caused ~70% of
+    # collapses and hid the hunger problem. Re-enable for M5 (secrets).
+    smiting: bool = False
     smite_threshold: float = 0.5
     smite_gain: float = 0.35
     smite_decay: float = 0.002

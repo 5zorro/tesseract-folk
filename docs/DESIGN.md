@@ -111,6 +111,9 @@ mate, pray, worship, share (a secret).
   (smite below a threshold), plus a cooldown.
 - **[built] Smiting.** Praying while unqualified (including spamming) raises the
   smite score; crossing the threshold damages health. Smite decays over time.
+  **Off by default for now** (`Config.smiting = False`, since 2026-11-02): with
+  random brains it caused ~70% of collapses and hid the hunger problem. It comes
+  back once a snapshot survives on hunger alone.
 - **[built] Worship** at shrines raises piety (costs time and travel).
 - **[built] Share** passes a known secret to nearby NPCs, so information spreads
   and can become an economic good.

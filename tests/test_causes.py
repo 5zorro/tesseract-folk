@@ -22,7 +22,7 @@ def test_cause_counts_add_up_every_window(dims, size):
 
 
 def test_smiting_collapse_is_blamed_on_smite():
-    sim = Simulation(small(), log_every=1000)
+    sim = Simulation(small(smiting=True), log_every=1000)
     npc = sim.npcs[0]
     npc.piety, npc.smite, npc.health = 0.0, 0.4, 0.2   # one more bad prayer smites
     assert sim.deity.pray(npc, sim.tick) == "smitten"
@@ -30,6 +30,15 @@ def test_smiting_collapse_is_blamed_on_smite():
     assert npc.collapses == 1
     assert sim.stats.window["collapse_smite"] == 1
     assert npc.damage == {}                            # fresh start after a collapse
+
+
+def test_smiting_is_off_by_default():
+    sim = Simulation(small(), log_every=1000)
+    npc = sim.npcs[0]
+    npc.piety, npc.smite, npc.health = 0.0, 0.4, 0.2
+    for _ in range(5):                                  # spam unqualified prayers
+        assert sim.deity.pray(npc, sim.tick) == "ignored"
+    assert npc.health == 0.2 and npc.smite == 0.4 and npc.damage == {}
 
 
 def test_starvation_collapse_is_blamed_on_nutrients():
