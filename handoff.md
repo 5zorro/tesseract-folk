@@ -52,10 +52,11 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
   - In 4D the scripted forager never collapses, so the 4D economy is easy.
 
 ## Where to pick up
-1. **Criterion 3:** find out why NPCs keep one nutrient at ~0.34. The scripted
-   forager reached 0.66, so 0.4 is possible. Check which nutrient runs low and
-   diet diversity before tuning. Then candidates: slice 5 (bigger brains,
-   retrain the nursery), or the deferred `eat` starting bias (5zorro's call).
+1. **Criterion 3:** diagnosed (plan, under slice 6). Not diet balance: intake is
+   too low (small bites from the thin food layer; eating counts as idle, so hunger
+   runs 2.5× while eating). Even the scripted forager only reaches 0.40–0.42.
+   Waiting on 5zorro: should eating reset the idle streak, and is 0.4 the right bar?
+   Rules changes mean retraining the nursery.
 2. **Criterion 4:** train a 4D nursery (`--dims 4 --size 10`) and measure.
 3. Other levers: **seasons** as a config schedule (famine winters, mostly for
    consistency); play-world drift fixes (re-seed, lower mutation in play).

@@ -43,7 +43,9 @@ judged on hunger alone; piety and smiting come back for M5.
    stage 1, and sat around 1.5 in stage 2.
 2. **Met:** 2.7 ± 0.1 from nursery-4 vs 4.1 ± 0.3 from scratch.
 3. **Not met:** the lowest nutrient is 0.34 ± 0.01 (nursery-4), against a bar
-   of 0.4. Scent barely moved it (0.33 with nursery-2).
+   of 0.4. Scent barely moved it (0.33 with nursery-2). The diagnosis under slice 6
+   found the cause is intake (small bites, idle penalty while eating), not diet
+   balance, and that the scripted forager only reaches 0.40–0.42.
 4. **Not measured** with a 4D nursery yet. 4D from scratch is flat (3.0 → 3.1).
 
 ## What we know already (probe on 2026-11-02, single seed, 3,000 ticks)
@@ -404,6 +406,55 @@ Reading:
   low. Criterion 3 is still the gap.
 - Stink collapses rose to 13% (from 9%): more NPCs make more poop.
 
+**Diagnosis: why the lowest nutrient sits at 0.34** (2026-11-02,
+`scripts/probe_nutrients.py`: nursery-4 brains and the scripted forager, 3 seeds,
+last quarter of 10,000 ticks):
+| | Nursery-4 brains | Scripted forager |
+|---|---|---|
+| Nutrients, lowest / middle / highest | 0.34 / 0.38 / 0.43 | 0.39 / 0.42 / 0.45 |
+| Lowest < 0.4, so no healing | 68% of the time | 46% |
+| Starving (lowest < 0.1) | 9% | 20% |
+| Idle long enough for the hunger penalty | 10% | 55% |
+| Eats (share of actions) | 14% | 58% |
+| Nutrition per bite (max 0.165) | 0.068 | 0.017 |
+| Food left in the world (vs capacity) | 68–79% | 64–74% |
+
+Findings:
+1. **Not a diet-balance problem.** All three nutrients sit low together, and
+   which one is lowest rotates evenly across the three types. NPCs aren't
+   neglecting one food.
+2. **Not a food shortage.** About 70% of capacity stands uneaten, and NPCs stand
+   on some food 97% of the time (the thin layer that grows everywhere).
+3. **It's intake.** Brains take 0.14 bites per tick worth 0.068 each, about 0.0096
+   of nutrition per tick, against at least 0.012 lost (0.004 × 3 nutrients, more
+   when idle). They run a deficit, and collapses (which refill to 0.4) hold the
+   average up.
+4. **Bites are small.** A bite takes at most what's in the cell. NPCs mostly
+   graze the thin everywhere-layer (0.1 per type per cell, half a bite) instead of
+   living in patches, and satiation trims another 20%.
+5. **Eating counts as standing still.** After 5 ticks without moving, hunger runs
+   2.5× faster, even while eating. The scripted forager eats 58% of the time, is
+   "idle" 55% of the time, and starves 20% of the time. Brains also spend about
+   12% of actions on prayer, worship, share and give (useless with smiting off),
+   and 20% on mate.
+
+Testing finding 5 (5 seeds × 10,000 ticks, gentle rules;
+`runs/2026-11-02-idle-probe.csv`):
+| | Collapses | Lowest nutrient | Births | Top-ups | Passes stability check |
+|---|---|---|---|---|---|
+| Nursery-4, today | 2.7 ± 0.1 | 0.34 | 243 | 64 | 1 of 5 |
+| Nursery-4, `idle_hunger_multiplier=1` | **2.1 ± 0.0** | 0.36 | **350** | **19** | **3 of 5** |
+| Scripted, today | 6.9 ± 0.9 | 0.40 | 0 | 362 | 0 of 5 |
+| Scripted, `idle_hunger_multiplier=1` | 3.2 ± 0.3 | 0.42 | 0 | 249 | 0 of 5 |
+
+- The idle penalty for eating is a big drag: removing it cuts collapses 22% for
+  brains and 54% for the scripted forager.
+- The lowest nutrient still barely moves (0.34 → 0.36). Even the scripted
+  forager, which eats whenever it's below 0.6, only reaches 0.40–0.42. **Under
+  today's rules, 0.4 is about the ceiling of a pure forager**, not a bar brains
+  are failing to reach.
+- Not changed yet: both the idle rule and the 0.4 bar are 5zorro's call (below).
+
 ## Open decisions (5zorro)
 - ~~Raise criterion 2's nutrient bar?~~ Decided: 0.4 (now criterion 3).
 - ~~Reword or drop "starvation is no longer the top cause"?~~ Decided: dropped.
@@ -411,6 +462,15 @@ Reading:
 - ~~Judge criterion 1 in the play world?~~ Decided: in the nursery; play worlds
   are judged on collapse rate vs scratch.
 - `eat` starting bias as an "instinct": deferred until food scent is measured.
+- **Should eating count as standing still?** Today it does, so foragers pay the
+  2.5× idle hunger while they eat. Options: eating resets the idle streak (only
+  loafing is punished, as pillar 2 meant), or keep it. Removing the penalty
+  entirely was the probe; the targeted fix is untested. Changes the rules the
+  nursery trained under, so retrain afterwards.
+- **Is 0.4 the right nutrient bar?** A scripted forager reaches only 0.40–0.42
+  under today's rules. Either keep 0.4 and change the economy so it's reachable
+  (eating not idle, bigger bites in thin food, slower decay), or set the bar
+  relative to the scripted forager (e.g. "brains match or beat it").
 - Run length for the pass criteria: 10k ticks is ~35 s per seed in 2D today.
 
 ## Tuning log
