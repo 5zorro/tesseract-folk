@@ -9,6 +9,10 @@ from .brain import Brain
 
 BASE_ACTIONS = ["stay", "eat", "pick_up", "give", "poop", "mate", "pray", "worship", "share"]
 
+# Everything that can lower health. A collapse or death is blamed on whichever
+# cause did the most damage since the NPC was last at full health.
+DAMAGE_CAUSES = ["nutrient_starve", "body_starve", "stink", "smite", "elder"]
+
 
 def build_actions(dims: int) -> list[str]:
     """Two moves per axis (so 4 in 2D, 8 in 4D), then everything else."""
@@ -45,10 +49,18 @@ class NPC:
     gifts_received: int = 0
     alive: bool = True
     eaten: np.ndarray = field(default=None)  # per food type, reset each stats window
+    damage: dict = field(default_factory=dict)  # cause -> damage since last at full health
 
     def __post_init__(self):
         if self.eaten is None:
             self.eaten = np.zeros_like(self.inventory)
+
+    def take_damage(self, cause: str, amount: float) -> None:
+        self.health -= amount
+        self.damage[cause] = self.damage.get(cause, 0.0) + amount
+
+    def main_damage_cause(self) -> str:
+        return max(self.damage, key=self.damage.get) if self.damage else "unknown"
 
     def fitness(self) -> float:
         """Used only to pick parents when topping up the population.

@@ -5,11 +5,16 @@ from collections import defaultdict
 
 import numpy as np
 
+from .npc import DAMAGE_CAUSES
+
+# "unknown" covers health set to zero directly (tests, future mechanics).
+CAUSES = DAMAGE_CAUSES + ["unknown"]
+
 COUNTERS = [
     "births", "deaths", "collapses", "spawns", "eats", "gives", "poops", "accidents",
     "prayers_answered", "prayers_silent", "prayers_ignored", "smitings", "worships",
     "secrets_claimed", "secrets_shared", "secrets_stale",
-]
+] + [f"collapse_{c}" for c in CAUSES] + [f"death_{c}" for c in CAUSES]
 
 
 class Stats:
@@ -17,9 +22,18 @@ class Stats:
         self.log_every = log_every
         self.window: dict[str, int] = defaultdict(int)
         self.history: list[dict] = []
+        # Cumulative over the whole run (not per window), for M1's
+        # "collapses per NPC fall over generations". Not saved in snapshots.
+        self.generation_lifetime: dict[int, int] = defaultdict(int)
+        self.generation_collapses: dict[int, int] = defaultdict(int)
 
     def count(self, name: str, n: int = 1) -> None:
         self.window[name] += n
+
+    def collapse_rate_by_generation(self, per: int = 1000) -> dict[int, float]:
+        """Collapses per `per` ticks of NPC lifetime, for each generation."""
+        return {g: self.generation_collapses[g] * per / t
+                for g, t in sorted(self.generation_lifetime.items()) if t > 0}
 
     def maybe_sample(self, sim) -> dict | None:
         if sim.tick % self.log_every != 0:

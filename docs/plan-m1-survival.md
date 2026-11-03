@@ -1,7 +1,7 @@
 # Plan: M1 Survival
 
-Status: **draft, 2026-11-02. Not started.** Slices are ordered; each one ends with
-tests passing and a commit. Open decisions (bottom) are 5zorro's.
+Status: **slice 1 done (2026-11-02). Next: slice 2.** Slices are ordered; each
+one ends with tests passing and a commit. Open decisions (bottom) are 5zorro's.
 
 **For a new session:** read `handoff.md`, `gotchas.md` and this file. Do the
 slices in order. Don't tune numbers (slice 4) before slices 1 to 3 exist: without
@@ -35,18 +35,38 @@ probe script was a throwaway; slice 2 makes a real one.
 
 ## Slices
 
-### Slice 1: Collapse-cause instrumentation (`sim/simulation.py`, `sim/npc.py`, `sim/stats.py`, `scripts/run_headless.py`)
-- In `_metabolize`, track which damage sources hit this tick: `nutrient_starve`,
-  `body_starve`, `stink`, `elder`. Smite damage happens in `Deity.pray`, so record
-  it on the NPC there (e.g. `npc.last_damage_cause = "smite"`).
-- When an NPC collapses or dies, count `collapse_<cause>` / `death_<cause>` using
-  the largest damage source of the fatal tick, or the most recent one.
-- Add per-generation tallies, e.g. `stats.by_generation[gen] = {"lifetime", "collapses"}`,
-  so "collapse rate by generation" is computable without re-running.
-- Headless: add a compact cause column (e.g. `starv/stink/smite`) or a
-  `--causes` flag that prints a cause breakdown at the end.
-- **Tests:** cause counts sum to `collapses`; a forced-smite NPC records `smite`;
-  mass is still conserved.
+### Slice 1: Collapse-cause instrumentation ✅ (2026-11-02)
+**Built:**
+- `NPC.take_damage(cause, amount)` records damage by cause in `npc.damage`, which
+  holds the damage since the NPC was last at full health (cleared on full heal
+  and on collapse). Causes: `sim/npc.py: DAMAGE_CAUSES`.
+- A collapse or death is blamed on `npc.main_damage_cause()`, the cause with
+  the most damage in that record. Counters: `collapse_<cause>` and
+  `death_<cause>` in `sim/stats.py`.
+- `Stats.generation_lifetime` / `generation_collapses` and
+  `collapse_rate_by_generation()`: cumulative for the whole run, not saved in snapshots.
+- `run_headless.py` prints a cause breakdown and per-generation collapse rates
+  after the table.
+- Tests: `tests/test_causes.py` (sums per window in 2D and 4D, each cause is
+  blamed correctly, the reset at full heal, generation totals).
+
+**First readout** (default config, 3,000 ticks, seeds 0/1/2):
+| | Seed 0 | Seed 1 | Seed 2 | 4D, 500 ticks |
+|---|---|---|---|---|
+| Collapses blamed on smite | 83% | 80% | 84% | 95% |
+| … on starvation (nutrients + body) | 17% | 19% | 15% | 4% |
+| Deaths blamed on smite | 68% | 72% | 76% | 91% |
+| Collapse rate g0 → g2–g5 (per 1,000 NPC-ticks) | 17.6 → 6.7–10.7 | 16.4 → 4.3–6.8 | 15.8 → 4.7–7.5 | g0 only |
+
+Reading:
+- **Smiting, not hunger, is what knocks NPCs down.** That changes slice 4: the
+  prayer trap is the main lever, and starvation tuning comes second.
+- Collapse rates already fall with generation. Two confounds: generation 0
+  lives through the chaotic opening ticks, and attribution favors big single
+  hits (see `gotchas.md`). Slice 2's multi-seed harness should report rates
+  within the same time window before we call this criterion met.
+- "Deaths" are mostly smite-driven: collapse age penalties push NPCs past
+  `old_age`, and then the next smiting kills them.
 
 ### Slice 2: Experiment harness (`scripts/sweep.py`, new)
 - `--seeds 5 --ticks 10000 --set metabolism_rate=0.008 --set smite_damage=0.1`
@@ -55,6 +75,9 @@ probe script was a throwaway; slice 2 makes a real one.
   spawned and born NPCs are covered (fixes the gotcha without touching `sim/`).
 - Output: one row per config with mean ± sd across seeds for: collapse rate by
   generation bucket, min-nutrient mean, cause shares, births, spawns, max generation.
+- Also report collapse rate by generation **within the late time window only**
+  (e.g. the last half of the run), so generation 0 isn't penalized just for
+  living through the chaotic start.
   Optionally write CSV to `runs/` (gitignore it).
 - Stays outside `sim/` (rule 4) and uses only `sim.rng` (rule 7).
 - **Tests:** same seed + config gives the same summary twice.

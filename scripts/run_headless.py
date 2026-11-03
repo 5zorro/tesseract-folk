@@ -17,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from sim import Config, Simulation  # noqa: E402
 from sim.snapshot import load_snapshot, save_snapshot  # noqa: E402
+from sim.stats import CAUSES  # noqa: E402
 
 COLUMNS = [
     ("tick", 7), ("population", 5), ("max_generation", 5), ("births", 6), ("deaths", 6),
@@ -33,6 +34,27 @@ def fmt(row: dict) -> str:
         v = row.get(key, 0)
         cells.append(f"{v:>{width}.2f}" if isinstance(v, float) else f"{v:>{width}}")
     return " ".join(cells)
+
+
+def cause_line(label: str, prefix: str, history: list[dict]) -> str:
+    counts = {c: sum(h.get(f"{prefix}_{c}", 0) for h in history) for c in CAUSES}
+    total = sum(counts.values())
+    if total == 0:
+        return f"{label}: none"
+    parts = [f"{c} {n} ({100 * n / total:.0f}%)"
+             for c, n in sorted(counts.items(), key=lambda kv: -kv[1]) if n]
+    return f"{label} ({total}): " + ", ".join(parts)
+
+
+def print_summary(sim) -> None:
+    """The M1 readout: what knocks NPCs down, and whether later generations
+    collapse less often (see docs/plan-m1-survival.md)."""
+    print(cause_line("Collapse causes", "collapse", sim.stats.history))
+    print(cause_line("Death causes", "death", sim.stats.history))
+    rates = sim.stats.collapse_rate_by_generation()
+    lifetimes = sim.stats.generation_lifetime
+    print("Collapses per 1,000 NPC-ticks, by generation: " + ", ".join(
+        f"g{g} {r:.1f} (n={lifetimes[g]})" for g, r in rates.items()))
 
 
 def main() -> None:
@@ -81,6 +103,7 @@ def main() -> None:
     elapsed = time.time() - start
     drift = sim.total_mass() - start_mass
     print(f"Done in {elapsed:.1f}s. Mass drift {drift:.2e} (should be ~0).")
+    print_summary(sim)
     if args.save:
         print(f"Saved snapshot to {save_snapshot(sim, args.save)}")
 

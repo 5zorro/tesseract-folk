@@ -13,6 +13,14 @@ Traps that already bit us, by area. Add to this when something surprises you.
   brain, so a "scripted population" run is scripted only for the starting NPCs.
 - **One seed is an anecdote.** Collapse counts swing a lot between windows and
   seeds. Compare configs over several seeds.
+- **Cause attribution favors big single hits.** A collapse is blamed on the cause
+  with the most damage since the NPC was last at full health. One smiting
+  (0.3) outweighs 14 ticks of starvation (0.02 each), so an NPC weakened by
+  hunger and finished by a smiting counts as "smite". Read cause shares as
+  "what finished them off", not as the only reason.
+- **Per-generation collapse rates are confounded by time.** Generation 0 lives
+  through the chaotic start of a run; later generations live later. Compare
+  generations within the same time window (M1 plan, slice 2).
 - **The stats window resets `npc.eaten`.** `diet_diversity` is per sampling window,
   not per lifetime.
 

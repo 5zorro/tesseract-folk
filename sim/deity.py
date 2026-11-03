@@ -93,7 +93,7 @@ class Deity:
             return "answered"
         npc.smite += cfg.smite_gain
         if npc.smite >= cfg.smite_threshold:
-            npc.health -= cfg.smite_damage
+            npc.take_damage("smite", cfg.smite_damage)
             return "smitten"
         return "ignored"
 

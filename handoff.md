@@ -22,12 +22,15 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
   monetizing, contributors and the 4D Miner mod in `openitems.md`). Still open:
   CI, private vulnerability reporting, and a contributor agreement before
   accepting outside PRs.
-- **Next: M1 survival.** Plan: `docs/plan-m1-survival.md`. No slice started.
+- **M1 survival in progress.** Plan: `docs/plan-m1-survival.md`. Slice 1
+  (collapse-cause instrumentation) is done; slice 2 (multi-seed harness) is next.
 - Honest state: births ≈ 0, the population is held at `min_population` by top-ups,
-  prayers are never answered, and smiting causes ~40% of early collapses.
+  and prayers are never answered. **Smiting finishes off 80–84% of collapsing
+  NPCs** (95% in 4D); starvation accounts for most of the rest. Collapse rates do
+  fall by generation, but that's confounded by time (`gotchas.md`).
 
 ## Where to pick up
-1. `docs/plan-m1-survival.md`, slice 1 (collapse-cause instrumentation).
+1. `docs/plan-m1-survival.md`, slice 2 (`scripts/sweep.py`, multi-seed harness).
 
 ## Setup (Windows)
 ```bash
@@ -42,7 +45,8 @@ In WSL, make a separate venv (`.venv/bin/python`); see `gotchas.md`.
 | Need | Look at |
 |---|---|
 | Tick order (sense → think → act → metabolize) | `sim/simulation.py: step` |
-| Every damage source | `sim/simulation.py: _metabolize`, `sim/deity.py: pray` |
+| Every damage source | `sim/simulation.py: _metabolize`, `sim/deity.py: pray`; always via `NPC.take_damage` so the cause is recorded |
+| Collapse causes, per-generation rates | `sim/stats.py: CAUSES, collapse_rate_by_generation`; printed by `run_headless.py: print_summary` |
 | Collapse vs death, the hall-of-fame top-up | `sim/simulation.py: _collapse, _die, _top_up` |
 | Adding a tunable | `sim/config.py` (every number lives here) |
 | Adding a stats counter | `sim/stats.py: COUNTERS`, then `run_headless.py: COLUMNS/HEADERS` |

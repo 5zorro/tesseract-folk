@@ -306,24 +306,28 @@ class Simulation:
         npc.smite = max(0.0, npc.smite - cfg.smite_decay)
 
         npc.lifetime += 1
+        self.stats.generation_lifetime[npc.generation] += 1
         if aging:
             npc.age += 1
 
-        damage = 0.0
+        damage = {}
         if npc.nutrients.min() < cfg.starving_threshold:
-            damage += cfg.starvation_damage
+            damage["nutrient_starve"] = cfg.starvation_damage
         if npc.body < cfg.min_body_mass:
-            damage += cfg.starvation_damage
+            damage["body_starve"] = cfg.starvation_damage
         stink = float(w.stink[npc.pos])
         if stink > cfg.stink_threshold:
-            damage += cfg.stink_damage * (stink - cfg.stink_threshold)
+            damage["stink"] = cfg.stink_damage * (stink - cfg.stink_threshold)
         if npc.age > cfg.old_age:
-            damage += cfg.elder_decline * (npc.age - cfg.old_age) / cfg.old_age
+            damage["elder"] = cfg.elder_decline * (npc.age - cfg.old_age) / cfg.old_age
 
-        if damage > 0:
-            npc.health -= damage
+        if damage:
+            for cause, amount in damage.items():
+                npc.take_damage(cause, amount)
         elif npc.nutrients.min() > 0.4:
             npc.health = min(1.0, npc.health + cfg.heal_rate)
+            if npc.health >= 1.0:
+                npc.damage.clear()
 
         if npc.health <= 0:
             if npc.age >= cfg.old_age:
@@ -348,6 +352,9 @@ class Simulation:
         npc.collapses += 1
         npc.known_secret = None
         self.stats.count("collapses")
+        self.stats.count(f"collapse_{npc.main_damage_cause()}")
+        self.stats.generation_collapses[npc.generation] += 1
+        npc.damage.clear()
 
     def _die(self, npc: NPC) -> None:
         """Elders die for real. The body becomes poop (which stinks, then
@@ -358,6 +365,7 @@ class Simulation:
         npc.alive = False
         self._record_hall_of_fame(npc)
         self.stats.count("deaths")
+        self.stats.count(f"death_{npc.main_damage_cause()}")
 
     # ========================================================= population
     def _random_brain(self) -> Brain:
