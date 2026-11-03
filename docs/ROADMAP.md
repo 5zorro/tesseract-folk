@@ -9,7 +9,11 @@ prototype without scripting the behaviors directly. Then move toward 4D Miner.
 - Current honest state: random brains collapse a lot and births are rare.
   Evolution happens mostly through hall-of-fame top-ups. That's expected at this stage.
 
-## M1: Survival
+## M1: Survival ✅ (2026-11-02)
+Done through the nursery: brains evolve offline under harsh rules, and play
+worlds start from them. Nursery brains halve collapses vs scratch in 2D
+(0.9 vs 1.8) and 4D (0.6 vs 1.4). Details: `docs/plan-m1-survival.md`.
+
 **Pass:** collapses per NPC fall over generations; NPCs keep nutrients up
 without help. Watch `clpse` and `gen` in the headless table.
 Likely work: tune hunger/food numbers, maybe start brains with a mild

@@ -22,7 +22,7 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
   monetizing, contributors and the 4D Miner mod in `openitems.md`). Still open:
   CI, private vulnerability reporting, and a contributor agreement before
   accepting outside PRs.
-- **M1 survival in progress.** Plan: `docs/plan-m1-survival.md`. Done: slices
+- **M1 survival is done** (5zorro, 2026-11-02). Plan: `docs/plan-m1-survival.md`. Done: slices
   1–3 (collapse causes, multi-seed `scripts/sweep.py`, honest stability check),
   **4b, the nursery** (`sim/nursery.py`, `--brains-from`) and **6, food scent**
   (`Config.food_scent`, on by default), plus an economy retune with 5zorro:
@@ -55,10 +55,12 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
   - In 4D the scripted forager never collapses, so the 4D economy is easy.
 
 ## Where to pick up
-1. **5zorro: call M1 done?** All criteria pass (plan, top). Criterion 3 is easy
-   (scratch passes too): raise the bar, or accept it?
-2. Then M2 (diet drives travel; `docs/ROADMAP.md`). Known gaps to carry along:
-   body starvation is ~35% of collapses; births still trail top-ups in 2D (M3).
+1. **M2: diet drives travel** (`docs/ROADMAP.md`). Start by writing
+   `docs/plan-m2-*.md` in slices, like M1's. Its first slice is the metric the
+   roadmap asks for (distinct food zones visited per lifetime). Measure play
+   worlds from `nursery-7/8` (2D) and `nursery-4d-2` (4D, radius 2).
+2. Known gaps carried from M1: body starvation is ~35% of collapses; births
+   still trail top-ups in 2D (M3's job).
 3. Other levers: a harsher scarcity nursery (half food gave a mild win); **seasons** as a config schedule (famine winters, mostly for
    consistency); play-world drift fixes (re-seed, lower mutation in play).
 4. Later (M5): the piety lifecycle (full until adulthood, then declines; share

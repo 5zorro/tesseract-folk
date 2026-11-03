@@ -1,7 +1,7 @@
 # Plan: M1 Survival
 
-Status: **all four criteria met (2026-11-02), in 2D and 4D. Criterion 3 passes
-only easily (see below). Waiting on 5zorro to call M1 done.** Slices are ordered;
+Status: **✅ Done (5zorro, 2026-11-02).** All four criteria met, in 2D and 4D.
+Criterion 3 passes only easily (see below); accepted as is. Slices are ordered;
 each one ends with tests passing and a commit. Open decisions (bottom) are 5zorro's.
 
 **For a new session:** read `handoff.md`, `gotchas.md` and this file. Do the
@@ -583,7 +583,7 @@ hunger in the nursery are untested.
   nursery trained under, so retrain afterwards.
 - ~~Patches only: keep it, and add food back?~~ Decided (5zorro): keep patches
   only; hunger slower and collapses costlier instead (faster growth didn't help).
-- **Call M1 done?** All four criteria pass. Criterion 3 passes easily (scratch
+- ~~Call M1 done?~~ Decided (5zorro, 2026-11-02): done. All four criteria pass. Criterion 3 passes easily (scratch
   brains reach 0.44); criterion 2 is where brains prove themselves (0.9 vs 1.8
   in 2D, 0.6 vs 1.4 in 4D).
 - **Is 0.4 still the right nutrient bar?** With slower hunger even scratch
