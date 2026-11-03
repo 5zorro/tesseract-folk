@@ -75,11 +75,13 @@ class NPC:
         """
         return self.offspring * 500.0 + self.lifetime - self.collapses * 100.0
 
-    def record_zone(self, zone: tuple) -> bool:
+    def record_zone(self, zone: tuple, still_in_last: bool) -> bool:
         """A bite eaten inside `zone` (food type, patch index). True if it's a
-        different zone from the last in-zone bite (a switch)."""
+        switch: a different zone from the last in-zone bite, after leaving that
+        one. `still_in_last` says whether this cell is inside the last zone too,
+        so eating another food where two zones overlap isn't counted as travel."""
         self.zones_eaten.add(zone)
-        switched = self.last_zone is not None and zone != self.last_zone
+        switched = self.last_zone is not None and zone != self.last_zone and not still_in_last
         self.zone_switches += switched
         self.last_zone = zone
         return switched

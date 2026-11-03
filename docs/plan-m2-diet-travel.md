@@ -1,7 +1,7 @@
 # Plan: M2 Diet drives travel
 
-Status: **slice 1 done (2026-11-02). Next: slice 2, the baseline. Draft criteria
-accepted by 5zorro; thresholds get settled after slice 2.** Slices are ordered; each one ends with tests passing and a commit.
+Status: **slices 1–2 done (2026-11-02). Next: 5zorro settles the thresholds
+(proposal under slice 2), then slice 3, the shared-patches control.** Slices are ordered; each one ends with tests passing and a commit.
 Open decisions (bottom) are 5zorro's.
 
 **For a new session:** read `handoff.md`, `gotchas.md` and this file. M1's plan
@@ -60,9 +60,11 @@ from the nursery, as in M1):
 - Snapshot format 3 saves the zone map; older snapshots rebuild it from the seed.
 - Tests: `tests/test_zones.py` (2D and 4D).
 
-First look (3 seeds × 6,000 ticks, nursery-8, smoke test only): diet 0.96,
-6.3 zones eaten in per life (of 9), 2.8 of 3 food types, 10.7 zone switches per
-1,000 NPC-ticks. Slice 2 does this properly, with controls.
+*Fixed in slice 2:* a switch first counted any change of zone, so eating a
+second food where two zones overlap counted as travel (the scripted forager,
+which barely moves, logged 6 switches per 1,000 ticks). Now a switch needs the
+NPC to have left its previous zone. Test:
+`test_eating_another_food_where_zones_overlap_isnt_a_switch`.
 
 **Original proposal:**
 - **World keeps its patch centers:** `world.patch_centers[t]`, a list per food
@@ -84,7 +86,50 @@ First look (3 seeds × 6,000 ticks, nursery-8, smoke test only): diet 0.96,
   zone and outside doesn't; switches count only changes; snapshot round trip
   keeps zones and resumes identically; mass and determinism unaffected.
 
-### Slice 2: Baseline measurement (no code)
+### Slice 2: Baseline measurement ✅ (2026-11-02)
+Added `sweep.py`'s distance column: straight-line distance from where each NPC
+stood 100 ticks earlier (late window; NPCs that collapsed in between are skipped).
+
+Play worlds, today's defaults (`runs/2026-11-02-m2-baseline.csv`, `-baseline-4d.csv`).
+Travel counts lives that ended in the second half and lasted 500+ ticks.
+
+2D, 5 seeds × 10,000 ticks:
+| Brains | Collapses | Diet | Zones / life (of 9) | Food types / life | Switches / 1k ticks | Distance / 100 ticks |
+|---|---|---|---|---|---|---|
+| Scratch | 1.8 ± 0.4 | 0.96 | 5.5 | 2.7 | 5.0 ± 1.0 | 9.4 |
+| Scripted forager | 3.9 ± 0.8 | 0.88 | 2.9 | 2.2 | 0.7 ± 0.2 | 0.9 |
+| Nursery-8 | 0.9 ± 0.3 | 0.97 | 6.4 | 2.8 | **7.7 ± 1.2** | 10.6 |
+| Nursery-scarce-2 | 0.9 ± 0.2 | 0.96 | 5.9 | 2.8 | **7.8 ± 0.7** | 9.3 |
+
+4D (radius 2), 5 seeds × 5,000 ticks:
+| Brains | Collapses | Diet | Zones / life | Food types / life | Switches / 1k ticks | Distance / 100 ticks |
+|---|---|---|---|---|---|---|
+| Scratch | 1.4 ± 0.2 | 0.96 | 3.5 | 2.1 | 2.1 ± 0.4 | 5.3 |
+| Scripted forager | 2.3 ± 1.5 | 0.93 | 3.3 | 2.2 | 2.5 ± 2.6 | 1.1 |
+| 4D nursery-2 | 0.6 ± 0.0 | 0.97 | 4.0 | 2.4 | 2.4 ± 0.5 | 4.9 |
+
+Reading:
+- **Diet is high for every brain** (0.96–0.97). Only the scripted forager, which
+  barely moves, drops lower (0.88 in 2D).
+- **Everyone wanders.** Even scratch brains cover about 9 cells per 100 ticks in
+  2D. So distance alone can't show that diet drives travel.
+- **Trained brains switch zones about 55% more than scratch** (7.7–7.8 vs 5.0)
+  while covering about the same distance. That's the first hint of purposeful
+  travel; slice 3's control is what can confirm it.
+- **Food types per life is partly free:** the scripted forager reaches 2.2 of 3
+  while hardly moving, because zones overlap.
+- **4D falls short:** 2.4 food types per life, about 2 switches per 1,000 ticks,
+  and the 4D nursery travels no more than scratch.
+
+**Proposed thresholds** (for 5zorro):
+1. Diet ≥ **0.9** (0.8 would pass even a forager that sits still).
+2. Food types eaten in-zone per life ≥ **2.5** (as drafted). Met in 2D (2.8), not
+   in 4D (2.4).
+3. Shared-patches control (slice 3): trained brains switch zones more in the
+   normal world than in the control, beyond seed noise.
+4. 4D: same thresholds.
+
+**Original proposal:**
 Measure today's worlds on the new metrics, 5 seeds × 10,000 ticks (4D: 5,000):
 scratch, scripted forager, `nursery-8`, `nursery-scarce-2`, and in 4D
 `nursery-4d-2`. Record a table here, then settle the criteria thresholds with 5zorro.

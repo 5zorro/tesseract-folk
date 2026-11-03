@@ -238,8 +238,11 @@ class Simulation:
             amount = min(cfg.bite_size, float(here[t]))
             here[t] -= amount
             zone = w.zone_at(t, npc.pos)
-            if zone >= 0 and npc.record_zone((t, zone)):   # carried food isn't a place
-                self.stats.count("zone_switches")
+            if zone >= 0:                  # carried food doesn't count: it isn't a place
+                last = npc.last_zone
+                still = last is not None and w.zone_at(last[0], npc.pos) == last[1]
+                if npc.record_zone((t, zone), still):
+                    self.stats.count("zone_switches")
         elif (npc.inventory > 1e-9).any():
             t = int(np.argmax(np.where(npc.inventory > 1e-9, value, -np.inf)))
             amount = min(cfg.bite_size, float(npc.inventory[t]))

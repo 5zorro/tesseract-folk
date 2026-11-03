@@ -47,11 +47,18 @@ def core_cell(sim, t, patch):
     return tuple(int(v) for v in cells[0])
 
 
+def only_in(sim, t, patch):
+    """A cell in this zone's core and in no other food type's core."""
+    others = [u for u in range(sim.cfg.n_food_types) if u != t]
+    mask = (sim.world.zones[t] == patch) & np.all(sim.world.zones[others] < 0, axis=0)
+    return tuple(int(v) for v in np.argwhere(mask)[0])
+
+
 def test_bites_in_zones_are_recorded_and_switches_counted():
-    sim = Simulation(Config(**SMALL), log_every=1000)
+    sim = Simulation(Config(**SMALL, food_patch_radius=2.0), log_every=1000)
     npc = sim.npcs[0]
-    a = core_cell(sim, 0, sim.world.zone_at(0, sim.world.patch_centers[0][0]))
-    other_type = core_cell(sim, 1, sim.world.zone_at(1, sim.world.patch_centers[1][0]))
+    a = only_in(sim, 0, sim.world.zone_at(0, sim.world.patch_centers[0][0]))
+    other_type = only_in(sim, 1, sim.world.zone_at(1, sim.world.patch_centers[1][0]))
     eat_at(sim, npc, 0, a)
     assert npc.zones_eaten == {(0, sim.world.zone_at(0, a))} and npc.zone_switches == 0
     eat_at(sim, npc, 0, a)                         # same zone again: no switch
@@ -59,6 +66,18 @@ def test_bites_in_zones_are_recorded_and_switches_counted():
     eat_at(sim, npc, 1, other_type)
     assert npc.zone_switches == 1 and len(npc.zones_eaten) == 2
     assert sim.stats.window["zone_switches"] == 1
+
+
+def test_eating_another_food_where_zones_overlap_isnt_a_switch():
+    sim = Simulation(Config(**SMALL), log_every=1000)
+    z = sim.world.zones
+    both = np.argwhere((z[0] >= 0) & (z[1] >= 0))
+    cell = tuple(int(v) for v in both[0])
+    npc = sim.npcs[0]
+    eat_at(sim, npc, 0, cell)
+    eat_at(sim, npc, 1, cell)
+    eat_at(sim, npc, 0, cell)
+    assert len(npc.zones_eaten) == 2 and npc.zone_switches == 0
 
 
 def test_bites_outside_zones_and_from_inventory_dont_count():

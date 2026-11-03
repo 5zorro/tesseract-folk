@@ -56,9 +56,11 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
     every food, and foraging is trivial (`gotchas.md`).
 
 ## Where to pick up
-1. **M2: diet drives travel.** Plan: `docs/plan-m2-diet-travel.md`. Slice 1
-   (zones and travel metrics) is done; next is slice 2, the baseline measurement,
-   then 5zorro settles the thresholds. Key worry: food types overlap on 57–75% of 2D
+1. **M2: diet drives travel.** Plan: `docs/plan-m2-diet-travel.md`. Slices 1–2
+   (zones and travel metrics, baseline) are done. 5zorro: settle the thresholds
+   (proposal under slice 2); then slice 3, the shared-patches control. So far:
+   diet 0.97, trained brains switch zones ~55% more than scratch at the same
+   distance; 4D falls short (2.4 food types per life). Key worry: food types overlap on 57–75% of 2D
    cells, so diets may balance without travel; slice 3's shared-patches control
    tests that.
 2. Known gaps carried from M1: body starvation is ~35% of collapses; births

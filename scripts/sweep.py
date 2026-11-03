@@ -35,11 +35,13 @@ from sim.config import parse_overrides as config_overrides  # noqa: E402
 from sim.controllers import ScriptedController  # noqa: E402
 from sim.nursery import load_brain_pool, seed_brains  # noqa: E402
 from sim.stats import CAUSES  # noqa: E402
+from sim.world import wrapped_delta  # noqa: E402
 
 # Generation buckets for collapse rates: (label, first generation, last generation).
 BUCKETS = [("g0", 0, 0), ("g1-2", 1, 2), ("g3-5", 3, 5), ("g6-10", 6, 10), ("g11+", 11, 10**9)]
 MIN_BUCKET_LIFETIME = 500     # NPC-ticks; below this a bucket's rate is too noisy to report
 NUTRIENT_WINDOW = 0.75        # mean lowest nutrient is measured after this fraction of the run
+DISTANCE_EVERY = 100          # ticks; "how far from where it was this long ago" (M2)
 CONTROLLERS = ("brain", "scripted")
 SHOWN_CAUSES = [("smite", "smite"), ("nutrient_starve", "nutr"), ("body_starve", "body"),
                 ("stink", "stink"), ("elder", "elder")]
@@ -74,6 +76,21 @@ def cover_with(sim: Simulation, controller) -> None:
     sim.overrides = {n.id: controller for n in sim.npcs}
 
 
+def distances(before: dict, sim: Simulation) -> list[float]:
+    """Straight-line distance each NPC moved since `before` ({id: (pos, collapses)}).
+    NPCs that collapsed in between are skipped: waking up elsewhere isn't travel."""
+    out = []
+    for npc in sim.npcs:
+        then = before.get(npc.id)
+        if then is not None and then[1] == npc.collapses:
+            out.append(float(np.linalg.norm(wrapped_delta(then[0], npc.pos, sim.cfg.size))))
+    return out
+
+
+def where_now(sim: Simulation) -> dict:
+    return {npc.id: (npc.pos, npc.collapses) for npc in sim.npcs}
+
+
 def bucket_rates(lifetime: dict, collapses: dict) -> dict:
     """Collapses per 1,000 NPC-ticks for each generation bucket (nan if too little data)."""
     out = {}
@@ -94,17 +111,22 @@ def run_one(overrides: dict, seed: int, ticks: int, late_from: float, log_every:
         seed_brains(sim, load_brain_pool(brains_from))
     scripted = ScriptedController() if controller == "scripted" else None
     nutrient_from = int(ticks * NUTRIENT_WINDOW)
-    min_nutrients = []
+    late_start = int(ticks * late_from)
+    min_nutrients, moved = [], []
+    last_seen: dict = {}
 
     def advance(steps: int) -> None:
+        nonlocal last_seen
         for _ in range(steps):
             if scripted is not None:
                 cover_with(sim, scripted)
             sim.step()
             if sim.tick > nutrient_from and sim.tick % log_every == 0 and sim.npcs:
                 min_nutrients.append(float(np.mean([npc.nutrients.min() for npc in sim.npcs])))
+            if sim.tick >= late_start and sim.tick % DISTANCE_EVERY == 0:
+                moved.extend(distances(last_seen, sim))
+                last_seen = where_now(sim)
 
-    late_start = int(ticks * late_from)
     advance(late_start)
     stats = sim.stats
     life_before = dict(stats.generation_lifetime)
@@ -136,6 +158,7 @@ def run_one(overrides: dict, seed: int, ticks: int, late_from: float, log_every:
     out["zones_per_life"] = travel["zones"]
     out["zone_types_per_life"] = travel["zone_types"]
     out["zone_switch_rate"] = travel["switch_rate"]
+    out["distance"] = float(np.mean(moved)) if moved else math.nan
     out["births"] = total("births")
     out["spawns"] = total("spawns")
     out["max_generation"] = max((n.generation for n in sim.npcs), default=0)
@@ -197,7 +220,8 @@ def summarize(results: dict, ticks: int, late_from: float, seeds: list[int]) -> 
                 f"ending after tick {late_start} that lasted 500+ ticks",
                 [("diet", "diet_diversity", {"digits": 2}), ("lives", "lives", {"digits": 0}),
                  ("zones/life", "zones_per_life", {}), ("types/life", "zone_types_per_life", {}),
-                 ("switches/1k", "zone_switch_rate", {})],
+                 ("switches/1k", "zone_switch_rate", {}),
+                 (f"dist/{DISTANCE_EVERY}t", "distance", {})],
                 results)
 
 

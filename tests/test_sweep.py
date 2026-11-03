@@ -3,7 +3,7 @@ import math
 
 import pytest
 
-from scripts.sweep import bucket_rates, cover_with, parse_overrides, run_one
+from scripts.sweep import bucket_rates, cover_with, distances, parse_overrides, run_one, where_now
 from sim import Config, Simulation
 from sim.controllers import ScriptedController
 
@@ -61,3 +61,12 @@ def test_bucket_rates_skip_thin_buckets():
     assert rates["g0"] == 10.0
     assert rates["g1-2"] == 5.0
     assert math.isnan(rates["g3-5"]) and math.isnan(rates["g6-10"])   # none / under the minimum
+
+
+def test_distance_skips_npcs_that_collapsed_in_between():
+    sim = Simulation(Config(size=16, initial_npcs=3, min_population=1), log_every=1000)
+    a, b, c = sim.npcs
+    before = where_now(sim)
+    a.pos = ((a.pos[0] + 3) % 16, (a.pos[1] + 4) % 16)    # moved 5 cells
+    b.collapses += 1                                       # teleported: skipped
+    assert sorted(distances(before, sim)) == [0.0, 5.0]
