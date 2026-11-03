@@ -53,15 +53,31 @@ def save_snapshot(sim: Simulation, path: str | Path) -> Path:
     return path
 
 
+def _checked(name: str, loaded: np.ndarray, fresh: np.ndarray, cfg: Config) -> np.ndarray:
+    """A world array from a (possibly shared, untrusted) snapshot must have the
+    shape this config makes, hold real numbers, and (zones) valid patch indices."""
+    if loaded.shape != fresh.shape:
+        raise ValueError(f"world array {name} has shape {loaded.shape}, expected {fresh.shape}")
+    if name == "zones":
+        if not np.issubdtype(loaded.dtype, np.integer):
+            raise ValueError(f"world array zones must hold integers, not {loaded.dtype}")
+        if loaded.min() < -1 or loaded.max() >= cfg.food_patches_per_type:
+            raise ValueError("world array zones holds patch indices out of range")
+        return loaded.copy()
+    if not np.issubdtype(loaded.dtype, np.floating) or not np.isfinite(loaded).all():
+        raise ValueError(f"world array {name} must hold finite real numbers")
+    return loaded.astype(float)
+
+
 def load_snapshot(path: str | Path, log_every: int = 100) -> Simulation:
     path = Path(path)
     state = json.loads((path / "state.json").read_text())
     config = {**LEGACY, **state["config"]}   # fields the snapshot predates keep the old behavior
     sim = Simulation(Config.from_dict(config), populate=False, log_every=log_every)
-    arrays = np.load(path / "world.npz")
-    for k in ARRAYS:
-        if k in arrays:   # older formats lack scent (stays zeros) or zones (World rebuilt them from the seed)
-            setattr(sim.world, k, arrays[k].copy())
+    with np.load(path / "world.npz") as arrays:
+        for k in ARRAYS:
+            if k in arrays:   # older formats lack scent (stays zeros) or zones (World rebuilt them from the seed)
+                setattr(sim.world, k, _checked(k, arrays[k], getattr(sim.world, k), sim.cfg))
     sim.world.shrines = [tuple(s) for s in state["shrines"]]
     sim.tick = state["tick"]
     sim.next_id = state["next_id"]

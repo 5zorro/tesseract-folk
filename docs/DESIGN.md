@@ -98,8 +98,15 @@ mate, pray, worship, share (a secret).
   NPCs track deficits, so they need a balanced diet, which pulls goods across regions.
 - **[built] Same-food penalty.** Satiation per food type reduces how much
   nutrition repeat meals give.
-- **[built] Idle penalty.** Standing still beyond a grace period makes hunger rise faster.
-- **[built] Food zones.** Each food type grows in its own patches.
+- **[built] Idle penalty.** Doing nothing beyond a grace period makes hunger rise
+  faster. Moving, or an action that changes something (eating, giving, a birth…),
+  counts as busy (`busy_resets_idle`, 5zorro 2026-11-02).
+- **[built] Food zones.** Each food type grows only in its own patches (no thin
+  layer everywhere since 2026-11-02), and food scent leads NPCs to them. The
+  world keeps a zone map (patch cores) so travel between zones can be measured
+  (M2). In 4D at size 10, use `food_patch_radius=2.0`, or patches cover everything.
+- **[idea] Biomes:** named, separated zones (food 1 in "mountains", food 2 on
+  "beaches"), readable to players and matching 4D Miner's own biomes.
 - **[built] Poop and stink.** Digestion fills the bowel; pooping (or an
   "accident") drops waste that emits stink. Stink diffuses, fades, and hurts above
   a threshold, so NPCs learn to move away from it.

@@ -33,6 +33,8 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
   why. Expect that until M3.
 - **Smiting is off** (`Config.smiting = False`, 5zorro 2026-11-02) until a snapshot
   survives hunger. Piety and smiting return in M5.
+- **Decided (5zorro):** play-world hunger stays easy (`nutrient_decay` 0.003);
+  harshness, like food scarcity, belongs in the nursery.
 - **Decided:** keep pillar 4 ("young can't die") in play. Evolution's deaths
   happen offline in the nursery (harsh `collapse_age_penalty=600`), and gentle
   play worlds start from its best brains.

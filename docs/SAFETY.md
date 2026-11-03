@@ -65,9 +65,12 @@ Players may share snapshots, so treat every snapshot as untrusted input.
   finite weights (`Brain.check`, used by `load_snapshot` and `seed_brains`).
   JSON accepts `NaN` and `Infinity`, so without this a crafted file would crash
   mid-run. Tests: `tests/test_nursery.py`.
-- **[planned]** Before snapshots are shared publicly: size limits on both files,
-  and shape checks on the world arrays (`world.npz`), so a crafted file fails
-  with a clear error instead of exhausting memory.
+- **[enforced]** Every world array in `world.npz` must have the shape the
+  snapshot's config makes and hold finite numbers; the zone map must hold valid
+  patch indices (`snapshot.py: _checked`; tests: `tests/test_snapshot_checks.py`).
+- **[planned]** Before snapshots are shared publicly: size limits on both files
+  (and on the config's `size`/`dims`, which set how big the world is), so a
+  crafted file fails with a clear error instead of exhausting memory.
 - The nursery (`sim/nursery.py: load_brain_pool`) reads the same `state.json`,
   so brain pools shared between players are untrusted input under the same rules.
   It already refuses brains whose shape doesn't fit the world.

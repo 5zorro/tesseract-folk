@@ -48,6 +48,12 @@ Traps that already bit us, by area. Add to this when something surprises you.
   `player_active=True`, so they age normally. `lifetime` always advances.
 
 ## Environment
+- **Editing docs by script: replace exact anchors, never slice to a marker.** A
+  script that rebuilt `handoff.md` as `head + new text` (without the old tail)
+  silently cut its Setup, table and rules sections (commit b6101ad; restored in
+  3d0c8af). Assert each anchor occurs once, and diff before committing.
+- **Bash heredocs can fail on Python with quotes or backslashes** ("unexpected
+  EOF"). Write the script to the scratchpad with the Write tool and run it.
 - A venv doesn't survive being moved: its `Scripts/*.exe` launchers hard-code
   the old path. After moving the folder, delete `.venv` and recreate it.
 - Commit from Windows git: it uses the GitHub noreply identity. WSL git is set
