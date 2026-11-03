@@ -20,7 +20,9 @@ class Config:
     n_food_types: int = 3
     n_nutrients: int = 3
     food_capacity: float = 2.0            # max food of one type in one cell
-    food_baseline_fraction: float = 0.05  # how much grows outside patches
+    # How much grows outside patches. 0 since 2026-11-02 (5zorro): with food scent,
+    # NPCs should seek out patches, not graze a thin layer everywhere (was 0.05).
+    food_baseline_fraction: float = 0.0
     food_patches_per_type: int = 3        # each food type has its own regions
     food_patch_radius: float = 4.0
     food_growth_rate: float = 0.02
@@ -61,6 +63,10 @@ class Config:
     nutrient_decay: float = 0.004
     idle_grace_ticks: int = 5             # standing still longer than this...
     idle_hunger_multiplier: float = 2.5   # ...makes hunger rise faster
+    # Actions that change something (eating, picking up, giving, pooping, a birth,
+    # worship at a shrine, an answered prayer, sharing) count as busy, like moving.
+    # False = only moving resets the idle streak (before 2026-11-02).
+    busy_resets_idle: bool = True
     satiation_gain: float = 0.35          # eating the same food gets less useful
     satiation_decay: float = 0.01
     starving_threshold: float = 0.1

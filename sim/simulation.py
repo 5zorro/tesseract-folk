@@ -189,7 +189,7 @@ class Simulation:
     # =============================================================== actions
     def _act(self, npc: NPC, action: int, index: dict, births: list[NPC]) -> None:
         name = self.actions[action]
-        moved = False
+        moved = did = False          # did: the action changed something (not just tried)
         if name.startswith("move"):
             sign = 1 if name[4] == "+" else -1
             npc.pos = self.world.neighbor(npc.pos, int(name[5:]), sign)
@@ -198,33 +198,37 @@ class Simulation:
             if claimed:
                 self.stats.count("secrets_claimed", claimed)
         elif name == "eat":
-            self._eat(npc)
+            did = self._eat(npc)
         elif name == "pick_up":
-            self._pick_up(npc)
+            did = self._pick_up(npc)
         elif name == "give":
-            self._give(npc, index)
+            did = self._give(npc, index)
         elif name == "poop":
             if npc.bowel > 1e-9:
                 self.world.poop[npc.pos] += npc.bowel
                 npc.bowel = 0.0
                 self.stats.count("poops")
+                did = True
         elif name == "mate":
-            self._mate(npc, index, births)
+            did = self._mate(npc, index, births)
         elif name == "pray":
             result = self.deity.pray(npc, self.tick)
             self.stats.count({"answered": "prayers_answered", "silent": "prayers_silent",
                               "ignored": "prayers_ignored", "smitten": "smitings"}[result])
+            did = result == "answered"
         elif name == "worship":
             if npc.pos in self.world.shrines:
                 npc.piety = min(1.0, npc.piety + self.cfg.worship_piety_gain)
                 self.stats.count("worships")
+                did = True
         elif name == "share":
-            self._share(npc, index)
+            did = self._share(npc, index)
         # "stay" does nothing on purpose.
         npc.moved_last = moved
-        npc.idle_streak = 0 if moved else npc.idle_streak + 1
+        busy = moved or (did and self.cfg.busy_resets_idle)
+        npc.idle_streak = 0 if busy else npc.idle_streak + 1
 
-    def _eat(self, npc: NPC) -> None:
+    def _eat(self, npc: NPC) -> bool:
         cfg, w = self.cfg, self.world
         deficit = 1.0 - npc.nutrients
         value = (w.profiles @ deficit) * (1.0 - npc.satiation)
@@ -238,7 +242,7 @@ class Simulation:
             amount = min(cfg.bite_size, float(npc.inventory[t]))
             npc.inventory[t] -= amount
         else:
-            return
+            return False
         frac = amount / cfg.bite_size
         npc.body += amount
         npc.nutrients = np.clip(
@@ -247,24 +251,26 @@ class Simulation:
         npc.satiation[t] = min(1.0, npc.satiation[t] + cfg.satiation_gain * frac)
         npc.eaten[t] += amount
         self.stats.count("eats")
+        return True
 
-    def _pick_up(self, npc: NPC) -> None:
+    def _pick_up(self, npc: NPC) -> bool:
         room = self.cfg.carry_capacity - float(npc.inventory.sum())
         here = self.world.food_at(npc.pos)
         if room <= 1e-9 or not (here > 1e-9).any():
-            return
+            return False
         t = int(np.argmax(here))
         amount = min(self.cfg.bite_size, float(here[t]), room)
         here[t] -= amount
         npc.inventory[t] += amount
+        return True
 
-    def _give(self, npc: NPC, index: dict) -> None:
+    def _give(self, npc: NPC, index: dict) -> bool:
         if npc.inventory.sum() <= 1e-9:
-            return
+            return False
         cap = self.cfg.carry_capacity
         takers = [n for n in self._neighbors(npc, index) if cap - n.inventory.sum() > 1e-9]
         if not takers:
-            return
+            return False
         other = takers[int(self.rng.integers(len(takers)))]
         t = int(np.argmax(npc.inventory))
         amount = min(self.cfg.bite_size, float(npc.inventory[t]), cap - float(other.inventory.sum()))
@@ -273,23 +279,25 @@ class Simulation:
         npc.gifts_given += 1
         other.gifts_received += 1
         self.stats.count("gives")
+        return True
 
     def _can_mate(self, npc: NPC) -> bool:
         c = self.cfg
         return (npc.alive and npc.age >= c.adult_age and npc.body >= c.reproduce_min_mass
                 and npc.health > 0.5 and self.tick >= npc.mate_cooldown_until)
 
-    def _mate(self, npc: NPC, index: dict, births: list[NPC]) -> None:
+    def _mate(self, npc: NPC, index: dict, births: list[NPC]) -> bool:
+        """True only when a child is born; signaling readiness alone isn't busy."""
         cfg = self.cfg
         if not self._can_mate(npc):
-            return
+            return False
         npc.mate_ready_until = self.tick + cfg.mate_window
         if len(self.npcs) + len(births) >= cfg.max_population:
-            return
+            return False
         partners = [n for n in self._neighbors(npc, index)
                     if n.mate_ready_until >= self.tick and self._can_mate(n)]
         if not partners:
-            return
+            return False
         mate = partners[int(self.rng.integers(len(partners)))]
         half = cfg.child_mass / 2
         npc.body -= half
@@ -304,11 +312,12 @@ class Simulation:
             parent.mate_ready_until = -1
             parent.mate_cooldown_until = self.tick + cfg.mate_cooldown
         self.stats.count("births")
+        return True
 
-    def _share(self, npc: NPC, index: dict) -> None:
+    def _share(self, npc: NPC, index: dict) -> bool:
         sid = npc.known_secret
         if sid is None or sid not in self.deity.secrets:
-            return
+            return False
         shared = 0
         for other in self._neighbors(npc, index):
             if other.known_secret != sid:
@@ -316,6 +325,7 @@ class Simulation:
                 shared += 1
         if shared:
             self.stats.count("secrets_shared", shared)
+        return shared > 0
 
     # ============================================================ metabolism
     def _metabolize(self, npc: NPC, aging: bool) -> None:

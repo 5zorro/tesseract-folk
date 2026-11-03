@@ -23,6 +23,14 @@ from .simulation import Simulation
 ARRAYS = ("soil", "food", "poop", "stink", "scent", "capacity", "profiles")
 FORMAT = 2   # 2 added food scent (M1 slice 6)
 
+# Config fields added after snapshots existed, with the value that reproduces
+# the behavior from before them. A snapshot saved without a field gets this
+# value instead of today's default, so it resumes the way it was saved.
+LEGACY = {
+    "food_scent": False,           # M1 slice 6; without it, old brains wouldn't fit
+    "busy_resets_idle": False,     # 2026-11-02
+}
+
 
 def save_snapshot(sim: Simulation, path: str | Path) -> Path:
     path = Path(path)
@@ -48,9 +56,7 @@ def save_snapshot(sim: Simulation, path: str | Path) -> Path:
 def load_snapshot(path: str | Path, log_every: int = 100) -> Simulation:
     path = Path(path)
     state = json.loads((path / "state.json").read_text())
-    config = dict(state["config"])
-    if state.get("format", 1) < 2:
-        config["food_scent"] = False       # saved before scent existed; brains fit without it
+    config = {**LEGACY, **state["config"]}   # fields the snapshot predates keep the old behavior
     sim = Simulation(Config.from_dict(config), populate=False, log_every=log_every)
     arrays = np.load(path / "world.npz")
     for k in ARRAYS:
