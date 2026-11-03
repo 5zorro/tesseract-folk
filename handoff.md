@@ -18,14 +18,15 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
   enforced/planned/decision) and `SECURITY.md` (how to report) exist. `sim/`'s
   no-outside-I/O rule is enforced by `tests/test_safety.py`.
 - **Local git repo, branch `main`, initial commit made 2026-11-02. Not pushed;
-  no GitHub repo yet.** Still open (`openitems.md` "Next up"): license, CI, and
-  turning on private vulnerability reporting once the GitHub repo exists.
+  no GitHub repo yet.** Licensed **AGPL-3.0-or-later** (`LICENSE`; notes on
+  monetizing, contributors and the 4D Miner mod in `openitems.md`). Still open:
+  CI, and private vulnerability reporting once the GitHub repo exists.
 - **Next: M1 survival.** Plan: `docs/plan-m1-survival.md`. No slice started.
 - Honest state: births ≈ 0, the population is held at `min_population` by top-ups,
   prayers are never answered, and smiting causes ~40% of early collapses.
 
 ## Where to pick up
-1. 5zorro: pick a license, create the GitHub repo, push.
+1. 5zorro: create the GitHub repo and push.
 2. `docs/plan-m1-survival.md`, slice 1 (collapse-cause instrumentation).
 
 ## Setup (Windows)
