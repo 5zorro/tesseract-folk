@@ -11,7 +11,10 @@ from here. Examples:
 Each --variant is a comma-separated list of Config overrides, compared against
 a baseline that has only the --set overrides. The pseudo-key
 controller=scripted runs every NPC, including newborns and top-ups, on
-ScriptedController (the "instinct" benchmark) instead of its brain.
+ScriptedController (the "instinct" benchmark) instead of its brain, and
+brains_from=<snapshot folder> starts each world from that snapshot's best
+brains (the nursery, sim/nursery.py):
+    python scripts/sweep.py --variant brains_from=snapshots/nursery-2
 """
 from __future__ import annotations
 
@@ -21,7 +24,6 @@ import math
 import os
 import sys
 from concurrent.futures import ProcessPoolExecutor
-from dataclasses import fields
 from pathlib import Path
 
 import numpy as np
@@ -29,7 +31,9 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from sim import Config, Simulation  # noqa: E402
+from sim.config import parse_overrides as config_overrides  # noqa: E402
 from sim.controllers import ScriptedController  # noqa: E402
+from sim.nursery import load_brain_pool, seed_brains  # noqa: E402
 from sim.stats import CAUSES  # noqa: E402
 
 # Generation buckets for collapse rates: (label, first generation, last generation).
@@ -43,32 +47,23 @@ SHOWN_CAUSES = [("smite", "smite"), ("nutrient_starve", "nutr"), ("body_starve",
 
 # ================================================================ parsing
 def parse_overrides(spec: str) -> dict:
-    """'smite_damage=0,hidden_units=24' -> {'smite_damage': 0.0, 'hidden_units': 24}.
-
-    Values take the type of the Config default, so typos fail loudly instead
-    of being silently ignored by Config.from_dict.
-    """
-    defaults = Config()
-    known = {f.name for f in fields(Config)}
-    out = {}
+    """Config overrides (typed by sim.config.parse_overrides) plus the sweep's
+    pseudo-keys: controller=brain|scripted, and brains_from=<snapshot folder>
+    to start each world from that snapshot's best brains (sim/nursery.py)."""
+    out, rest = {}, []
     for item in filter(None, (s.strip() for s in spec.split(","))):
-        key, sep, raw = (part.strip() for part in item.partition("="))
-        if not sep:
-            raise ValueError(f"expected key=value, got {item!r}")
+        key, _, raw = (part.strip() for part in item.partition("="))
         if key == "controller":
             if raw not in CONTROLLERS:
                 raise ValueError(f"controller must be one of {CONTROLLERS}, got {raw!r}")
             out[key] = raw
-            continue
-        if key not in known:
-            raise ValueError(f"unknown Config field {key!r}")
-        kind = type(getattr(defaults, key))
-        if kind is bool:
-            if raw.lower() not in ("true", "false", "1", "0"):
-                raise ValueError(f"{key} needs true/false, got {raw!r}")
-            out[key] = raw.lower() in ("true", "1")
+        elif key == "brains_from":
+            if not raw:
+                raise ValueError("brains_from needs a snapshot folder")
+            out[key] = raw
         else:
-            out[key] = kind(raw)
+            rest.append(item)
+    out.update(config_overrides(",".join(rest)))
     return out
 
 
@@ -93,7 +88,10 @@ def run_one(overrides: dict, seed: int, ticks: int, late_from: float, log_every:
     """Run one seed and return its summary metrics (all plain numbers)."""
     overrides = dict(overrides)
     controller = overrides.pop("controller", "brain")
+    brains_from = overrides.pop("brains_from", None)
     sim = Simulation(Config(**{**overrides, "seed": seed}), log_every=log_every)
+    if brains_from:
+        seed_brains(sim, load_brain_pool(brains_from))
     scripted = ScriptedController() if controller == "scripted" else None
     nutrient_from = int(ticks * NUTRIENT_WINDOW)
     min_nutrients = []

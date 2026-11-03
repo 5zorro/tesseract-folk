@@ -118,3 +118,28 @@ class Config:
     def from_dict(cls, data: dict) -> "Config":
         known = {f.name for f in fields(cls)}
         return cls(**{k: v for k, v in data.items() if k in known})
+
+
+def parse_overrides(spec: str) -> dict:
+    """'metabolism_rate=0.008,hidden_units=24' -> {'metabolism_rate': 0.008, 'hidden_units': 24}.
+
+    Values take the type of the Config default, so typos fail loudly instead
+    of being silently ignored by Config.from_dict.
+    """
+    defaults = Config()
+    known = {f.name for f in fields(Config)}
+    out = {}
+    for item in filter(None, (s.strip() for s in spec.split(","))):
+        key, sep, raw = (part.strip() for part in item.partition("="))
+        if not sep:
+            raise ValueError(f"expected key=value, got {item!r}")
+        if key not in known:
+            raise ValueError(f"unknown Config field {key!r}")
+        kind = type(getattr(defaults, key))
+        if kind is bool:
+            if raw.lower() not in ("true", "false", "1", "0"):
+                raise ValueError(f"{key} needs true/false, got {raw!r}")
+            out[key] = raw.lower() in ("true", "1")
+        else:
+            out[key] = kind(raw)
+    return out

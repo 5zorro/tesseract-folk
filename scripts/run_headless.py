@@ -5,6 +5,12 @@ Examples:
     python scripts/run_headless.py --until-stable --save snapshots/baseline
     python scripts/run_headless.py --load snapshots/baseline --ticks 2000
     python scripts/run_headless.py --dims 4 --size 10 --ticks 500
+
+Nursery (evolve under harsh rules, then start fresh worlds from the best brains):
+    python scripts/run_headless.py --set collapse_age_penalty=600 --ticks 20000 --save snapshots/nursery-1
+    python scripts/run_headless.py --brains-from snapshots/nursery-1 --set collapse_age_penalty=600 \\
+        --ticks 20000 --save snapshots/nursery-2
+    python scripts/run_headless.py --brains-from snapshots/nursery-2 --seed 7 --ticks 5000
 """
 from __future__ import annotations
 
@@ -16,6 +22,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from sim import Config, Simulation  # noqa: E402
+from sim.config import parse_overrides  # noqa: E402
+from sim.nursery import load_brain_pool, seed_brains  # noqa: E402
 from sim.snapshot import load_snapshot, save_snapshot  # noqa: E402
 from sim.stats import CAUSES  # noqa: E402
 
@@ -68,9 +76,16 @@ def main() -> None:
                     help="keep running until the population settles (ignores --ticks)")
     ap.add_argument("--max-ticks", type=int, default=100_000)
     ap.add_argument("--save", type=str, default=None, help="snapshot folder to write at the end")
-    ap.add_argument("--load", type=str, default=None, help="snapshot folder to start from")
+    ap.add_argument("--load", type=str, default=None,
+                    help="snapshot folder to resume exactly (same world, same rules)")
+    ap.add_argument("--brains-from", type=str, default=None,
+                    help="start a fresh world from this snapshot's best brains (the nursery)")
+    ap.add_argument("--set", action="append", default=[], metavar="KEY=VALUE[,...]",
+                    help="Config override for a fresh world (repeatable)")
     args = ap.parse_args()
 
+    if args.load and (args.brains_from or args.set):
+        ap.error("--load resumes a world as saved; use --brains-from to change rules or seed")
     if args.load:
         sim = load_snapshot(args.load, log_every=args.log_every)
     else:
@@ -78,7 +93,22 @@ def main() -> None:
         for name in ("dims", "size", "seed"):
             if getattr(args, name) is not None:
                 setattr(cfg, name, getattr(args, name))
+        try:
+            for spec in args.set:
+                for key, value in parse_overrides(spec).items():
+                    setattr(cfg, key, value)
+        except ValueError as e:
+            ap.error(str(e))
         sim = Simulation(cfg, log_every=args.log_every)
+        if args.brains_from:
+            pool = load_brain_pool(args.brains_from)
+            try:
+                seed_brains(sim, pool)
+            except ValueError as e:
+                ap.error(str(e))
+            print(f"Seeded {len(sim.npcs)} NPCs from {len(pool)} brains in {args.brains_from} "
+                  f"(best fitness {pool[0]['fitness']:.0f}, generations "
+                  f"{min(e['generation'] for e in pool)}-{max(e['generation'] for e in pool)}).")
 
     print(f"dims={sim.cfg.dims} size={sim.cfg.size} inputs={sim.n_inputs} "
           f"actions={sim.n_actions} brain_params={sim.npcs[0].brain.n_params if sim.npcs else 0}")

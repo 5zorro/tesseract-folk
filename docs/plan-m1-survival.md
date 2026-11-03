@@ -245,8 +245,47 @@ Make **instinct viable first, then learning:**
    "nursery", and the game world keeps pillar 4. Next step: the nursery slice
    below. The play-time default for `collapse_age_penalty` stays 150 for now.
 
-### Slice 4b (new): Nursery, a pretrained brain pool
-Proposed 2026-11-02, after the probe above. Not started.
+### Slice 4b: Nursery, a pretrained brain pool ✅ (2026-11-02)
+**Built:**
+- `sim/nursery.py: load_brain_pool, seed_brains`.
+- `run_headless.py --brains-from <snapshot>` and `--set KEY=VALUE`.
+- The sweep pseudo-key `brains_from=<snapshot>`.
+- Override parsing moved to `sim/config.py: parse_overrides`.
+- Tests: `tests/test_nursery.py`.
+
+**First nursery** (local, gitignored, ~1 MB each):
+- `snapshots/nursery-1`: seed 100, `collapse_age_penalty=600`, 20,000 ticks.
+  The rate fell from 3.3 (g0) to about 1.8 (g3+).
+- `snapshots/nursery-2`: seeded from nursery-1, seed 101, same rules,
+  20,000 ticks. It plateaued at about 1.7–2.0.
+
+**Payoff under gentle play rules** (default config; 5 seeds × 10,000 ticks on
+maps the nursery never saw; `runs/2026-11-02-nursery.csv`):
+| | Scratch | Nursery-1 | Nursery-2 | Scripted |
+|---|---|---|---|---|
+| Collapses / 1,000 NPC-ticks | 3.9 ± 0.2 | **2.8 ± 0.2** | **2.9 ± 0.1** | 6.9 ± 0.9 |
+| Births | 21 | 57 | **156** | 0 |
+| Top-up spawns | 250 | 190 | **130** | 360 |
+| Max generation | 6.6 | 11.0 | 13.6 | 6.8 |
+| Late window by generation | 3.5 → 3.5 → 3.7 | 3.6 → 2.7 → 2.8 → 3.9 | 1.9 → 2.4 → 3.5 (g3–5 → g6–10 → g11+) | flat |
+
+Reading:
+- **Pretrained brains generalize to new maps** and collapse about 28% less.
+- **Births beat top-ups for the first time** with nursery-2 (156 vs 130). That's
+  a real step toward M3: healthier NPCs reach breeding condition.
+- **The advantage erodes in gentle worlds.** Generations born there get worse
+  (nursery-2 late window: 1.9 → 2.4 → 3.5). With weak selection, mutations pile
+  up. Options, none built yet:
+  - Re-seed from the nursery periodically.
+  - Use a lower `mutation_rate` in play than in the nursery.
+  - Keep mild selection in play (e.g. `collapse_age_penalty` around 300).
+- The second nursery stage barely beat the first. Longer or harsher training,
+  or more hidden units (slice 5), may be needed to go further.
+- **Criteria question for 5zorro:** criterion 1 ("collapses fall over generations")
+  holds in the nursery but not in the play world. Should M1 be judged on the
+  nursery's trend plus play-world collapse rate and births?
+
+**Original proposal:**
 - `run_headless.py --brains-from <snapshot>`: start a **fresh** world (any seed
   or config) whose starting NPCs and hall of fame carry the best brains from a
   snapshot, ranked by fitness. Fail clearly if the brain shapes don't match

@@ -64,6 +64,9 @@ Players may share snapshots, so treat every snapshot as untrusted input.
 - **[planned]** Before snapshots are shared publicly: size limits on both files,
   and a check that array shapes and brain sizes match the config, so a crafted
   file fails with a clear error instead of exhausting memory.
+- The nursery (`sim/nursery.py: load_brain_pool`) reads the same `state.json`,
+  so brain pools shared between players are untrusted input under the same rules.
+  It already refuses brains whose shape doesn't fit the world.
 - **Rule:** never switch to pickle, `eval`, or any format that can carry code.
   The C++ port loads the same JSON and needs the same checks.
 

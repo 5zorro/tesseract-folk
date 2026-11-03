@@ -22,33 +22,36 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
   monetizing, contributors and the 4D Miner mod in `openitems.md`). Still open:
   CI, private vulnerability reporting, and a contributor agreement before
   accepting outside PRs.
-- **M1 survival in progress.** Plan: `docs/plan-m1-survival.md`. Slices 1–3
-  (collapse causes, multi-seed `scripts/sweep.py`, honest stability check) are
-  done; slice 4 (economy tuning) is next. Two decisions on criteria wording are
-  open (bottom of the plan).
-- `--until-stable` now honestly fails (top-ups, population on the floor) and
-  prints why. It will keep failing until M3.
+- **M1 survival in progress.** Plan: `docs/plan-m1-survival.md`. Done: slices
+  1–3 (collapse causes, multi-seed `scripts/sweep.py`, honest stability check)
+  and **4b, the nursery** (`sim/nursery.py`, `--brains-from`). Criteria wording
+  is still open (bottom of the plan, and the question under slice 4b).
+- `--until-stable` honestly fails (top-ups, population on the floor) and prints
+  why. Expect that until M3.
 - **Smiting is off** (`Config.smiting = False`, 5zorro 2026-11-02) until a snapshot
   survives hunger. Piety and smiting return in M5.
-- Honest state, hunger only (5 seeds × 10,000 ticks):
-  - Collapses ≈ 3.9 per 1,000 NPC-ticks in 2D; starvation causes about 99% of them.
-  - Brains beat the 2D scripted forager (3.5 vs 6.5) but **don't improve across
-    generations** under today's gentle rules (flat 3.5 → 3.5 → 3.7).
-  - Selection needs deaths: a bigger `collapse_age_penalty` restores the
-    improvement (600: 2.9 → 2.0; 1200: 1.9 → 1.4), at the cost of more top-ups.
-  - **Decided:** keep pillar 4 ("young can't die") for play. Evolve brains under
-    harsh rules in an offline "nursery", then start gentle worlds from them. A
-    probe showed pretrained brains collapse ~17% less under gentle rules. Next:
-    slice 4b in the plan.
-  - Nobody ever learns or shares a secret (0 answered prayers), and there's no way
-    to communicate food locations. No social structure is measurable yet
-    (`openitems.md`).
+- **Decided:** keep pillar 4 ("young can't die") in play. Evolution's deaths
+  happen offline in the nursery (harsh `collapse_age_penalty=600`), and gentle
+  play worlds start from its best brains.
+- Honest state, hunger only (5 seeds × 10,000 ticks, 2D, gentle rules):
+  | | From scratch | From `snapshots/nursery-2` |
+  |---|---|---|
+  | Collapses / 1,000 NPC-ticks | 3.9 | 2.9 |
+  | Births vs top-ups | 21 vs 250 | **156 vs 130** |
+  - Starvation causes nearly all collapses.
+  - Nursery brains generalize to unseen maps.
+  - But their advantage **erodes over generations** in gentle worlds
+    (1.9 → 2.4 → 3.5), because selection is weak there.
+  - Nursery snapshots are local only (`snapshots/` is gitignored, ~1 MB each).
+    Retrain them with the commands in `scripts/run_headless.py`'s docstring.
+  - Nobody learns or shares secrets, and there's no channel for food
+    locations. No social structure is measurable yet (`openitems.md`).
   - In 4D the scripted forager never collapses, so the 4D economy is easy.
-  - Births ≈ 21 per run vs about 250 top-up spawns. That belongs to M3.
 
 ## Where to pick up
-1. `docs/plan-m1-survival.md`, slice 4b (nursery: start fresh worlds from a
-   snapshot's best brains, `--brains-from`).
+1. 5zorro: settle the M1 criteria questions (plan bottom, and under slice 4b).
+2. Then pick one: keep play worlds from drifting (re-seed, lower play mutation,
+   or mild selection), or slice 5 (bigger brains) to push the nursery further.
 
 ## Setup (Windows)
 ```bash
@@ -65,6 +68,7 @@ In WSL, make a separate venv (`.venv/bin/python`); see `gotchas.md`.
 | Tick order (sense → think → act → metabolize) | `sim/simulation.py: step` |
 | Every damage source | `sim/simulation.py: _metabolize`, `sim/deity.py: pray`; always via `NPC.take_damage` so the cause is recorded |
 | Collapse causes, per-generation rates | `sim/stats.py: CAUSES, collapse_rate_by_generation`; printed by `run_headless.py: print_summary` |
+| Nursery: evolve offline, start fresh worlds from the best brains | `sim/nursery.py`; commands in `scripts/run_headless.py` docstring; `sweep.py --variant brains_from=<snapshot>` |
 | Comparing configs over many seeds | `scripts/sweep.py` (e.g. `--seeds 5 --ticks 10000 --variant metabolism_rate=0.008 --variant controller=scripted`) |
 | Collapse vs death, the hall-of-fame top-up | `sim/simulation.py: _collapse, _die, _top_up` |
 | Adding a tunable | `sim/config.py` (every number lives here) |

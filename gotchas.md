@@ -46,3 +46,17 @@ Traps that already bit us, by area. Add to this when something surprises you.
   to a personal email, which shouldn't go into this public repo's history.
 - `.venv/` is created on the Windows side (`.venv/Scripts/python`). A WSL shell
   needs its own venv (`.venv/bin/python`); don't share one between the two.
+
+## Nursery
+- **Gentle worlds slowly lose the nursery's advantage.** Generations born under
+  the play rules get worse (1.9 → 2.4 → 3.5 collapses per 1,000 NPC-ticks with
+  nursery-2), because weak selection lets mutations pile up. Compare whole-run
+  rates or early windows when judging a brain pool, not just the late window.
+- **Generation numbers carry over** from the pool, so a seeded world starts at
+  generation ~5–10, and its g0 column is empty. That's expected.
+- **Brain shapes must match:** `dims`, `n_food_types`, `n_nutrients`,
+  `hidden_units` and `memory_units` must equal the nursery's, or `seed_brains`
+  refuses. A 2D nursery can't seed a 4D world.
+- **Pool fitness comes from the nursery's rules.** The hall of fame starts with
+  fitness scores earned under harsh rules, so new deaths in a gentle world
+  must beat those numbers to get in.

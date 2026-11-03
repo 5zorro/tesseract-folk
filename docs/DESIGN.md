@@ -171,6 +171,14 @@ re-derive. So:
   (`run_headless.py --until-stable --save snapshots/baseline`).
 - **[built]** Save it as a snapshot; new players boot from that snapshot.
   Snapshots resume deterministically.
+- **[built] Nursery** (`sim/nursery.py`): brains evolve offline under harsh rules
+  (deaths drive selection), then fresh worlds under the gentle play rules start
+  from the best of them (`run_headless.py --brains-from`). Pretrained brains
+  generalize to new maps, collapse ~28% less, and raise births ~7× (M1 plan,
+  slice 4b). The shipped baseline should come from the nursery.
+- **[idea]** Keep play worlds from drifting: in gentle worlds, generations
+  slowly lose the nursery's advantage. Re-seed periodically, mutate less in
+  play, or keep mild selection.
 
 ## 13. Porting to 4D Miner
 
