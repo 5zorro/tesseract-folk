@@ -60,7 +60,7 @@ class Config:
     carry_capacity: float = 1.0
     metabolism_rate: float = 0.01         # fraction of body mass -> bowel per tick
     bowel_capacity: float = 0.4           # over this, an "accident" happens
-    nutrient_decay: float = 0.004
+    nutrient_decay: float = 0.003         # was 0.004 until 2026-11-02 (5zorro: hunger slower, collapses harsher)
     idle_grace_ticks: int = 5             # standing still longer than this...
     idle_hunger_multiplier: float = 2.5   # ...makes hunger rise faster
     # Actions that change something (eating, picking up, giving, pooping, a birth,
@@ -78,7 +78,7 @@ class Config:
     adult_age: int = 300
     old_age: int = 1500                   # only elders can die permanently
     elder_decline: float = 0.01
-    collapse_age_penalty: int = 150       # young NPCs collapse, respawn, age faster
+    collapse_age_penalty: int = 300       # young NPCs collapse, respawn, age faster (was 150)
     collapse_health: float = 0.5          # health on waking up after a collapse
     collapse_nutrient_floor: float = 0.4  # nutrients are topped up to at least this
 
