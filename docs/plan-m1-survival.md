@@ -1,7 +1,8 @@
 # Plan: M1 Survival
 
-Status: **slices 1–3 and 4b (nursery) done; criteria settled (2026-11-02).
-Now: slice 6, food scent.** Slices are ordered;
+Status: **slices 1–3, 4b (nursery) and 6 (food scent) done; criteria settled
+(2026-11-02). Criteria 1–2 met; 3 (nutrients above 0.4) is the gap; 4 (4D) not
+yet measured.** Slices are ordered;
 each one ends with tests passing and a commit. Open decisions (bottom) are 5zorro's.
 
 **For a new session:** read `handoff.md`, `gotchas.md` and this file. Do the
@@ -37,11 +38,12 @@ Births and a top-up-free population are M3's job, not M1's. Don't chase them her
 **Smiting is off for M1** (5zorro, 2026-11-02: `Config.smiting = False`). M1 is
 judged on hunger alone; piety and smiting come back for M5.
 
-**Where the criteria stand** (2026-11-02, before food scent; nursery-2, slice 4b):
-1. **Met:** the nursery's rate fell 3.3 (g0) → about 1.8 (g3+); the penalty-600
-   sweep fell 2.9 → 2.0 (g1–2 → g6–10).
-2. **Met:** 2.9 ± 0.1 from nursery-2 vs 3.9 ± 0.2 from scratch.
-3. **Not met:** the lowest nutrient is about 0.30–0.33. This is the gap slice 6 targets.
+**Where the criteria stand** (2026-11-02, after food scent; nursery-4, slice 6):
+1. **Met:** the scent nursery's rate fell 3.2 (g0) → about 1.7–2.2 (g5+) in
+   stage 1, and sat around 1.5 in stage 2.
+2. **Met:** 2.7 ± 0.1 from nursery-4 vs 4.1 ± 0.3 from scratch.
+3. **Not met:** the lowest nutrient is 0.34 ± 0.01 (nursery-4), against a bar
+   of 0.4. Scent barely moved it (0.33 with nursery-2).
 4. **Not measured** with a 4D nursery yet. 4D from scratch is flat (3.0 → 3.1).
 
 ## What we know already (probe on 2026-11-02, single seed, 3,000 ticks)
@@ -366,6 +368,42 @@ food in the cells right next to them, so a patch a few cells away is invisible.
 - **Measure:** from scratch, scent vs no scent (5 × 10k). Then retrain the nursery
   with scent and compare play worlds against nursery-2, mainly on criterion 3.
 
+**Built** (2026-11-02): as proposed. Tests: `tests/test_scent.py`. Run cost +8%.
+
+**From scratch, scent doesn't help** (5 seeds × 10,000 ticks, gentle rules;
+`runs/2026-11-02-scent-scratch.csv`): 4.1 ± 0.3 collapses with scent vs 3.9 ± 0.2
+without, lowest nutrient 0.30 both. Expected: gentle worlds barely select, so
+nobody learns to use a new sense, and nine extra random inputs are just noise.
+
+**Through the nursery, it does.** New nursery with scent, same recipe as
+nursery-1/2 (local, gitignored):
+- `snapshots/nursery-3`: seed 100, `collapse_age_penalty=600`, 20,000 ticks.
+  3.2 (g0) → 1.7–2.2 (g5+), about like nursery-1.
+- `snapshots/nursery-4`: from nursery-3, seed 101, same rules. About 1.5,
+  a little below nursery-2's 1.7–2.0.
+
+Play worlds on unseen maps (5 seeds × 10,000 ticks, gentle rules;
+`runs/2026-11-02-scent-nursery.csv`):
+| | Scratch (scent) | Nursery-2 (no scent) | **Nursery-4 (scent)** |
+|---|---|---|---|
+| Collapses / 1,000 NPC-ticks | 4.1 ± 0.3 | 2.9 ± 0.1 | **2.7 ± 0.1** |
+| Lowest nutrient, last quarter | 0.30 | 0.33 | 0.34 |
+| Births | 15 | 156 | **243 ± 31** |
+| Top-up spawns | 258 | 130 | **64 ± 20** |
+| Max generation | 6.2 | 13.6 | 30.4 |
+| Late window, oldest buckets | 3.6 → 4.1 | 2.4 → 3.5 (g6–10 → g11+) | 2.2 → **2.5** |
+| Passes `--until-stable`'s check | 0 of 5 | 0 of 5 | **1 of 5** |
+
+Reading:
+- Scent-trained brains breed far more (births +56%, top-ups halved). Births now
+  outnumber top-ups almost 4 to 1. One world in five passed the stability check,
+  a first.
+- **Drift is much smaller:** late generations get worse by 0.3 instead of 1.1.
+- The collapse rate improved only a little (2.9 → 2.7), and the **lowest nutrient
+  barely moved (0.33 → 0.34)**. NPCs find food better but still run one nutrient
+  low. Criterion 3 is still the gap.
+- Stink collapses rose to 13% (from 9%): more NPCs make more poop.
+
 ## Open decisions (5zorro)
 - ~~Raise criterion 2's nutrient bar?~~ Decided: 0.4 (now criterion 3).
 - ~~Reword or drop "starvation is no longer the top cause"?~~ Decided: dropped.
@@ -378,5 +416,6 @@ food in the cells right next to them, so a patch a few cells away is invisible.
 ## Tuning log
 | Date | Change | Why | Effect (seeds × ticks) |
 |---|---|---|---|
+| 2026-11-02 | `food_scent = True` (new; slice 6) | 5zorro: NPCs short on a nutrient should be able to smell the food that has it | Scratch: no change. Nursery-4 play worlds vs nursery-2: collapses 2.9 → 2.7, births 156 → 243, top-ups 130 → 64, lowest nutrient 0.33 → 0.34 (5 × 10k) |
 | 2026-11-02 | `smiting = False` (new flag; was effectively on) | 5zorro: judge survival on hunger first; smiting caused ~70% of collapses | 2D collapses 6.9 → 3.9; births 13 → 21; generation trend went flat (5 × 10k) |
 | 2026-11-02 | `collapse_health`, `collapse_nutrient_floor` moved to config (same values) | Rule 5; makes respawn harshness sweepable | none (refactor) |

@@ -66,6 +66,11 @@ Traps that already bit us, by area. Add to this when something surprises you.
 - **Brain shapes must match:** `dims`, `n_food_types`, `n_nutrients`,
   `hidden_units` and `memory_units` must equal the nursery's, or `seed_brains`
   refuses. A 2D nursery can't seed a 4D world.
+- **Pools saved before food scent need `--set food_scent=false`** (nursery-1/2):
+  scent adds brain inputs, so `seed_brains` refuses them otherwise. Old
+  snapshots `--load` fine: format 1 loads with scent off automatically.
+- **A new sense shows nothing from scratch.** Gentle worlds barely select, so a
+  sense only pays off after nursery training. Judge senses through the nursery.
 - **Pool fitness comes from the nursery's rules.** The hall of fame starts with
   fitness scores earned under harsh rules, so new deaths in a gentle world
   must beat those numbers to get in.

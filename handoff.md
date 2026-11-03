@@ -23,9 +23,10 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
   CI, private vulnerability reporting, and a contributor agreement before
   accepting outside PRs.
 - **M1 survival in progress.** Plan: `docs/plan-m1-survival.md`. Done: slices
-  1–3 (collapse causes, multi-seed `scripts/sweep.py`, honest stability check)
-  and **4b, the nursery** (`sim/nursery.py`, `--brains-from`). Criteria wording
-  is still open (bottom of the plan, and the question under slice 4b).
+  1–3 (collapse causes, multi-seed `scripts/sweep.py`, honest stability check),
+  **4b, the nursery** (`sim/nursery.py`, `--brains-from`) and **6, food scent**
+  (`Config.food_scent`, on by default). Criteria settled by 5zorro (plan, Goal):
+  1–2 met, **3 (lowest nutrient above 0.4) is the gap**, 4 (4D) not measured.
 - `--until-stable` honestly fails (top-ups, population on the floor) and prints
   why. Expect that until M3.
 - **Smiting is off** (`Config.smiting = False`, 5zorro 2026-11-02) until a snapshot
@@ -33,64 +34,30 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
 - **Decided:** keep pillar 4 ("young can't die") in play. Evolution's deaths
   happen offline in the nursery (harsh `collapse_age_penalty=600`), and gentle
   play worlds start from its best brains.
-- Honest state, hunger only (5 seeds × 10,000 ticks, 2D, gentle rules):
-  | | From scratch | From `snapshots/nursery-2` |
-  |---|---|---|
-  | Collapses / 1,000 NPC-ticks | 3.9 | 2.9 |
-  | Births vs top-ups | 21 vs 250 | **156 vs 130** |
-  - Starvation causes nearly all collapses.
-  - Nursery brains generalize to unseen maps.
-  - But their advantage **erodes over generations** in gentle worlds
-    (1.9 → 2.4 → 3.5), because selection is weak there.
+- Honest state, hunger only (5 seeds × 10,000 ticks, 2D, gentle rules, unseen maps):
+  | | From scratch | From `nursery-2` (no scent) | From `nursery-4` (scent) |
+  |---|---|---|---|
+  | Collapses / 1,000 NPC-ticks | 4.1 | 2.9 | **2.7** |
+  | Lowest nutrient (bar: 0.4) | 0.30 | 0.33 | 0.34 |
+  | Births vs top-ups | 15 vs 258 | 156 vs 130 | **243 vs 64** |
+  - Starvation causes most collapses (nutrients ~76%, body ~12%, stink ~13%).
+  - Scent only helps through the nursery; from scratch it changes nothing.
+  - Drift in gentle worlds is much smaller with scent (late generations +0.3
+    instead of +1.1). One world in five passed the stability check.
   - Nursery snapshots are local only (`snapshots/` is gitignored, ~1 MB each).
-    Retrain them with the commands in `scripts/run_headless.py`'s docstring.
+    `nursery-3/4` have scent; `nursery-1/2` don't and need `--set food_scent=false`.
+    Retrain with the commands in `scripts/run_headless.py`'s docstring.
   - Nobody learns or shares secrets, and there's no channel for food
     locations. No social structure is measurable yet (`openitems.md`).
   - In 4D the scripted forager never collapses, so the 4D economy is easy.
 
 ## Where to pick up
-1. 5zorro: settle the M1 criteria questions (plan bottom, and under slice 4b).
-2. Then pick a lever (details in `openitems.md` and the plan):
-   - **Food scent**: a long-range smell per food type, built like stink. It
-     targets foraging directly. It changes the brain shape, so retrain the
-     nursery afterwards.
-   - **Seasons** as a config schedule (famine winters), which mostly makes
-     worlds more consistent.
-   - Play-world drift fixes: re-seed, or lower mutation in play.
-   - Slice 5: bigger brains.
-3. Later (M5): the piety lifecycle (full until adulthood, then declines; share
+1. **Criterion 3:** find out why NPCs keep one nutrient at ~0.34. The scripted
+   forager reached 0.66, so 0.4 is possible. Check which nutrient runs low and
+   diet diversity before tuning. Then candidates: slice 5 (bigger brains,
+   retrain the nursery), or the deferred `eat` starting bias (5zorro's call).
+2. **Criterion 4:** train a 4D nursery (`--dims 4 --size 10`) and measure.
+3. Other levers: **seasons** as a config schedule (famine winters, mostly for
+   consistency); play-world drift fixes (re-seed, lower mutation in play).
+4. Later (M5): the piety lifecycle (full until adulthood, then declines; share
    piety like a secret) as the path to answered prayers and shared secrets.
-
-## Setup (Windows)
-```bash
-python -m venv .venv
-.venv/Scripts/python -m pip install -r requirements.txt
-.venv/Scripts/python -m pytest -q
-.venv/Scripts/python scripts/run_headless.py --ticks 3000
-```
-In WSL, make a separate venv (`.venv/bin/python`); see `gotchas.md`.
-
-## Where things are (examples to copy from)
-| Need | Look at |
-|---|---|
-| Tick order (sense → think → act → metabolize) | `sim/simulation.py: step` |
-| Every damage source | `sim/simulation.py: _metabolize`, `sim/deity.py: pray`; always via `NPC.take_damage` so the cause is recorded |
-| Collapse causes, per-generation rates | `sim/stats.py: CAUSES, collapse_rate_by_generation`; printed by `run_headless.py: print_summary` |
-| Nursery: evolve offline, start fresh worlds from the best brains | `sim/nursery.py`; commands in `scripts/run_headless.py` docstring; `sweep.py --variant brains_from=<snapshot>` |
-| Comparing configs over many seeds | `scripts/sweep.py` (e.g. `--seeds 5 --ticks 10000 --variant metabolism_rate=0.008 --variant controller=scripted`) |
-| Collapse vs death, the hall-of-fame top-up | `sim/simulation.py: _collapse, _die, _top_up` |
-| Adding a tunable | `sim/config.py` (every number lives here) |
-| Adding a stats counter | `sim/stats.py: COUNTERS`, then `run_headless.py: COLUMNS/HEADERS` |
-| Moving mass without breaking the invariant | `sim/simulation.py: _give`, `sim/deity.py: step` |
-| A non-brain controller | `sim/controllers.py: ScriptedController` |
-| Test style, small configs | `tests/test_simulation.py: small()` |
-| N-d helpers | `sim/world.py: neighbor, adjacent, wrapped_delta` |
-| Safety rules, threat model, release checklist | `docs/SAFETY.md`, guard tests in `tests/test_safety.py` |
-
-## Working rules (short version; the full list is in AGENT_CONVENTIONS.md)
-- Mass is conserved; new mechanics move matter between pools.
-- Stay N-dimensional; test new features at dims=4.
-- No ML frameworks; never script or reward the emergent behaviors.
-- All randomness through `sim.rng`.
-- 5zorro pushes. Agents may commit locally, with no Co-Authored-By or AI attribution
-  lines (a GitHub hook enforces this).
