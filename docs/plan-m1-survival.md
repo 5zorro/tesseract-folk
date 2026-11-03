@@ -429,9 +429,11 @@ Findings:
    of nutrition per tick, against at least 0.012 lost (0.004 × 3 nutrients, more
    when idle). They run a deficit, and collapses (which refill to 0.4) hold the
    average up.
-4. **Bites are small.** A bite takes at most what's in the cell. NPCs mostly
-   graze the thin everywhere-layer (0.1 per type per cell, half a bite) instead of
-   living in patches, and satiation trims another 20%.
+4. **Bites are small.** A bite takes at most what's in the cell, and grazed
+   cells regrow slowly, so NPCs eat cells down and get partial bites; satiation
+   trims another 20%. *(Corrected 2026-11-02: an earlier version blamed the thin
+   everywhere-layer. In fact the "patches" are huge: with radius 4, each food
+   type can hold a full bite on 44–71% of the map.)*
 5. **Eating counts as standing still.** After 5 ticks without moving, hunger runs
    2.5× faster, even while eating. The scripted forager eats 58% of the time, is
    "idle" 55% of the time, and starves 20% of the time. Brains also spend about
@@ -455,6 +457,40 @@ Testing finding 5 (5 seeds × 10,000 ticks, gentle rules;
   are failing to reach.
 - Not changed yet: both the idle rule and the 0.4 bar are 5zorro's call (below).
 
+**5zorro's rule changes** (2026-11-02):
+- `busy_resets_idle = True`: moving *or* an action that changed something
+  (eating, picking up, giving, pooping, a birth, worship at a shrine, an answered
+  prayer, sharing) resets the idle streak. Trying and failing still counts as idle,
+  so spamming an ignored prayer doesn't dodge the penalty. Tests: `tests/test_idle.py`.
+- `food_baseline_fraction` 0.05 → 0: no thin layer; food only grows in patches,
+  so NPCs have to seek them (with scent).
+- New nursery under both rules (local): `snapshots/nursery-5` (seed 100) fell
+  3.6 → 1.2, the steepest trend yet; `snapshots/nursery-6` (from it, seed 101)
+  held about 1.3.
+
+Play worlds, 5 seeds × 10,000 ticks (`runs/2026-11-02-newrules.csv`,
+`-busy-only.csv`, `-nursery-6.csv`):
+| Brains | Rules | Collapses | Lowest nutrient | Births | Top-ups |
+|---|---|---|---|---|---|
+| Nursery-4 | before today | 2.7 ± 0.1 | 0.34 | 243 | 64 |
+| Nursery-4 | busy rule only (thin layer kept) | **2.3 ± 0.2** | **0.37** | **304** | **34** |
+| Nursery-4 | busy rule + patches only | 3.0 ± 0.7 | 0.30 | 90 | 173 |
+| Nursery-6 | busy rule + patches only (its own rules) | 2.3 ± 0.5 | 0.33 | 85 | 157 |
+| Nursery-6 | busy rule, thin layer put back | **1.8 ± 0.1** | 0.36 | 185 | 72 |
+| Scripted | busy rule only | 3.2 ± 0.4 | 0.42 | 0 | 250 |
+| Scripted | busy rule + patches only | 5.6 ± 0.8 | 0.31 | 0 | 319 |
+| Scratch | busy rule + patches only | 3.8 ± 0.4 | 0.30 | 11 | 250 |
+
+Reading:
+- **The busy rule helps** everywhere (nursery-4: 2.7 → 2.3, top-ups halved).
+- **Patches only means less food.** Removing the thin layer cuts total food, and
+  the untrained scripted forager shows it most (3.2 → 5.6, body starvation up).
+  Brains trained under it (nursery-6) recover to 2.3 but breed far less (85 births).
+- Nursery-6 brains given the thin layer back are the best yet (1.8): training in
+  a lean world, then playing in a richer one, pays off.
+- The lowest nutrient stays at 0.30–0.37 in every variant. Criterion 3 hasn't
+  moved; the scripted forager's 0.42 is still the ceiling.
+
 ## Open decisions (5zorro)
 - ~~Raise criterion 2's nutrient bar?~~ Decided: 0.4 (now criterion 3).
 - ~~Reword or drop "starvation is no longer the top cause"?~~ Decided: dropped.
@@ -462,11 +498,17 @@ Testing finding 5 (5 seeds × 10,000 ticks, gentle rules;
 - ~~Judge criterion 1 in the play world?~~ Decided: in the nursery; play worlds
   are judged on collapse rate vs scratch.
 - `eat` starting bias as an "instinct": deferred until food scent is measured.
-- **Should eating count as standing still?** Today it does, so foragers pay the
+- ~~Should eating count as standing still?~~ Decided (5zorro): no. `busy_resets_idle`.
+  Old note: it did, so foragers pay the
   2.5× idle hunger while they eat. Options: eating resets the idle streak (only
   loafing is punished, as pillar 2 meant), or keep it. Removing the penalty
   entirely was the probe; the targeted fix is untested. Changes the rules the
   nursery trained under, so retrain afterwards.
+- **Patches only: keep it, and add food back?** Defaults are now patches only
+  (5zorro's request), which costs food. Options: put the thin layer back, or keep
+  patches only and restore the lost food inside patches (higher `food_capacity`
+  or `food_growth_rate`), or make patches smaller but richer for real "biomes".
+  Untested.
 - **Is 0.4 the right nutrient bar?** A scripted forager reaches only 0.40–0.42
   under today's rules. Either keep 0.4 and change the economy so it's reachable
   (eating not idle, bigger bites in thin food, slower decay), or set the bar
@@ -476,6 +518,8 @@ Testing finding 5 (5 seeds × 10,000 ticks, gentle rules;
 ## Tuning log
 | Date | Change | Why | Effect (seeds × ticks) |
 |---|---|---|---|
+| 2026-11-02 | `busy_resets_idle = True` (new) | 5zorro: eating shouldn't count as standing still | Nursery-4, thin layer kept: collapses 2.7 → 2.3, top-ups 64 → 34, lowest nutrient 0.34 → 0.37 (5 × 10k) |
+| 2026-11-02 | `food_baseline_fraction` 0.05 → 0 | 5zorro: with scent, NPCs should seek patches | Less food: scripted 3.2 → 5.6; nursery-6 (trained under it) 2.3 with 85 births vs 1.8 / 185 with the layer back (5 × 10k). Open decision |
 | 2026-11-02 | `food_scent = True` (new; slice 6) | 5zorro: NPCs short on a nutrient should be able to smell the food that has it | Scratch: no change. Nursery-4 play worlds vs nursery-2: collapses 2.9 → 2.7, births 156 → 243, top-ups 130 → 64, lowest nutrient 0.33 → 0.34 (5 × 10k) |
 | 2026-11-02 | `smiting = False` (new flag; was effectively on) | 5zorro: judge survival on hunger first; smiting caused ~70% of collapses | 2D collapses 6.9 → 3.9; births 13 → 21; generation trend went flat (5 × 10k) |
 | 2026-11-02 | `collapse_health`, `collapse_nutrient_floor` moved to config (same values) | Rule 5; makes respawn harshness sweepable | none (refactor) |

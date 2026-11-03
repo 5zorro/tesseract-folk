@@ -69,13 +69,13 @@ Traps that already bit us, by area. Add to this when something surprises you.
 - **Pools saved before food scent need `--set food_scent=false`** (nursery-1/2):
   scent adds brain inputs, so `seed_brains` refuses them otherwise. Old
   snapshots `--load` fine: format 1 loads with scent off automatically.
-- **"Standing on food" is almost always true.** Every food type grows a thin
-  layer everywhere (`food_baseline_fraction`, 0.1 per cell), so "on food" or
-  "food nearby" checks pass almost everywhere. Use a higher threshold to mean
-  "in a patch".
-- **Eating counts as idle.** Only moving resets `idle_streak`, so an NPC that eats
-  for more than 5 ticks gets 2.5× hunger. Remember this when reading forager
-  results (M1 plan, slice 6 diagnosis).
+- **"Patches" cover most of the map.** With `food_patch_radius=4`, Gaussian tails
+  reach ~8 cells, so each food type can hold a full bite on 44–71% of the map,
+  even with no thin layer. "Standing on food" checks pass almost everywhere.
+- **Results before 2026-11-02 used older rules:** eating counted as idle (2.5×
+  hunger while eating) and a thin food layer grew everywhere. Old snapshots
+  still resume that way (`snapshot.py: LEGACY`, `food_baseline_fraction` saved
+  in their config).
 - **A new sense shows nothing from scratch.** Gentle worlds barely select, so a
   sense only pays off after nursery training. Judge senses through the nursery.
 - **Pool fitness comes from the nursery's rules.** The hall of fame starts with

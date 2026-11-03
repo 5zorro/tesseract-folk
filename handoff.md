@@ -45,18 +45,20 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
   - Drift in gentle worlds is much smaller with scent (late generations +0.3
     instead of +1.1). One world in five passed the stability check.
   - Nursery snapshots are local only (`snapshots/` is gitignored, ~1 MB each).
-    `nursery-3/4` have scent; `nursery-1/2` don't and need `--set food_scent=false`.
+    `nursery-5/6` are trained under today's rules (scent, busy rule, patches only);
+    `nursery-3/4` have scent but older rules; `nursery-1/2` need `--set food_scent=false`.
     Retrain with the commands in `scripts/run_headless.py`'s docstring.
   - Nobody learns or shares secrets, and there's no channel for food
     locations. No social structure is measurable yet (`openitems.md`).
   - In 4D the scripted forager never collapses, so the 4D economy is easy.
 
 ## Where to pick up
-1. **Criterion 3:** diagnosed (plan, under slice 6). Not diet balance: intake is
-   too low (small bites from the thin food layer; eating counts as idle, so hunger
-   runs 2.5× while eating). Even the scripted forager only reaches 0.40–0.42.
-   Waiting on 5zorro: should eating reset the idle streak, and is 0.4 the right bar?
-   Rules changes mean retraining the nursery.
+1. **Criterion 3** (plan, under slice 6): not diet balance but intake. 5zorro's
+   fixes are in: real actions reset the idle streak (`busy_resets_idle`), and
+   food grows only in patches (`food_baseline_fraction=0`). The busy rule helps;
+   patches-only costs food (nursery-6, trained under it: 2.3 collapses, 85 births).
+   The lowest nutrient is still 0.33–0.37. Waiting on 5zorro: put food back (thin
+   layer, or richer patches), and is 0.4 the right bar?
 2. **Criterion 4:** train a 4D nursery (`--dims 4 --size 10`) and measure.
 3. Other levers: **seasons** as a config schedule (famine winters, mostly for
    consistency); play-world drift fixes (re-seed, lower mutation in play).
