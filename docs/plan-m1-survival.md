@@ -285,6 +285,29 @@ Reading:
   holds in the nursery but not in the play world. Should M1 be judged on the
   nursery's trend plus play-world collapse rate and births?
 
+**Seasons probe** (5zorro's question: can harsh and gentle alternate?). Throwaway
+script that switched `collapse_age_penalty` between 600 and 150 on a cycle,
+starting from nursery-2 brains, on 5 unseen maps × 20,000 ticks, measured over
+the second half:
+| Variant | All phases | Gentle phases only | Births | Top-ups |
+|---|---|---|---|---|
+| Gentle always | 2.77 ± 0.38 | 2.77 ± 0.38 | 114 | 144 |
+| Harsh always | 1.70 ± 0.09 | – | 115 | 214 |
+| 1,000 harsh / 1,000 gentle | 2.21 ± 0.06 | 2.64 ± 0.07 | 117 | 179 |
+| 2,500 / 2,500 | 2.11 ± 0.25 | 2.57 ± 0.36 | 134 | 160 |
+| 1,000 harsh / 3,000 gentle | 2.50 ± 0.07 | 2.66 ± 0.11 | 110 | 164 |
+
+Reading:
+- Seasons work mechanically: rules can change mid-run (`sim.cfg` is live).
+- What players would see (gentle phases) improves only a little, about 4–7%,
+  within noise.
+- The clearer effect is **consistency**: seed-to-seed spread falls from ±0.38 to
+  ±0.07–0.11, so fewer worlds drift badly. That's the drift problem, partly solved.
+- Not built as a feature yet. If it is, a config schedule (e.g.
+  `season_length`, `harsh_fraction`, and which knobs change) would replace the
+  probe's hand-rolled loop. A more immersive harsh season would be a famine or
+  winter (less food growth) rather than an abstract penalty. Untested.
+
 **Original proposal:**
 - `run_headless.py --brains-from <snapshot>`: start a **fresh** world (any seed
   or config) whose starting NPCs and hall of fame carry the best brains from a
