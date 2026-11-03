@@ -3,10 +3,10 @@
 One seed is an anecdote (see gotchas.md), so every M1 tuning claim should come
 from here. Examples:
     python scripts/sweep.py --seeds 5 --ticks 10000
-    python scripts/sweep.py --variant smite_damage=0 --variant smite_damage=0.1
+    python scripts/sweep.py --variant metabolism_rate=0.008 --variant nutrient_decay=0.003
     python scripts/sweep.py --variant controller=scripted
     python scripts/sweep.py --set dims=4 --set size=10 --ticks 2000
-    python scripts/sweep.py --variant smite_damage=0.1 --csv runs/smite.csv
+    python scripts/sweep.py --variant smiting=true,smite_damage=0.1 --csv runs/smite.csv
 
 Each --variant is a comma-separated list of Config overrides, compared against
 a baseline that has only the --set overrides. The pseudo-key
