@@ -98,7 +98,8 @@ def main() -> None:
                 break
     else:
         if args.until_stable:
-            print(f"Did not stabilize within {args.max_ticks} ticks.")
+            print(f"Did not stabilize within {args.max_ticks} ticks: "
+                  + "; ".join(sim.stability_problems()) + ".")
 
     elapsed = time.time() - start
     drift = sim.total_mass() - start_mass
@@ -106,6 +107,8 @@ def main() -> None:
     print_summary(sim)
     if args.save:
         print(f"Saved snapshot to {save_snapshot(sim, args.save)}")
+        if args.until_stable and not sim.is_stable():
+            print("Warning: the world never stabilized, so this is not a real baseline.")
 
 
 if __name__ == "__main__":

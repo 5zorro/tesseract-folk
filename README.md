@@ -55,8 +55,12 @@ docs/           DESIGN.md (all ideas), ROADMAP.md (milestones), SAFETY.md (threa
 
 ## Status
 
-Milestone 0 (plumbing) is done. See `docs/ROADMAP.md` for what "proof of
-concept passes" means and what comes next.
+Milestone 0 (plumbing) is done; M1 (survival) is in progress. See
+`docs/ROADMAP.md` for what "proof of concept passes" means.
+
+`--until-stable` does not succeed yet: the population is still propped up
+by hall-of-fame top-ups rather than births, and the stability check now says
+so (that is milestone M3).
 
 ## License
 

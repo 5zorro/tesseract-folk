@@ -80,17 +80,39 @@ class Simulation:
         carried = sum(n.body + n.bowel + float(n.inventory.sum()) for n in self.npcs)
         return self.world.mass() + self.deity.mass() + carried
 
-    def is_stable(self, window: int = 10, max_cv: float = 0.15) -> bool:
-        """Population has settled: low variation over the last `window` samples,
-        with real births happening (not just hall-of-fame top-ups)."""
-        hist = self.stats.history[-window:]
-        if len(hist) < window:
-            return False
+    def is_stable(self) -> bool:
+        return not self.stability_problems()
+
+    def stability_problems(self) -> list[str]:
+        """Why the population hasn't settled yet (an empty list means stable).
+
+        Stable means low population variation over the last `stable_window`
+        samples, sustained by real births. A population held on the
+        `min_population` floor by hall-of-fame top-ups has zero variation, so
+        it must not count (see gotchas.md).
+        """
+        c = self.cfg
+        hist = self.stats.history[-c.stable_window:]
+        if len(hist) < c.stable_window:
+            return [f"only {len(hist)} of {c.stable_window} samples so far"]
         pops = np.array([h["population"] for h in hist], dtype=float)
         if pops.mean() == 0:
-            return False
+            return ["population is extinct"]
+        problems = []
+        cv = pops.std() / pops.mean()
+        if cv >= c.stable_max_cv:
+            problems.append(f"population varies too much (cv {cv:.2f} >= {c.stable_max_cv})")
         births = sum(h["births"] for h in hist)
-        return pops.std() / pops.mean() < max_cv and births > 0
+        spawns = sum(h["spawns"] for h in hist)
+        if births == 0:
+            problems.append("no births")
+        if spawns > c.stable_max_spawn_fraction * births:
+            problems.append(f"too many top-ups ({spawns} spawns vs {births} births; "
+                            f"allowed {c.stable_max_spawn_fraction} per birth)")
+        if pops.mean() <= c.min_population:
+            problems.append(f"population sits on the top-up floor "
+                            f"(mean {pops.mean():.1f} <= min_population {c.min_population})")
+        return problems
 
     # =============================================================== senses
     def sensor_size(self) -> int:

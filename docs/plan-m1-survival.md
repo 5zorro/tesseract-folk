@@ -1,6 +1,6 @@
 # Plan: M1 Survival
 
-Status: **slices 1–2 done (2026-11-02). Next: slice 3.** Slices are ordered;
+Status: **slices 1–3 done (2026-11-02). Next: slice 4.** Slices are ordered;
 each one ends with tests passing and a commit. Open decisions (bottom) are 5zorro's.
 
 **For a new session:** read `handoff.md`, `gotchas.md` and this file. Do the
@@ -130,7 +130,23 @@ Reading:
 - Stays outside `sim/` (rule 4) and uses only `sim.rng` (rule 7).
 - **Tests:** same seed + config gives the same summary twice.
 
-### Slice 3: Honest stability check (`sim/simulation.py: is_stable`)
+### Slice 3: Honest stability check ✅ (2026-11-02)
+**Built:**
+- `Simulation.stability_problems()` returns the reasons a population isn't
+  stable, and `is_stable()` is true only when there are none.
+- New tunables `stable_window`, `stable_max_cv` and `stable_max_spawn_fraction`
+  (0.1 top-ups per birth) are in `config.py`.
+- A population whose mean sits at or below `min_population` is never stable.
+- `run_headless.py --until-stable` prints the reasons when it gives up, and warns
+  if it saves a snapshot that never stabilized.
+- `sweep.py` has a `stable%` column.
+- Tests: `tests/test_stability.py`.
+
+Today's default world now fails with "too many top-ups (95 spawns vs 3
+births)" and "population sits on the top-up floor". Before this slice it
+reported "Stable at tick 2750".
+
+**Original spec:**
 - Require `spawns` in the window to be at most a small fraction of births (new
   tunable, e.g. `stable_max_spawn_fraction` in `config.py`) **and** the population
   to sit above `min_population` on average.

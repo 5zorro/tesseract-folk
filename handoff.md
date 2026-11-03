@@ -22,10 +22,12 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
   monetizing, contributors and the 4D Miner mod in `openitems.md`). Still open:
   CI, private vulnerability reporting, and a contributor agreement before
   accepting outside PRs.
-- **M1 survival in progress.** Plan: `docs/plan-m1-survival.md`. Slices 1–2
-  (collapse causes, multi-seed `scripts/sweep.py`) are done; slice 3 (honest
-  stability check) is next. Two decisions on criteria wording are open (bottom
-  of the plan).
+- **M1 survival in progress.** Plan: `docs/plan-m1-survival.md`. Slices 1–3
+  (collapse causes, multi-seed `scripts/sweep.py`, honest stability check) are
+  done; slice 4 (economy tuning) is next. Two decisions on criteria wording are
+  open (bottom of the plan).
+- `--until-stable` now honestly fails (top-ups, population on the floor) and
+  prints why. It will keep failing until M3.
 - Honest state (5 seeds × 10,000 ticks):
   - Evolution works in 2D: late-window collapse rates fall from 6.8 to 4.6 per
     1,000 NPC-ticks across generations, while the scripted forager stays flat at
@@ -37,8 +39,7 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
     answered. Those belong to M3/M5.
 
 ## Where to pick up
-1. `docs/plan-m1-survival.md`, slice 3 (`Simulation.is_stable` must not pass on
-   the top-up floor).
+1. `docs/plan-m1-survival.md`, slice 4 (economy tuning with `scripts/sweep.py`).
 
 ## Setup (Windows)
 ```bash

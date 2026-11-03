@@ -93,6 +93,11 @@ class Config:
     smite_damage: float = 0.3
     prayer_cooldown: int = 30
 
+    # --- stability (run_headless.py --until-stable; ROADMAP M3) ------------
+    stable_window: int = 10               # stats samples to judge over
+    stable_max_cv: float = 0.15           # population std / mean must stay below this
+    stable_max_spawn_fraction: float = 0.1  # top-ups allowed per birth in the window
+
     # --- clock -------------------------------------------------------------
     # False: only aging pauses while the player is AFK (NPCs still live).
     # True: the whole world freezes while the player is AFK.

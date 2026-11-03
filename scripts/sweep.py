@@ -135,6 +135,7 @@ def run_one(overrides: dict, seed: int, ticks: int, late_from: float, log_every:
     out["spawns"] = total("spawns")
     out["max_generation"] = max((n.generation for n in sim.npcs), default=0)
     out["population"] = len(sim.npcs)
+    out["stable"] = float(sim.is_stable())
     return out
 
 
@@ -185,7 +186,8 @@ def summarize(results: dict, ticks: int, late_from: float, seeds: list[int]) -> 
                 [(h, f"cause_{c}", {"pct": True, "digits": 0}) for c, h in SHOWN_CAUSES]
                 + [("min-nutr", "min_nutrient", {"digits": 2}), ("births", "births", {}),
                    ("spawns", "spawns", {}), ("max-gen", "max_generation", {}),
-                   ("pop", "population", {})], results)
+                   ("pop", "population", {}), ("stable%", "stable", {"pct": True, "digits": 0})],
+                results)
 
 
 def write_csv(path: Path, results: dict) -> None:

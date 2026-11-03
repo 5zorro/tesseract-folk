@@ -3,11 +3,12 @@
 Traps that already bit us, by area. Add to this when something surprises you.
 
 ## Measuring evolution
-- **`--until-stable` can be satisfied by the population floor.** `is_stable()`
-  checks low population variance plus births > 0. When the hall-of-fame top-up
-  holds the population at exactly `min_population`, the variance is 0, and a
-  single stray birth in the window passes the check. "Stable" then means "on life
-  support". Check the `spawn` column before believing it (M1 plan, slice 2).
+- **`--until-stable` used to be satisfied by the population floor** (fixed in M1
+  slice 3). The old check passed a population held at exactly `min_population`
+  by top-ups (zero variance) as long as one stray birth occurred. Now
+  `stability_problems()` rejects top-up-heavy windows and populations on the
+  floor. Expect `--until-stable` to run to `--max-ticks` and report why until M3
+  is solved; that's honest, not broken.
 - **`ScriptedController` overrides don't survive the top-up.** Overrides are keyed
   by NPC id. Spawned and born NPCs get new ids and run their random or evolved
   brain, so a "scripted population" run is scripted only for the starting NPCs.
