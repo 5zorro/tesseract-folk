@@ -2,8 +2,9 @@
 
 Status: **slices 1–3c done (2026-11-03); thresholds settled. The move-based
 metric (3c) shows diet-seeking in 2D (all criteria met there, with criterion 3
-revised) but none in 4D. Next (5zorro): accept the revised criterion 3, then
-slice 4a, the memory stack, aimed at 4D.** Slices are ordered; each one ends with tests passing and a commit.
+revised) but none in 4D. Next (5zorro): accept the revised criterion 3; slice 3d,
+the dimensions ladder (brain size vs dims 1–4), is proposed before 4a, the
+memory stack.** Slices are ordered; each one ends with tests passing and a commit.
 Open decisions (bottom) are 5zorro's.
 
 **For a new session:** read `handoff.md`, `gotchas.md` and this file. M1's plan
@@ -289,6 +290,46 @@ metric in view is the cheaper first check.
 - **Tests:** shared layout puts every type's peak on the same cells; total
   capacity matches the separate layout within a few percent.
 
+### Slice 3d: The dimensions ladder, brain size vs dimension (proposed, 5zorro's idea)
+**Question:** what's the smallest brain that meets the goals in 1D, 2D and 3D?
+The trend says what 4D brains need, before adding memory (4a) changes the
+brain shape. Also: 4D Miner NPCs can't fly, so they live on a 3D surface
+("3.5D", `openitems.md`). Today's 4D runs let NPCs move along all 4 axes, which
+is harder than the port needs, so the 3D result may matter most.
+
+**Making dimensions comparable** (checked 2026-11-03, 4 seeds each). Hold the
+cell count near 1,000 and the share of cells where a type can be bitten
+(capacity ≥ one bite) at 2D's 45%. That also matches overlap (cells with two or
+more foods: 40–44% everywhere) and keeps food per cell within ±20%.
+| Dims | Size | Cells | `food_patch_radius` | Inputs | Actions |
+|---|---|---|---|---|---|
+| 1 | 1024 | 1,024 | 55 | 38 | 11 |
+| 2 | 32 | 1,024 | 4 (today) | 47 | 13 |
+| 3 | 10 | 1,000 | 1.84 | 56 | 15 |
+| 4 | 6 | 1,296 | 1.35 | 65 | 17 |
+Found: today's 4D world (size 10, radius 2) has 10× the cells and only 27% bite
+coverage (0.95 food per cell vs 1.57 in 2D): a sparser world than 2D, which may
+explain part of the 4D gap by itself.
+
+**Runs:**
+- Hidden units 4, 8, 16, 32 in each dimension: 16 combinations.
+- Two nurseries per combination (`collapse_age_penalty=600`, 20,000 ticks,
+  nursery seeds 100 and 101): 32 nurseries.
+- Each nursery seeds play worlds: 5 seeds × 10,000 ticks. Scratch at each
+  hidden size as the null. Roughly 45–60 minutes on 16 cores, in the
+  background.
+- A small orchestration script, `scripts/ladder.py`, trains the nurseries in
+  parallel and calls `sweep.py`, so the experiment can be rerun.
+
+**Goals checked per combination** (M1 and M2): collapses below scratch, lowest
+nutrient ≥ 0.4, diet ≥ 0.9, ≥ 2.5 food types per life, approach excess above 0
+on every seed and above scratch. The answer is the smallest hidden size that
+meets them all, per dimension, plus how the goals degrade as brains shrink.
+
+**Not changed:** sensing, actions, mutation, nursery rules. If no size meets the
+goals in 3D, the problem isn't brain size, and the levers (4a memory, patches)
+come next.
+
 ### Slice 4: Levers, only if criterion 3 fails
 Criterion 3 isn't demonstrated (slice 3b). 5zorro picked the memory stack as the
 first lever (2026-11-03).
@@ -301,7 +342,7 @@ first lever (2026-11-03).
 - **Sensed per slot:** filled (0/1), direction to it (`wrapped_delta / half`,
   like the known-secret sense), freshness `exp(-age / memory_tau)`, tag
   one-hots. 2D: 1 + 2 + 1 + 3 = 7 inputs per slot, 28 for 4 slots (47 → 75);
-  4D: 9 per slot (62 → 98).
+  4D: 9 per slot (65 → 101).
 - **Written by** a new `remember` action ("here, now, what grows here"). One
   more output; a busy action when it writes.
 - **Not in 4a:** gifts (`share` copying a memory, the inbox slot), work and

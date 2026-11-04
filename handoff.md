@@ -70,8 +70,10 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
    Slice 3c, a move-based metric with a random-step null, does show it: in 2D
    nursery brains gain ~0.13 cells per move toward their needed food beyond
    random (scratch 0.07, scripted forager negative). In 4D, ~0 for everyone.
-   Next: 5zorro accepts the revised criterion 3 (plan, slice 3c), then slice 4a,
-   the memory stack (draft in the plan), aimed at 4D.
+   Next: 5zorro accepts the revised criterion 3 (plan, slice 3c). Proposed before
+   slice 4a (memory stack): slice 3d, the dimensions ladder (smallest brain that
+   meets the goals in 1D/2D/3D, worlds matched on food coverage). 5zorro's point:
+   4D Miner NPCs live on a 3D surface, so dims=3 may be the case that matters.
 2. Known gaps carried from M1: body starvation is ~35% of collapses; births
    still trail top-ups in 2D (M3's job).
 3. Other levers: a harsher scarcity nursery (half food gave a mild win); **seasons** as a config schedule (famine winters, mostly for
