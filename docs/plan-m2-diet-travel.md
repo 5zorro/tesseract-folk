@@ -1,11 +1,12 @@
 # Plan: M2 Diet drives travel
 
-Status: **slices 1–3c done (2026-11-03); thresholds settled. The move-based
+Status: **slices 1–3e done (2026-11-04); thresholds settled. The move-based
 metric (3c) shows diet-seeking in 2D (all criteria met there, with criterion 3
 revised) but none in 4D. Slice 3d (dimensions ladder) found brain size isn't
 the limit: 4 hidden units pass in 2D, and bigger never helps. Next (5zorro):
-accept the revised criterion 3; slice 3e, worlds matched on travel time,
-then 4a, the memory stack.** Slices are ordered; each one ends with tests passing and a commit.
+accept the revised criterion 3; slice 3e (travel time) found 3D learns diet-seeking
+and is one criterion short; full 4D starves with matched trips. Then 5zorro picks:
+3D as the 4D Miner target, then 4a (memory stack) or a 3D trip-time ladder.** Slices are ordered; each one ends with tests passing and a commit.
 Open decisions (bottom) are 5zorro's.
 
 **For a new session:** read `handoff.md`, `gotchas.md` and this file. M1's plan
@@ -430,6 +431,45 @@ So the matched worlds are **2D size 32 (r 4), 3D size 14 (r 1.88), 4D size 10
 × 5 seeds × 10,000 ticks, with `scripts/ladder.py` (its `WORLDS` table becomes
 an option). Then, if diet-seeking appears in 3D and 4D, a trip-time ladder in
 one dimension (e.g. 2D at 6, 11 and 17 ticks) to see how the ratio drives it.
+
+**Ran 2026-11-04** (`python scripts/ladder.py --worlds time --hidden 8 16`,
+`runs/2026-11-03-ladder-time.csv`; 2D nurseries reused from slice 3d, since the
+world is identical):
+| World | Hidden | Collapses (nursery / scratch) | Diet | Food types / life | Approach excess (nursery / scratch) | Body starvation | Births | All goals |
+|---|---|---|---|---|---|---|---|---|
+| 2D size 32 | 8 | **1.01** / 1.81 | 0.96 | 2.80 | **0.104** / 0.058 | 35% | 90 | **yes** |
+| 2D size 32 | 16 | 1.10 / 1.78 | 0.96 | 2.78 | 0.123 / 0.073 | 34% | 80 | yes |
+| 3D size 14 | 8 | **0.94** / 2.50 | 0.96 | 2.30 | **0.062** / 0.032 (10/10 > 0) | 26% | 14 | all but types |
+| 3D size 14 | 16 | 1.15 / 2.49 | 0.96 | 2.06 | 0.048 / 0.031 (10/10 > 0) | 30% | 10 | all but types |
+| 4D size 10 | 8 | 7.14 / 7.89 | 0.83 | 0.70 | 0.029 / 0.027 | **88%** | 0 | no |
+| 4D size 10 | 16 | 7.23 / 8.23 | 0.85 | 0.69 | 0.021 / 0.024 | **88%** | 0 | no |
+
+Reading:
+- **3D, with trips that matter, learns diet-seeking.** Nursery brains cut
+  collapses by more than half (0.94 vs 2.50), and head for their needed food
+  beyond random on all 10 runs, about twice scratch. Only criterion 2 misses
+  (2.3 food types per life vs 2.5). This is the 4D Miner case (5zorro's "3.5D"),
+  and it works at 8 hidden units.
+- **8 hidden units beat 16** in 2D and 3D again. Small brains are enough.
+- **This 4D world starves:** 88% of collapses are body starvation, no births,
+  0.7 food types per life. Matching total food and trip time left its patches
+  as pinpoints: a type can be bitten on only **3% of cells** (2D 44%, 3D 17%),
+  so 60 NPCs crowd a few cells. Likely also the soil loop: food regrows from
+  soil in its own cell, but NPCs poop across a mostly empty world, so mass
+  drains away from the tiny patches (not verified).
+- **Lesson:** in higher dimensions you can't hold total food, trip time and
+  coverage all at 2D's values with round patches; something gives. Search
+  ("how far is food from anywhere") gets harder with dimension even at equal
+  trips: 2.5 ticks in 2D, 2.9 in 3D, 4.0 in 4D from a random cell to a given
+  food.
+- **Births drop with space:** 3D's 2,744 cells give 60 NPCs fewer chances to
+  meet (14 births vs 90 in 2D). Density matters for M3.
+
+**Proposed next (for 5zorro):** treat **3D as the 4D Miner target** (NPCs on a 3D
+surface). M2 in 3D is one criterion short (food types per life 2.3). Options:
+the memory stack (4a), or the trip-time ladder in 3D. For full-4D worlds,
+patches need to be a different shape (blobs that keep coverage) before brains
+can be judged there.
 
 ### Slice 4: Levers, only if criterion 3 fails
 Criterion 3 isn't demonstrated (slice 3b). 5zorro picked the memory stack as the

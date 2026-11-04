@@ -77,6 +77,11 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
    long). 5zorro's point: 4D Miner NPCs live on a 3D surface, so dims=3 matters most.
    Next: 5zorro accepts the revised criterion 3 (plan, slice 3c); then slice 3e,
    worlds matched on travel time and total food; then slice 4a (memory stack).
+   **Slice 3e ran (2026-11-04):** in 3D (size 14, radius 1.88) nursery brains
+   seek their needed food and halve collapses; only food types per life misses
+   (2.3 of 2.5). Full 4D with matched trips starves (pinpoint patches, 3% bite
+   coverage). Proposed: 3D is the 4D Miner target (5zorro's "3.5D"); 8 hidden
+   units are enough. Speed/GPU notes for 5zorro's RX 6800 XT: `openitems.md`.
 2. Known gaps carried from M1: body starvation is ~35% of collapses; births
    still trail top-ups in 2D (M3's job).
 3. Other levers: a harsher scarcity nursery (half food gave a mild win); **seasons** as a config schedule (famine winters, mostly for
