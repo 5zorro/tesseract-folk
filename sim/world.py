@@ -136,7 +136,9 @@ class World:
         # Food smells, in proportion to how much is there; the smell spreads the
         # same way but fades slower, so it reaches farther.
         if cfg.food_scent:
-            self.scent += self.food * cfg.scent_emission
+            # Only food beyond `scent_min_food` smells (the "meal scent"), so
+            # crumbs don't pull NPCs toward them.
+            self.scent += np.maximum(self.food - cfg.scent_min_food, 0.0) * cfg.scent_emission
             self.scent += cfg.scent_diffusion * (self._neighbor_mean(self.scent, first_axis=1)
                                                  - self.scent)
             self.scent *= 1.0 - cfg.scent_decay

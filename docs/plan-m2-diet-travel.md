@@ -542,10 +542,45 @@ food let NPCs learn to ignore crumbs?":**
 - **A. The eat choice** (main cause in 2D and 3D): choose by nutrition actually
   gained this bite, value × min(bite, amount here). An instinct's rule, not a
   behavior we want to emerge, so rule 6 is fine.
+  **5zorro's version (2026-11-04): give the choice to the brain** instead of
+  fixing the instinct. Two eat actions replace one:
+  - `eat_most`: the food with the most here (the biggest bite, for body mass).
+  - `eat_need`: the food that best fixes deficits (today's rule, crumbs
+    included).
+  The brain picks which one, so "eat a full bite of anything when starving,
+  eat the right food when a nutrient runs low" can emerge instead of being
+  scripted. Cost: one more output (2D: 13 → 14 actions); inputs unchanged (the
+  brain already senses each food in its cell and its own nutrients). Nursery
+  retrain needed. Brain size: slice 3d found 8 hidden units enough for 47–65
+  inputs, so one more output shouldn't need more; check 8 vs 16 when it runs.
+  This also makes the M2 question cleaner: today the eat instinct does part of
+  the diet work for every brain (`gotchas.md`, bite-based metrics).
 - **B. A meal scent** (5zorro's idea; the 4D patch-edge cause): food smells only
   above a full bite (emission ∝ amount beyond one bite), so crumbs have no smell
   and the gradient leads to meals. Same inputs, so brain shape is unchanged.
   Lets "skip crumbs, follow the meal smell" emerge rather than be scripted.
+
+**Test B ran: meal scent alone does nothing (2026-11-04).**
+`Config.scent_min_food` (default 0, today's behavior; 0.2 = only food beyond a
+bite smells). `python scripts/ladder.py --worlds time --hidden 8 --set
+scent_min_food=0.2` (`runs/2026-11-04-meal-scent.csv`), compared with slice
+3e's 8-hidden-unit rows:
+| | Collapses (before → meal scent) | Body starvation | Food types / life | Approach excess | Births |
+|---|---|---|---|---|---|
+| 2D nursery | 1.01 → 1.08 | 35% → 30% | 2.80 → 2.72 | 0.104 → 0.105 | 90 → 89 |
+| 3D nursery | 0.94 → 0.95 | 26% → 24% | 2.30 → 2.18 | 0.062 → 0.051 | 14 → 7 |
+| 4D nursery | 7.14 → 7.07 | 88% → 86% | 0.70 → 0.69 | 0.029 → 0.025 | 0 → 0 |
+The probes agree (`--set scent_min_food=0.2`): 4D NPCs still spend 53% of their
+time on crumb cells, the mean bite is still 8% of a full one, and eat rates
+are still flat whatever is underfoot.
+
+Why, likely: the sense was never the missing piece. Nibbling crumbs is good
+enough. Each crumb gives a little food, and eating counts as busy, so it also
+dodges the idle-hunger penalty. And when an NPC does reach a meal, the eat
+instinct still often takes a crumb of the needed food (cause A). Following a
+smell only pays once eating where it's rich pays better than eating anywhere.
+So A (5zorro's two eat actions) comes first; meal scent may help once A is in.
+Keep `scent_min_food` as an option (default off).
 
 **Candidate tests (for 5zorro; each changes the rules, so nurseries retrain):**
 - For 1: patches with a hard edge (food only where capacity is at least a bite,

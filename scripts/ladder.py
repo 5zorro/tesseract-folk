@@ -11,6 +11,7 @@ that lets 45% of cells hold a bite of each food, as in 2D
     python scripts/ladder.py --dims 3 --hidden 8 16
     python scripts/ladder.py --report-only        # re-read the CSV and print the verdicts
     python scripts/ladder.py --worlds time --hidden 8 16   # slice 3e: worlds matched on trip time
+    python scripts/ladder.py --worlds time --hidden 8 --set scent_min_food=0.2   # with new rules
 
 Nurseries are saved under --out and reused if present, so an interrupted run
 picks up where it stopped (play runs are always redone).
@@ -31,6 +32,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from sim import Config, Simulation  # noqa: E402
+from sim.config import parse_overrides  # noqa: E402
 from sim.snapshot import save_snapshot  # noqa: E402
 from sweep import run_one  # noqa: E402
 
@@ -51,16 +53,23 @@ LATE_FROM, LOG_EVERY = 0.5, 250
 MIN_NUTRIENT, MIN_DIET, MIN_TYPES = 0.4, 0.9, 2.5
 
 
-# A "shape" is (dims, size, food_patch_radius, hidden_units). Jobs carry it whole,
+# A "shape" is (dims, size, food_patch_radius, hidden_units, rules), where rules
+# are extra Config overrides as sorted (key, value) pairs. Jobs carry it whole,
 # since worker processes re-import this module and wouldn't see the chosen set.
 def world(shape: tuple) -> dict:
-    dims, size, radius, hidden = shape
-    return {"dims": dims, "size": size, "food_patch_radius": radius, "hidden_units": hidden}
+    dims, size, radius, hidden, rules = shape
+    return {"dims": dims, "size": size, "food_patch_radius": radius, "hidden_units": hidden,
+            **dict(rules)}
+
+
+def rules_text(rules: tuple) -> str:
+    return ",".join(f"{k}={v}" for k, v in rules)
 
 
 def nursery_path(out: Path, shape: tuple, nseed: int) -> Path:
-    dims, size, radius, hidden = shape     # named by world, so identical worlds share nurseries
-    return out / f"d{dims}-s{size}-r{radius:g}-h{hidden}-n{nseed}"
+    dims, size, radius, hidden, rules = shape   # named by world, so identical worlds share nurseries
+    extra = "".join(f"-{k}{v}" for k, v in rules)
+    return out / f"d{dims}-s{size}-r{radius:g}-h{hidden}{extra}-n{nseed}"
 
 
 def train(job: tuple) -> str:
@@ -80,8 +89,9 @@ def play(job: tuple) -> dict:
     if brains != "scratch":
         overrides["brains_from"] = str(nursery_path(out, shape, int(brains[1:])))
     row = run_one(overrides, seed, ticks, LATE_FROM, LOG_EVERY)
-    dims, size, radius, hidden = shape
-    return {"dims": dims, "size": size, "radius": radius, "hidden": hidden, "brains": brains, **row}
+    dims, size, radius, hidden, rules = shape
+    return {"dims": dims, "size": size, "radius": radius, "hidden": hidden,
+            "rules": rules_text(rules), "brains": brains, **row}
 
 
 def run_pool(fn, jobs: list, workers: int, label: str) -> list:
@@ -176,6 +186,8 @@ def main() -> None:
                     help="how worlds are matched across dimensions (see WORLD_SETS)")
     ap.add_argument("--dims", type=int, nargs="+", default=None, help="default: every dims in the set")
     ap.add_argument("--hidden", type=int, nargs="+", default=list(HIDDEN))
+    ap.add_argument("--set", action="append", default=[], metavar="KEY=VALUE[,...]",
+                    help="rule overrides for nurseries and play worlds alike (repeatable)")
     ap.add_argument("--nursery-ticks", type=int, default=20_000)
     ap.add_argument("--ticks", type=int, default=10_000)
     ap.add_argument("--seeds", type=int, default=5)
@@ -185,6 +197,13 @@ def main() -> None:
     ap.add_argument("--report-only", action="store_true")
     args = ap.parse_args()
     worlds = WORLD_SETS[args.worlds]
+    try:
+        rules = {}
+        for spec in args.set:
+            rules.update(parse_overrides(spec))
+    except ValueError as e:
+        ap.error(str(e))
+    rules = tuple(sorted(rules.items()))
     args.dims = args.dims or sorted(worlds)
     if any(d not in worlds for d in args.dims):
         ap.error(f"--dims must be among {sorted(worlds)} for --worlds {args.worlds}")
@@ -196,7 +215,7 @@ def main() -> None:
 
     out = Path(args.out)
     workers = args.jobs or os.cpu_count() or 1
-    shapes = [(d, *worlds[d], h) for d in args.dims for h in args.hidden]
+    shapes = [(d, *worlds[d], h, rules) for d in args.dims for h in args.hidden]
     # Biggest jobs first, so the pool doesn't finish on one long straggler.
     shapes.sort(key=lambda s: -(s[1] ** s[0]) * s[3])
     nursery_jobs = [(s, n, args.nursery_ticks, out) for s in shapes for n in NURSERY_SEEDS]

@@ -33,6 +33,20 @@ def test_scent_spreads_from_food_and_points_toward_it(dims, size):
     assert w.scent_at(far)[0] == 0 and w.scent_at(far)[2] == 0   # only type 1 smells
 
 
+@pytest.mark.parametrize("dims,size", [(2, 16), (4, 8)])
+def test_meal_scent_ignores_crumbs(dims, size):
+    w = lone_patch(dims, size, scent_min_food=0.2)
+    crumb = (size // 4,) * dims
+    w.food[(0,) + crumb] = 0.15                      # a crumb of type 0: below a bite
+    w.step()
+    center = (size // 2,) * dims
+    assert w.scent[0].max() == 0                     # the crumb is silent
+    assert w.scent_at(center)[1] > 0                 # the meal smells...
+    plain = lone_patch(dims, size)
+    plain.step()
+    assert w.scent_at(center)[1] < plain.scent_at(center)[1]   # ...by its amount beyond a bite
+
+
 def test_scent_is_a_signal_not_mass():
     w = lone_patch()
     start = w.mass()

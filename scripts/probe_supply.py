@@ -7,7 +7,7 @@ from the start and over a scratch run:
   stranded in cells that can't (and poop there),
 - what NPCs do: share of ground bites taken inside a zone core, pick-ups, and
   bites eaten from inventory.
-One-off diagnostic; copy it for the next probe.
+One-off diagnostic; copy it for the next probe. `--set KEY=VALUE` changes the rules.
 """
 from __future__ import annotations
 
@@ -21,15 +21,17 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from sim import Config, Simulation  # noqa: E402
+from sim.config import parse_overrides  # noqa: E402
 from ladder import WORLD_SETS  # noqa: E402
 
 TICKS, SEEDS = 4000, (0, 1, 2)
 
 
 def probe(job):
-    dims, seed = job
+    dims, seed, rules = job
     size, radius = WORLD_SETS["time"][dims]
-    sim = Simulation(Config(dims=dims, size=size, food_patch_radius=radius, seed=seed), log_every=1000)
+    sim = Simulation(Config(dims=dims, size=size, food_patch_radius=radius, seed=seed, **rules),
+                     log_every=1000)
     cfg, w = sim.cfg, sim.world
     grows = (w.capacity >= cfg.bite_size).any(axis=0)          # can grow a bite of something
     # Bites per clump: capacity inside each patch's own cells, at full growth.
@@ -71,7 +73,11 @@ def probe(job):
 
 
 def main():
-    jobs = [(d, s) for d in sorted(WORLD_SETS["time"]) for s in SEEDS]
+    rules = {}
+    for i, arg in enumerate(sys.argv):
+        if arg == "--set":
+            rules.update(parse_overrides(sys.argv[i + 1]))
+    jobs = [(d, s, rules) for d in sorted(WORLD_SETS["time"]) for s in SEEDS]
     with ProcessPoolExecutor(max_workers=len(jobs)) as pool:
         results = list(pool.map(probe, jobs))
     for dims in sorted(WORLD_SETS["time"]):

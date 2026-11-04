@@ -56,6 +56,10 @@ class Config:
     scent_diffusion: float = 0.3
     scent_decay: float = 0.01             # slower than stink, so it reaches farther
     scent_half: float = 1.0               # sensed level is s / (s + scent_half)
+    # Meal scent (M2 slice 3f, 5zorro): only food beyond this amount per cell smells,
+    # so crumbs at patch edges are silent and the smell leads to meals. 0 = all
+    # food smells (before 2026-11-04); bite_size (0.2) = only more than a bite.
+    scent_min_food: float = 0.0
 
     # --- npc body ----------------------------------------------------------
     initial_npcs: int = 60

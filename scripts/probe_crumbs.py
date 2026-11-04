@@ -4,7 +4,8 @@ Logs every brain decision with how much food is in the NPC's cell (the most of
 any type) and reports how often each kind of brain chooses `eat`, by bucket:
 crumb (< a quarter bite), partial (< a full bite), full bite or more. Brains
 that learned "skip crumbs, follow the smell" eat crumbs less than scratch does.
-One-off diagnostic.
+One-off diagnostic. `--set KEY=VALUE` runs it under other rules (nurseries
+from `scripts/ladder.py --worlds time --hidden 8 --set ...`).
 """
 from __future__ import annotations
 
@@ -17,19 +18,31 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from sim import Config, Simulation  # noqa: E402
+from sim.config import parse_overrides  # noqa: E402
 from sim.nursery import load_brain_pool, seed_brains  # noqa: E402
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from ladder import WORLD_SETS, nursery_path  # noqa: E402
+
+LADDER = Path("snapshots/ladder")
+
 TICKS, SEEDS = 3000, (0, 1)
-CASES = [  # label, world, nursery (None = scratch)
-    ("2D scratch", dict(dims=2, size=32), None),
-    ("2D nursery-8", dict(dims=2, size=32), "snapshots/nursery-8"),
-    ("3D scratch", dict(dims=3, size=14, food_patch_radius=1.88, hidden_units=8), None),
-    ("3D nursery", dict(dims=3, size=14, food_patch_radius=1.88, hidden_units=8),
-     "snapshots/ladder/d3-s14-r1.88-h8-n100"),
-    ("4D scratch", dict(dims=4, size=10, food_patch_radius=1.23, hidden_units=8), None),
-    ("4D nursery", dict(dims=4, size=10, food_patch_radius=1.23, hidden_units=8),
-     "snapshots/ladder/d4-s10-r1.23-h8-n100"),
-]
+
+
+def cases(rules: tuple) -> list:
+    """label, Config kwargs, nursery folder (None = scratch); nurseries from ladder.py."""
+    out = [("2D scratch", dict(dims=2, size=32), None)]
+    out.append(("2D nursery-8", dict(dims=2, size=32), "snapshots/nursery-8") if not rules else
+               ("2D nursery", dict(dims=2, size=32, hidden_units=8),
+                str(nursery_path(LADDER, (2, 32, 4.0, 8, rules), 100))))
+    for dims in (3, 4):
+        size, radius = WORLD_SETS["time"][dims]
+        kw = dict(dims=dims, size=size, food_patch_radius=radius, hidden_units=8)
+        out += [(f"{dims}D scratch", kw, None),
+                (f"{dims}D nursery", kw, str(nursery_path(LADDER, (dims, size, radius, 8, rules), 100)))]
+    return [(l, {**kw, **dict(rules)}, n) for l, kw, n in out]
+
+
 BUCKETS = ("crumb", "partial", "full")
 
 
@@ -58,6 +71,11 @@ def probe(job):
 
 
 def main():
+    rules = {}
+    for i, arg in enumerate(sys.argv):
+        if arg == "--set":
+            rules.update(parse_overrides(sys.argv[i + 1]))
+    CASES = cases(tuple(sorted(rules.items())))
     jobs = [(l, kw, n, s) for l, kw, n in CASES for s in SEEDS]
     with ProcessPoolExecutor(max_workers=len(jobs)) as pool:
         results = list(pool.map(probe, jobs))
