@@ -1,7 +1,8 @@
 # Plan: M2 Diet drives travel
 
-Status: **slices 1–2 done (2026-11-02). Next: 5zorro settles the thresholds
-(proposal under slice 2), then slice 3, the shared-patches control.** Slices are ordered; each one ends with tests passing and a commit.
+Status: **slices 1–3 done (2026-11-03); thresholds settled. The control can't
+separate diet-seeking from geometry (slice 3, Reading). Next: 5zorro decides on
+slice 3b, a direct "deficit-directed travel" metric.** Slices are ordered; each one ends with tests passing and a commit.
 Open decisions (bottom) are 5zorro's.
 
 **For a new session:** read `handoff.md`, `gotchas.md` and this file. M1's plan
@@ -15,9 +16,9 @@ The point is causal: NPCs should travel *because* their diet needs it, not just
 wander. So the test compares the normal world with a control where travel isn't
 needed for a balanced diet.
 
-**Draft criteria** (for 5zorro; over 5 seeds × 10,000 ticks, 2D, play worlds started
-from the nursery, as in M1):
-1. `diet_diversity` stays at or above 0.8 in the last quarter.
+**Criteria** (over 5 seeds × 10,000 ticks, 2D, play worlds started from the
+nursery, as in M1). Settled 2026-11-03 with criterion 1 raised to 0.9 (see slice 2):
+1. `diet_diversity` stays at or above 0.9 in the last quarter.
 2. NPCs eat in the zones of all three food types: the mean number of distinct
    food types eaten *inside a zone* per lifetime is at least 2.5.
 3. **Diet drives the travel:** NPCs switch between zones more often in the normal
@@ -121,7 +122,7 @@ Reading:
 - **4D falls short:** 2.4 food types per life, about 2 switches per 1,000 ticks,
   and the 4D nursery travels no more than scratch.
 
-**Proposed thresholds** (for 5zorro):
+**Thresholds, settled by 5zorro (2026-11-03)**; these replace the draft criteria in Goal:
 1. Diet ≥ **0.9** (0.8 would pass even a forager that sits still).
 2. Food types eaten in-zone per life ≥ **2.5** (as drafted). Met in 2D (2.8), not
    in 4D (2.4).
@@ -137,6 +138,65 @@ Also record how far NPCs travel (mean distance from where they were 100 ticks
 earlier), to tell "wanders a lot" from "goes between zones".
 
 ### Slice 3: The shared-patches control (`sim/world.py`, `sim/config.py`)
+**Built (2026-11-03):**
+- `Config.food_layout`: `"separate"` (default, today's worlds, bit-identical) or
+  `"shared"`. Shared grows every type in type 0's patches, scaled so each type
+  keeps exactly its total capacity in the separate world. Same rng draws, so
+  shrines and starting NPCs match too. Unknown values raise `ValueError`.
+- Zones in the shared layout are the same cells for every type (cores come from
+  the unscaled patch shape), so eating two foods in one patch is never a switch.
+- Caveat: because totals are matched, a type's peak can sit above or below
+  `food_capacity` (2D seed 0: 2.0, 1.5, 1.22). Same food overall, different
+  height.
+- Tests: `tests/test_zones.py` (shared shape and totals in 2D and 4D, bad
+  value refused, snapshot round trip).
+
+**Results (2026-11-03;** `runs/2026-11-03-m2-shared-2d.csv`, `-4d.csv`; travel
+counts lives ending in the second half that lasted 500+ ticks):
+
+2D, 5 seeds × 10,000 ticks:
+| Brains | Layout | Collapses | Stink % | Diet | Food types / life | Switches / 1k ticks | Distance / 100 ticks |
+|---|---|---|---|---|---|---|---|
+| Scratch | separate | 1.8 ± 0.4 | 0 | 0.96 | 2.7 | 5.0 ± 1.0 | 9.4 |
+| Scratch | shared | 1.4 ± 0.3 | 4 | 0.95 | 2.8 | 2.4 ± 0.3 | 9.5 |
+| Nursery-8 | separate | 0.9 ± 0.3 | 6 | 0.97 | 2.8 | 7.7 ± 1.2 | 10.6 |
+| Nursery-8 | shared | 1.6 ± 0.2 | 42 | 0.97 | 2.9 | 4.0 ± 0.8 | 9.9 |
+| Scripted | separate | 3.9 ± 0.8 | 15 | 0.88 | 2.2 | 0.7 ± 0.2 | 0.9 |
+| Scripted | shared | 4.1 ± 0.8 | 100 | 0.95 | 3.0 | 0.3 ± 0.2 | 2.3 |
+
+4D (radius 2), 5 seeds × 5,000 ticks:
+| Brains | Layout | Collapses | Diet | Food types / life | Switches / 1k ticks | Distance / 100 ticks |
+|---|---|---|---|---|---|---|
+| Scratch | separate | 1.4 ± 0.2 | 0.96 | 2.1 | 2.1 ± 0.4 | 5.3 |
+| Scratch | shared | 1.3 ± 0.2 | 0.97 | 2.2 | 1.0 ± 0.4 | 5.4 |
+| 4D nursery-2 | separate | 0.6 ± 0.0 | 0.97 | 2.4 | 2.4 ± 0.5 | 4.9 |
+| 4D nursery-2 | shared | 0.8 ± 0.0 | 0.97 | 2.5 | 1.2 ± 0.5 | 4.9 |
+
+Reading:
+- **Criterion 3 passes as written, but it doesn't show what it was meant to.**
+  Trained brains switch zones about twice as often in the separate world (2D
+  7.7 vs 4.0; 4D 2.4 vs 1.2). But **scratch brains show the same 2×** (5.0 vs
+  2.4; 2.1 vs 1.0), at the same distance. So the gap comes from the layout's
+  geometry, not from diet-seeking: the separate world has 9 zones to bump into,
+  the shared one only 3 places.
+- Trained brains switch about 60% more than scratch in **both** layouts. They
+  hop between patches more, whether or not their diet needs it: food-seeking,
+  not yet diet-seeking.
+- **The shared control isn't neutral:** everyone crowds the same 3 patches, so
+  poop piles up. Stink causes 42% of nursery-8's collapses there (6% in the
+  separate world), and all of the scripted forager's.
+- Criteria status: 1 (diet ≥ 0.9) met in 2D and 4D. 2 (≥ 2.5 food types per
+  life) met in 2D (2.8), not in 4D (2.4). 3 met only literally. 4 not met.
+
+**Proposed next (for 5zorro): slice 3b, a direct test of diet-driven travel.**
+Each time an NPC switches zones, record whether the new zone's food type is
+the one richest in the nutrient it was lowest on when it left. Chance is about
+1 in 3 (weighted by how much of each type's zone it could reach). Diet drives
+travel if trained brains beat chance and beat scratch by more than seed noise.
+This needs no control world, so geometry and crowding drop out. Then slice 4's
+levers can be judged on it.
+
+**Original proposal:**
 - `food_layout` config: `"separate"` (today) or `"shared"` (every food type uses
   the same patch centers, so all food grows together). Same total capacity, so
   the only difference is whether diet needs travel. Brain shape is unchanged, so
@@ -165,8 +225,7 @@ a time, each judged with `sweep.py`, retraining the nursery after a rule change:
 - Births still trail top-ups in 2D (M3).
 
 ## Open decisions (5zorro)
-- **The criteria above:** the thresholds (0.8 diet diversity, 2.5 zone types per
-  lifetime) are placeholders until slice 2 measures today's worlds.
+- ~~The criteria thresholds~~: settled 2026-11-03 (slice 2, "Thresholds").
 - **Is the eat action's food choice OK as an instinct?** It picks the best food
   at a cell automatically. Keeping it makes M2 about *where* NPCs go, not *what*
   they choose to eat once there. The alternative is one eat action per food type,

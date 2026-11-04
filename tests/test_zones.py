@@ -32,6 +32,36 @@ def test_zone_map_doesnt_change_the_world():
     assert (b.world.zones >= 0).sum() < (a.world.zones >= 0).sum()   # stricter core
 
 
+@pytest.mark.parametrize("kw", [{}, {"dims": 4, "size": 10, "food_patch_radius": 2.0}])
+def test_shared_layout_grows_every_food_in_the_same_patches(kw):
+    sep = World(Config(**kw), np.random.default_rng(3))
+    shared = World(Config(**kw, food_layout="shared"), np.random.default_rng(3))
+    for t in range(1, shared.cfg.n_food_types):
+        ratio = shared.capacity[t] / shared.capacity[0]
+        assert np.allclose(ratio, ratio.flat[0])            # same shape, same peaks
+        assert shared.patch_centers[t] == shared.patch_centers[0]
+        assert np.array_equal(shared.zones[t], shared.zones[0])
+    assert np.allclose(shared.capacity.sum(axis=tuple(range(1, shared.capacity.ndim))),
+                       sep.capacity.sum(axis=tuple(range(1, sep.capacity.ndim))))
+    assert shared.shrines == sep.shrines                    # the rest of the world matches
+
+
+def test_unknown_food_layout_is_refused():
+    with pytest.raises(ValueError, match="food_layout"):
+        World(Config(food_layout="mixed"), np.random.default_rng(0))
+
+
+def test_shared_layout_survives_a_snapshot(tmp_path):
+    a = Simulation(Config(**SMALL, food_layout="shared"), log_every=1000)
+    a.run(60)
+    b = load_snapshot(save_snapshot(a, tmp_path / "s"), log_every=1000)
+    assert b.cfg.food_layout == "shared"
+    assert np.array_equal(a.world.capacity, b.world.capacity)
+    a.run(30)
+    b.run(30)
+    assert [n.pos for n in a.npcs] == [n.pos for n in b.npcs]
+
+
 def eat_at(sim, npc, t, pos):
     npc.pos = pos
     here = sim.world.food_at(pos)

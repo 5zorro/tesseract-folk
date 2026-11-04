@@ -95,3 +95,7 @@ Traps that already bit us, by area. Add to this when something surprises you.
 - **Pool fitness comes from the nursery's rules.** The hall of fame starts with
   fitness scores earned under harsh rules, so new deaths in a gentle world
   must beat those numbers to get in.
+- **A control world changes more than the one thing.** `food_layout=shared`
+  also cuts the number of zones from 9 to 3 and crowds NPCs into stink. Always
+  run scratch brains in both worlds too: if scratch shows the same gap, it's
+  geometry, not learning (M2 slice 3).

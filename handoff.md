@@ -58,13 +58,14 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
     every food, and foraging is trivial (`gotchas.md`).
 
 ## Where to pick up
-1. **M2: diet drives travel.** Plan: `docs/plan-m2-diet-travel.md`. Slices 1–2
-   (zones and travel metrics, baseline) are done. 5zorro: settle the thresholds
-   (proposal under slice 2); then slice 3, the shared-patches control. So far:
-   diet 0.97, trained brains switch zones ~55% more than scratch at the same
-   distance; 4D falls short (2.4 food types per life). Key worry: food types overlap on 57–75% of 2D
-   cells, so diets may balance without travel; slice 3's shared-patches control
-   tests that.
+1. **M2: diet drives travel.** Plan: `docs/plan-m2-diet-travel.md`. Slices 1–3
+   are done and the thresholds are settled (5zorro, 2026-11-03). Slice 3's
+   shared-patches control (`food_layout=shared`) halves zone switches, but it
+   halves them for scratch brains too: geometry, not diet. Trained brains hop
+   patches ~60% more than scratch in both layouts. Shared patches also crowd
+   NPCs into stink. 4D still misses criterion 2 (2.4 food types per life).
+   Next, if 5zorro agrees: slice 3b, a direct "deficit-directed travel" metric
+   (does the next zone match the NPC's lowest nutrient more often than chance?).
 2. Known gaps carried from M1: body starvation is ~35% of collapses; births
    still trail top-ups in 2D (M3's job).
 3. Other levers: a harsher scarcity nursery (half food gave a mild win); **seasons** as a config schedule (famine winters, mostly for
@@ -93,7 +94,7 @@ In WSL, make a separate venv (`.venv/bin/python`); see `gotchas.md`.
 | Collapse causes, per-generation rates | `sim/stats.py: CAUSES, collapse_rate_by_generation`; printed by `run_headless.py: print_summary` |
 | Nursery: evolve offline, start fresh worlds from the best brains | `sim/nursery.py`; commands in `scripts/run_headless.py` docstring; `sweep.py --variant brains_from=<snapshot>` |
 | Food scent (sense and field) | `sim/world.py: step, scent_at`, `sim/simulation.py: sense` |
-| Food zones, travel metrics (M2) | `sim/world.py: _make_capacity, zone_at`, `sim/npc.py: record_zone`, `sim/stats.py: record_life, travel_summary` |
+| Food zones, travel metrics, the shared-patches control (M2) | `sim/world.py: _make_capacity` (`Config.food_layout`), `zone_at`, `sim/npc.py: record_zone`, `sim/stats.py: record_life, travel_summary` |
 | What counts as busy vs idle | `sim/simulation.py: _act` (`did`), `Config.busy_resets_idle` |
 | Old snapshots keeping old rules | `sim/snapshot.py: LEGACY`, `FORMAT` |
 | A one-off diagnostic probe to copy | `scripts/probe_nutrients.py` |

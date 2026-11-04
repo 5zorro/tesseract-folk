@@ -45,10 +45,16 @@ class World:
         Also records the patch centers and the zone map (M2): zones[t][cell] is
         the index of the nearest type-t patch if the cell is in that patch's
         core (capacity at least `zone_core` of `food_capacity`), else -1.
+
+        With `food_layout="shared"` (M2's control) every type grows in type 0's
+        patches, scaled so each type keeps its total capacity: same food, but a
+        balanced diet needs no travel. The rng draws are the same either way.
         """
         cfg = self.cfg
+        if cfg.food_layout not in ("separate", "shared"):
+            raise ValueError(f"food_layout must be 'separate' or 'shared', got {cfg.food_layout!r}")
         idx = np.indices(self.shape)
-        caps, zones = [], []
+        caps, nearests, all_centers = [], [], []
         for _ in range(cfg.n_food_types):
             field = np.zeros(self.shape)
             centers, dists = [], []
@@ -63,12 +69,19 @@ class World:
                 dists.append(dist2)
             field /= field.max()
             base = cfg.food_baseline_fraction
-            cap = (base + (1 - base) * field) * cfg.food_capacity
-            caps.append(cap)
-            nearest = np.argmin(np.stack(dists), axis=0)
-            zones.append(np.where(cap >= cfg.zone_core * cfg.food_capacity, nearest, -1))
-            self.patch_centers.append(centers)
-        self.zones = np.stack(zones)                       # (types, *shape), int
+            caps.append((base + (1 - base) * field) * cfg.food_capacity)
+            nearests.append(np.argmin(np.stack(dists), axis=0))
+            all_centers.append(centers)
+        shapes = caps                                      # zones follow the unscaled patches
+        if cfg.food_layout == "shared":
+            shapes = [caps[0]] * cfg.n_food_types
+            caps = [caps[0] * (cap.sum() / caps[0].sum()) for cap in caps]
+            nearests = [nearests[0]] * cfg.n_food_types
+            all_centers = [list(all_centers[0]) for _ in range(cfg.n_food_types)]
+        self.patch_centers = all_centers
+        core = cfg.zone_core * cfg.food_capacity
+        self.zones = np.stack([np.where(shape >= core, near, -1)
+                               for shape, near in zip(shapes, nearests)])   # (types, *shape), int
         return np.stack(caps)
 
     def _make_profiles(self) -> np.ndarray:

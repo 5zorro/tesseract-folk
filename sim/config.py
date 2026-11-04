@@ -31,6 +31,9 @@ class Config:
     # A patch's "zone" (M2 travel metrics) is its core: cells whose capacity for
     # that food is at least this fraction of food_capacity. Measurement only.
     zone_core: float = 0.5
+    # "separate": each food type has its own patches. "shared": M2's control,
+    # where every type grows in the same patches, so diet needs no travel.
+    food_layout: str = "separate"
 
     # --- conserved mass loop: soil -> food -> body -> bowel -> poop -> soil -
     initial_soil_per_cell: float = 1.0
