@@ -75,8 +75,8 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
    helps in any dimension. At ~1,000 cells, 3D/4D worlds are so small that diet
    needs no travel (nothing to learn) and 1D fails at every size (trips too
    long). 5zorro's point: 4D Miner NPCs live on a 3D surface, so dims=3 matters most.
-   Next: 5zorro accepts the revised criterion 3 (plan, slice 3c); then bigger
-   3D/4D worlds where travel matters; then slice 4a (memory stack).
+   Next: 5zorro accepts the revised criterion 3 (plan, slice 3c); then slice 3e,
+   worlds matched on travel time and total food; then slice 4a (memory stack).
 2. Known gaps carried from M1: body starvation is ~35% of collapses; births
    still trail top-ups in 2D (M3's job).
 3. Other levers: a harsher scarcity nursery (half food gave a mild win); **seasons** as a config schedule (famine winters, mostly for

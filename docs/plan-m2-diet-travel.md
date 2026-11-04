@@ -4,7 +4,7 @@ Status: **slices 1–3c done (2026-11-03); thresholds settled. The move-based
 metric (3c) shows diet-seeking in 2D (all criteria met there, with criterion 3
 revised) but none in 4D. Slice 3d (dimensions ladder) found brain size isn't
 the limit: 4 hidden units pass in 2D, and bigger never helps. Next (5zorro):
-accept the revised criterion 3; bigger 3D/4D worlds (slice 3d, Proposed next),
+accept the revised criterion 3; slice 3e, worlds matched on travel time,
 then 4a, the memory stack.** Slices are ordered; each one ends with tests passing and a commit.
 Open decisions (bottom) are 5zorro's.
 
@@ -376,12 +376,60 @@ Reading:
   or 4D needs worlds where travel matters, like 2D's.
 
 **Proposed next (for 5zorro):**
-1. **Bigger 3D and 4D worlds** with 2D's food coverage and 2D-like distances
-   between foods (e.g. 3D size 20 = 8,000 cells, 4D size 10), 8 and 16 hidden
-   units. Do NPCs seek their needed food once travel matters? The 3D case is
-   the 4D Miner one. Population would need scaling with the world.
+1. ~~Bigger 3D and 4D worlds (e.g. 3D size 20, 4D size 10)~~: those sizes were
+   a guess. Replaced by slice 3e, which derives sizes from travel *time* (5zorro's
+   idea).
 2. Then slice 4a (memory stack), which now has room: inputs aren't the limit.
 3. Later: consider 8 hidden units as the default (cheaper for the C++ port).
+
+### Slice 3e: Worlds matched on travel time (proposed, 5zorro's idea)
+**Idea (5zorro, 2026-11-03):** measure the distance between foods as *time*, the
+way hunger is measured, so world size has a meaning.
+
+**The two clocks:**
+- **Hunger:** a nutrient goes from full to starving (0.1) in 0.9 / 0.003 = **300
+  ticks** of moving (idle hunger is 2.5× faster). Body mass burns 1% per tick
+  (about 120 ticks from 1.0 to the 0.3 floor), but any food refills it.
+- **Trip:** a move is one cell along one axis per tick, so a trip takes its
+  grid-step (L1) distance in ticks. Measured as: from each zone-core cell of one
+  food, the steps to the nearest core of another food, averaged over food
+  pairs (overlap counts as 0). Script: `scripts/travel_time.py`.
+
+**Measured** (4 seeds each):
+| World | Cells | Total food | Trip (ticks) | Trip / hunger clock |
+|---|---|---|---|---|
+| 1D ladder (1024, r 55) | 1,024 | 1,900 | 102.5 | 0.34 |
+| **2D today** (32, r 4) | 1,024 | 1,604 | **5.7** | 0.019 |
+| 3D ladder (10, r 1.84) | 1,000 | 1,449 | 3.0 | 0.010 |
+| 4D ladder (6, r 1.35) | 1,296 | 1,752 | 2.4 | 0.008 |
+| 4D today (10, r 2) | 10,000 | **9,535** | 4.2 | 0.014 |
+
+What this corrects:
+- The ladder's 3D/4D trips were about half of 2D's (3.0 and 2.4 vs 5.7), not
+  "a few steps vs far away". Smaller, but not the whole story.
+- **Today's 4D world has 2D-like trips (4.2) but 6× the food** for the same
+  number of NPCs. Abundance, not distance, is the likelier reason 4D shows no
+  diet-seeking: with food everywhere, being choosy doesn't pay.
+- Trips are short against hunger everywhere except 1D (2% of the clock in 2D).
+  Diet travel in 2D is cheap; in 1D it's a third of the clock, and 1D fails.
+
+**Design:** hold the two things that set the economy fixed, and vary only the
+dimension: **the same total food** (so the same food per NPC, with today's
+population) and **the same trip time** as 2D (5.7 ticks). Patch radius sets
+the food; world size sets the trip. Computed (radius found per size for ~1,600
+food):
+| Dims | Size | Cells | Radius | Trip (ticks) |
+|---|---|---|---|---|
+| 2 | 24 / 32 / 48 / 64 | 576 / 1,024 / 2,304 / 4,096 | 4.6 / 4.05 / 3.9 / 3.8 | 2.7 / **5.7** / 11.0 / 16.7 |
+| 3 | 10 / 12 / 14 / 17 / 20 | 1,000 – 8,000 | 2.1 – 1.8 | 2.5 / 3.9 / **5.3** / 6.9 / 8.6 |
+| 4 | 6 / 8 / 10 / 12 | 1,296 – 20,736 | 1.3 – 1.2 | 2.5 / 4.1 / **5.6** / 6.8 |
+So the matched worlds are **2D size 32 (r 4), 3D size 14 (r 1.88), 4D size 10
+(r 1.23)**.
+
+**Runs:** those three worlds × hidden units 8 and 16 × (2 nurseries + scratch)
+× 5 seeds × 10,000 ticks, with `scripts/ladder.py` (its `WORLDS` table becomes
+an option). Then, if diet-seeking appears in 3D and 4D, a trip-time ladder in
+one dimension (e.g. 2D at 6, 11 and 17 ticks) to see how the ratio drives it.
 
 ### Slice 4: Levers, only if criterion 3 fails
 Criterion 3 isn't demonstrated (slice 3b). 5zorro picked the memory stack as the
