@@ -524,6 +524,29 @@ can be judged there.
 9. **Grid steps:** a move is one axis per tick, so diagonal trips cost up to
    √dims more than straight-line distance. Minor.
 
+**Follow-up probes (2026-11-04), on 5zorro's question "can a smell toward richer
+food let NPCs learn to ignore crumbs?":**
+- **Brains don't skip crumbs today** (`scripts/probe_crumbs.py`). How often each
+  brain chooses `eat` is flat whatever is in its cell (2D scratch 10–11%,
+  nursery-8 26–33%; 3D and 4D nurseries 34–43%). Nursery brains learned "eat
+  often", not "eat where it's rich".
+- **The eat instinct itself picks crumbs.** It chooses the food that best fixes
+  the NPC's deficits *per unit*, ignoring how much is there. So it takes a crumb
+  of the needed food even when a full bite of another food is in the same
+  cell. Of crumb bites, this is the case for **84% in 2D, 54% in 3D, 16% in
+  4D**. In 4D most crumbs really are alone (patch edges, hypothesis 1).
+- This also explains why brains can't learn to skip crumbs: choosing `eat` on a
+  rich cell often yields a crumb anyway, so eating looks the same everywhere.
+
+**Two causes, so two fixes (rule changes; nurseries retrain):**
+- **A. The eat choice** (main cause in 2D and 3D): choose by nutrition actually
+  gained this bite, value × min(bite, amount here). An instinct's rule, not a
+  behavior we want to emerge, so rule 6 is fine.
+- **B. A meal scent** (5zorro's idea; the 4D patch-edge cause): food smells only
+  above a full bite (emission ∝ amount beyond one bite), so crumbs have no smell
+  and the gradient leads to meals. Same inputs, so brain shape is unchanged.
+  Lets "skip crumbs, follow the meal smell" emerge rather than be scripted.
+
 **Candidate tests (for 5zorro; each changes the rules, so nurseries retrain):**
 - For 1: patches with a hard edge (food only where capacity is at least a bite,
   like 5zorro's biomes); or `eat` ignores cells with less than some minimum.
