@@ -2,9 +2,10 @@
 
 Status: **slices 1–3c done (2026-11-03); thresholds settled. The move-based
 metric (3c) shows diet-seeking in 2D (all criteria met there, with criterion 3
-revised) but none in 4D. Next (5zorro): accept the revised criterion 3; slice 3d,
-the dimensions ladder (brain size vs dims 1–4), is proposed before 4a, the
-memory stack.** Slices are ordered; each one ends with tests passing and a commit.
+revised) but none in 4D. Slice 3d (dimensions ladder) found brain size isn't
+the limit: 4 hidden units pass in 2D, and bigger never helps. Next (5zorro):
+accept the revised criterion 3; bigger 3D/4D worlds (slice 3d, Proposed next),
+then 4a, the memory stack.** Slices are ordered; each one ends with tests passing and a commit.
 Open decisions (bottom) are 5zorro's.
 
 **For a new session:** read `handoff.md`, `gotchas.md` and this file. M1's plan
@@ -329,6 +330,58 @@ meets them all, per dimension, plus how the goals degrade as brains shrink.
 **Not changed:** sensing, actions, mutation, nursery rules. If no size meets the
 goals in 3D, the problem isn't brain size, and the levers (4a memory, patches)
 come next.
+
+**Ran 2026-11-03** (`scripts/ladder.py`, `runs/2026-11-03-ladder.csv`, nurseries in
+`snapshots/ladder/`, ~45 min on 16 cores). Each cell: 2 nurseries × 5 seeds ×
+10,000 ticks, against 5 scratch seeds at the same size.
+| Dims | Hidden | Collapses (nursery / scratch) | Lowest nutrient | Diet | Food types / life | Approach excess (nursery / scratch) | Distance / 100 ticks | All goals |
+|---|---|---|---|---|---|---|---|---|
+| 1 | 4 | 4.45 / 5.17 | 0.37 | 0.76 | 2.42 | −0.011 / −0.009 | 14 | no |
+| 1 | 32 | 4.85 / 5.45 | 0.35 | 0.74 | 2.40 | −0.015 / −0.026 | 16 | no |
+| 2 | 4 | **0.93** / 1.78 | 0.49 | 0.96 | 2.84 | **0.117** / 0.068 | 11 | **yes** |
+| 2 | 8 | 1.01 / 1.81 | 0.50 | 0.96 | 2.80 | 0.104 / 0.058 | 10 | yes |
+| 2 | 16 | 1.10 / 1.78 | 0.49 | 0.96 | 2.78 | 0.123 / 0.073 | 10 | yes |
+| 2 | 32 | 1.42 / 1.90 | 0.46 | 0.95 | 2.70 | 0.102 / 0.070 | 10 | yes |
+| 3 | 4 | 0.85 / 0.97 | 0.59 | 0.98 | 2.84 | 0.017 / 0.007 | 4 | barely |
+| 3 | 8 | 1.13 / 1.03 | 0.56 | 0.97 | 2.76 | 0.017 / 0.009 | 4 | no |
+| 3 | 16 | 1.24 / 1.15 | 0.54 | 0.96 | 2.73 | 0.015 / 0.008 | 4 | no |
+| 3 | 32 | 1.41 / 1.23 | 0.51 | 0.96 | 2.67 | 0.011 / 0.010 | 4 | no |
+| 4 | 4 | 1.31 / 0.98 | 0.56 | 0.97 | 2.65 | −0.003 / 0.000 | 3 | no |
+| 4 | 8 | 1.54 / 1.03 | 0.58 | 0.97 | 2.67 | −0.002 / −0.001 | 3 | no |
+| 4 | 16 | 1.34 / 1.09 | 0.51 | 0.96 | 2.66 | −0.003 / 0.001 | 3 | no |
+| 4 | 32 | 1.33 / 1.29 | 0.52 | 0.96 | 2.66 | −0.002 / −0.002 | 3 | no |
+(1D at 8 and 16 hidden units look like 4 and 32; full rows in the CSV and `runs/ladder.log`.)
+
+Reading:
+- **Brain size isn't the bottleneck.** 4 hidden units meet every goal in 2D,
+  including diet-seeking. Going from 4 to 32 never helps anywhere; it makes
+  collapses slightly worse in every dimension, for nursery and scratch alike
+  (more weights evolve more slowly in the same number of ticks). Today's 16 is
+  already more than needed.
+- **2D is the sweet spot:** travel matters (food types are ~10 cells apart) and
+  it's learnable. Nursery brains halve collapses and seek their needed food at
+  every size.
+- **3D and 4D at ~1,000 cells are small worlds:** everything is a few steps
+  away (3–4 cells per 100 ticks). Scratch brains already collapse less than in
+  2D (~1.0), diet barely needs travel, and diet-seeking is tiny (3D) or absent
+  (4D). There, nursery brains do *worse* than scratch (4D: 1.3–1.5 vs
+  1.0–1.3), likely because harsh-trained pools are hard to displace in an easy
+  world (`gotchas.md`, pool fitness).
+- **1D fails at every size:** a line forces long trips (patches ~100 cells
+  apart, and you can't go around), so diet (0.75) and nutrients (0.36) fail.
+  The hardest world, not the easiest.
+- **So the 4D gap is about the world, not the brain.** Today's 4D world (size
+  10, radius 2) is sparse and hard, and the nursery helps there; in a small,
+  dense 4D world there's nothing to learn. Whether diet-seeking appears in 3D
+  or 4D needs worlds where travel matters, like 2D's.
+
+**Proposed next (for 5zorro):**
+1. **Bigger 3D and 4D worlds** with 2D's food coverage and 2D-like distances
+   between foods (e.g. 3D size 20 = 8,000 cells, 4D size 10), 8 and 16 hidden
+   units. Do NPCs seek their needed food once travel matters? The 3D case is
+   the 4D Miner one. Population would need scaling with the world.
+2. Then slice 4a (memory stack), which now has room: inputs aren't the limit.
+3. Later: consider 8 hidden units as the default (cheaper for the C++ port).
 
 ### Slice 4: Levers, only if criterion 3 fails
 Criterion 3 isn't demonstrated (slice 3b). 5zorro picked the memory stack as the

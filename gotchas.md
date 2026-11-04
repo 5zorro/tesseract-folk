@@ -109,3 +109,8 @@ Traps that already bit us, by area. Add to this when something surprises you.
   needed food" scores positive by chance. Always subtract the random-step null
   (`approach_null`, M2 slice 3c), and treat "scratch" brains as partly
   evolved, not blank.
+- **Matching cell counts across dimensions shrinks the world.** ~1,000 cells is
+  32 wide in 2D but 10 in 3D and 6 in 4D, so every food is a few steps away and
+  diet needs no travel. Match distances between foods too, not just coverage
+  (M2 slice 3d). Bigger brains also evolve slower: 16 hidden units was never
+  better than 4.

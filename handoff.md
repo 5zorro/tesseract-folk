@@ -70,10 +70,13 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
    Slice 3c, a move-based metric with a random-step null, does show it: in 2D
    nursery brains gain ~0.13 cells per move toward their needed food beyond
    random (scratch 0.07, scripted forager negative). In 4D, ~0 for everyone.
-   Next: 5zorro accepts the revised criterion 3 (plan, slice 3c). Proposed before
-   slice 4a (memory stack): slice 3d, the dimensions ladder (smallest brain that
-   meets the goals in 1D/2D/3D, worlds matched on food coverage). 5zorro's point:
-   4D Miner NPCs live on a 3D surface, so dims=3 may be the case that matters.
+   Slice 3d, the dimensions ladder (`scripts/ladder.py`, 5zorro's idea): brain
+   size isn't the limit. 4 hidden units meet every goal in 2D, and 4 → 32 never
+   helps in any dimension. At ~1,000 cells, 3D/4D worlds are so small that diet
+   needs no travel (nothing to learn) and 1D fails at every size (trips too
+   long). 5zorro's point: 4D Miner NPCs live on a 3D surface, so dims=3 matters most.
+   Next: 5zorro accepts the revised criterion 3 (plan, slice 3c); then bigger
+   3D/4D worlds where travel matters; then slice 4a (memory stack).
 2. Known gaps carried from M1: body starvation is ~35% of collapses; births
    still trail top-ups in 2D (M3's job).
 3. Other levers: a harsher scarcity nursery (half food gave a mild win); **seasons** as a config schedule (famine winters, mostly for
@@ -105,6 +108,7 @@ In WSL, make a separate venv (`.venv/bin/python`); see `gotchas.md`.
 | Food zones, travel metrics, the shared-patches control (M2) | `sim/world.py: _make_capacity` (`Config.food_layout`), `zone_at`, `sim/npc.py: record_zone`, `sim/stats.py: record_life, travel_summary` |
 | What counts as busy vs idle | `sim/simulation.py: _act` (`did`), `Config.busy_resets_idle` |
 | Old snapshots keeping old rules | `sim/snapshot.py: LEGACY`, `FORMAT` |
+| Brain size vs dimension (nurseries + play worlds, verdicts per goal) | `scripts/ladder.py` (`--report-only` re-reads the CSV) |
 | A one-off diagnostic probe to copy | `scripts/probe_nutrients.py` |
 | Comparing configs over many seeds | `scripts/sweep.py` (e.g. `--seeds 5 --ticks 10000 --variant metabolism_rate=0.008 --variant controller=scripted`) |
 | Collapse vs death, the hall-of-fame top-up | `sim/simulation.py: _collapse, _die, _top_up` |
