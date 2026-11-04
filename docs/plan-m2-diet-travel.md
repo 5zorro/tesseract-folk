@@ -471,6 +471,66 @@ the memory stack (4a), or the trip-time ladder in 3D. For full-4D worlds,
 patches need to be a different shape (blobs that keep coverage) before brains
 can be judged there.
 
+**5zorro (2026-11-04): don't move the goalposts.** Food types per life fails in
+3D *and* 4D, so it's a trend to explain first.
+
+### Slice 3f: Why higher dimensions fail (brainstorm, 2026-11-04)
+**Probe** (`scripts/probe_supply.py`; travel-time worlds, scratch brains,
+3 seeds × 4,000 ticks):
+| | 2D | 3D | 4D |
+|---|---|---|---|
+| Cells that can grow a full bite of some food | 95% | 63% | 21% |
+| Full bites per clump (patch) at full growth, median | 502 | 260 | 191 |
+| Food on the map after 4,000 ticks (of ~1,600 capacity) | 1,386 | 1,778 | 1,846 |
+| Soil stranded where nothing can grow | 5% | 54% | 85% |
+| Ground bites taken inside a zone core | 31% | 5% | **1%** |
+| Mean ground bite (of a full 0.2 bite) | 39% | 24% | **7%** |
+| Bites under a quarter of a full bite ("crumbs") | 56% | 72% | **91%** |
+| Pick-ups per run / bites eaten from inventory | 2,190 / 0% | 3,226 / 0% | 4,935 / **0%** |
+
+**Hypotheses, ranked by the evidence:**
+1. **Crumb grazing (strong).** Patches are Gaussians, whose tails never reach
+   zero, so a crumb of food grows almost everywhere. `eat` takes whatever is
+   in the cell, one bite per tick, even a crumb. In higher dimensions most of a
+   blob's volume is its thin outer shell (the "curse of dimensionality"), so
+   NPCs mostly meet crumbs: the mean bite falls from 39% to 7% of a full bite,
+   and 4D's collapses are 88% body starvation. NPCs aren't short of food; they
+   graze dust next to it.
+2. **Carrying is dead in every dimension.** `eat` always takes a ground crumb
+   before touching the inventory, and crumbs are everywhere, so 0% of bites come
+   from carried food, while pick-ups (also often crumbs) lock some mass away.
+   Inventory capacity is the same in every dimension (1.0, five full bites), and
+   equally useless.
+3. **The food-types metric undercounts, partly a symptom of 1.** "Food types
+   per life" counts only bites inside a zone core, and only 5% (3D) or 1% (4D)
+   of bites land in one. Diet diversity is 0.96 in 3D, so NPCs do eat all
+   three foods, just not in cores. The metric fails because the behavior (staying
+   on the fringe) is real.
+4. **Supply isn't the limit (5zorro's "meals per clump").** Clumps hold 190–500
+   full bites, and food stays near capacity: much of it is never eaten. The
+   problem is reaching it, not making it.
+5. **Soil is stranded, but not binding yet.** In 4D, 85% of the soil sits where
+   nothing grows (poop lands everywhere). Food is still near capacity, so it
+   doesn't matter today; it will once population grows (M3).
+6. **Search gets harder with dimension.** From a random cell to a given food:
+   2.5 / 2.9 / 4.0 ticks. Scent spreads over 2 × dims neighbors, so it fades
+   faster, and each axis's gradient carries less of the signal. Plausible,
+   secondary to 1.
+7. **The economy was tuned in 2D.** Bite size, satiation, the idle penalty and
+   `zone_core` were all set in 2D and reused unchanged.
+8. **Density and evolution time.** The same 60 NPCs in more cells mean fewer
+   births (0 in 4D, 14 in 3D), so less selection in play. The nursery runs the
+   same 20,000 ticks for more weights. Longer nurseries are untested.
+9. **Grid steps:** a move is one axis per tick, so diagonal trips cost up to
+   √dims more than straight-line distance. Minor.
+
+**Candidate tests (for 5zorro; each changes the rules, so nurseries retrain):**
+- For 1: patches with a hard edge (food only where capacity is at least a bite,
+  like 5zorro's biomes); or `eat` ignores cells with less than some minimum.
+- For 2: `eat` takes from the inventory when the ground has only a crumb.
+- For 3: re-measure food types per life after 1 is fixed, before changing
+  the metric.
+
 ### Slice 4: Levers, only if criterion 3 fails
 Criterion 3 isn't demonstrated (slice 3b). 5zorro picked the memory stack as the
 first lever (2026-11-03).
