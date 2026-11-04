@@ -99,3 +99,8 @@ Traps that already bit us, by area. Add to this when something surprises you.
   also cuts the number of zones from 9 to 3 and crowds NPCs into stink. Always
   run scratch brains in both worlds too: if scratch shows the same gap, it's
   geometry, not learning (M2 slice 3).
+- **Bite-based travel metrics inherit the eat instinct.** `eat` picks the food
+  that fixes the NPC's deficit, so anything recorded at a bite (zone switches,
+  "did it reach the needed food") looks diet-directed even for brains that
+  know nothing of diet; the scripted forager scores highest. Measure moves, not
+  bites, and compare with scratch brains (M2 slice 3b).

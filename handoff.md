@@ -64,8 +64,11 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
    halves them for scratch brains too: geometry, not diet. Trained brains hop
    patches ~60% more than scratch in both layouts. Shared patches also crowd
    NPCs into stink. 4D still misses criterion 2 (2.4 food types per life).
-   Next, if 5zorro agrees: slice 3b, a direct "deficit-directed travel" metric
-   (does the next zone match the NPC's lowest nutrient more often than chance?).
+   Slice 3b's "deficit-directed" metric beats chance for every brain equally
+   (the scripted forager most), because `eat` already picks the needed food, so
+   bite-based metrics leak that instinct. Criterion 3 is not demonstrated.
+   Next: a move-based metric, then slice 4a, the memory stack (5zorro's pick; draft
+   in the plan).
 2. Known gaps carried from M1: body starvation is ~35% of collapses; births
    still trail top-ups in 2D (M3's job).
 3. Other levers: a harsher scarcity nursery (half food gave a mild win); **seasons** as a config schedule (famine winters, mostly for

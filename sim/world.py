@@ -153,6 +153,12 @@ class World:
         """Index of the type-`food_type` patch whose core holds `pos`, or -1."""
         return int(self.zones[(food_type,) + pos])
 
+    def serves(self, pos: Pos) -> np.ndarray:
+        """Per nutrient: is `pos` inside the zone of a food type rich in it?"""
+        rich = np.argmax(self.profiles, axis=1)            # each type's rich nutrient
+        in_zone = self.zones[(slice(None),) + pos] >= 0
+        return np.array([in_zone[rich == k].any() for k in range(self.cfg.n_nutrients)])
+
     def scent_at(self, pos: Pos) -> np.ndarray:
         """The scent of every food type at one cell."""
         return self.scent[(slice(None),) + pos]

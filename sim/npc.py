@@ -55,6 +55,10 @@ class NPC:
     zones_eaten: set = field(default_factory=set)
     last_zone: tuple | None = None
     zone_switches: int = 0
+    # M2 slice 3b, summed over switches: did the new zone serve the nutrient it
+    # was lowest on (hits), and how often would a random nutrient be served (chance)?
+    directed_hits: float = 0.0
+    directed_chance: float = 0.0
 
     def __post_init__(self):
         if self.eaten is None:

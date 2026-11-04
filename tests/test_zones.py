@@ -110,6 +110,24 @@ def test_eating_another_food_where_zones_overlap_isnt_a_switch():
     assert len(npc.zones_eaten) == 2 and npc.zone_switches == 0
 
 
+@pytest.mark.parametrize("lowest,hit", [(1, 1.0), (2, 0.0)])
+def test_switches_record_whether_they_reached_the_needed_food(lowest, hit):
+    sim = Simulation(Config(**SMALL, food_patch_radius=2.0), log_every=1000)
+    npc = sim.npcs[0]
+    a = only_in(sim, 0, sim.world.zone_at(0, sim.world.patch_centers[0][0]))
+    b = only_in(sim, 1, sim.world.zone_at(1, sim.world.patch_centers[1][0]))
+    assert list(sim.world.serves(b)) == [False, True, False]
+    eat_at(sim, npc, 0, a)
+    npc.pos = b
+    sim.world.food_at(b)[:] = 0.0
+    sim.world.food_at(b)[1] = 2.0
+    npc.nutrients[:] = 0.5
+    npc.nutrients[lowest] = 0.1
+    sim._eat(npc)
+    assert npc.zone_switches == 1
+    assert npc.directed_hits == hit and npc.directed_chance == pytest.approx(1 / 3)
+
+
 def test_bites_outside_zones_and_from_inventory_dont_count():
     sim = Simulation(Config(**SMALL, zone_core=0.99), log_every=1000)
     npc = sim.npcs[0]
@@ -126,12 +144,14 @@ def test_completed_lives_feed_the_travel_summary():
     npc = sim.npcs[0]
     npc.zones_eaten = {(0, 0), (0, 1), (2, 0)}
     npc.zone_switches = 4
+    npc.directed_hits, npc.directed_chance = 3.0, 1.5
     npc.lifetime = 800
     npc.age = sim.cfg.old_age
     sim._die(npc)
     s = sim.stats.travel_summary()
     assert s["lives"] == 1 and s["zones"] == 3 and s["zone_types"] == 2
     assert s["switch_rate"] == pytest.approx(5.0)
+    assert s["directed"] == pytest.approx(0.75) and s["chance"] == pytest.approx(0.375)
     assert sim.stats.travel_summary(min_lifetime=1000)["lives"] == 0
 
 
@@ -156,6 +176,7 @@ def test_zones_survive_a_snapshot_and_runs_resume_identically(tmp_path, dims, si
     b.run(50)
     assert [n.pos for n in a.npcs] == [n.pos for n in b.npcs]
     assert [n.zone_switches for n in a.npcs] == [n.zone_switches for n in b.npcs]
+    assert [n.directed_hits for n in a.npcs] == [n.directed_hits for n in b.npcs]
     assert a.total_mass() == pytest.approx(b.total_mass(), rel=1e-12)
 
 

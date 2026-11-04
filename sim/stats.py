@@ -37,20 +37,30 @@ class Stats:
         self.lives.append({
             "tick": tick, "lifetime": npc.lifetime, "zones": len(npc.zones_eaten),
             "zone_types": len({t for t, _ in npc.zones_eaten}), "switches": npc.zone_switches,
+            "directed_hits": npc.directed_hits, "directed_chance": npc.directed_chance,
         })
 
     def travel_summary(self, since_tick: int = 0, min_lifetime: int = 500) -> dict:
         """M2 metrics over lives that ended at or after `since_tick` and lasted
-        at least `min_lifetime` ticks (short lives can't have travelled much)."""
+        at least `min_lifetime` ticks (short lives can't have travelled much).
+
+        `directed` is the share of zone switches that arrived where the NPC's
+        lowest nutrient grows; `chance` is the same for a random nutrient at
+        those cells. Diet drives travel when directed beats chance (and beats
+        scratch brains: geometry alone can lift it, gotchas.md)."""
+        nan = float("nan")
         lives = [l for l in self.lives if l["tick"] >= since_tick and l["lifetime"] >= min_lifetime]
         if not lives:
-            return {"lives": 0, "zones": float("nan"), "zone_types": float("nan"),
-                    "switch_rate": float("nan")}
+            return {"lives": 0, "zones": nan, "zone_types": nan, "switch_rate": nan,
+                    "directed": nan, "chance": nan}
+        switches = sum(l["switches"] for l in lives)
         return {
             "lives": len(lives),
             "zones": float(np.mean([l["zones"] for l in lives])),
             "zone_types": float(np.mean([l["zone_types"] for l in lives])),
-            "switch_rate": 1000 * sum(l["switches"] for l in lives) / sum(l["lifetime"] for l in lives),
+            "switch_rate": 1000 * switches / sum(l["lifetime"] for l in lives),
+            "directed": sum(l.get("directed_hits", 0.0) for l in lives) / switches if switches else nan,
+            "chance": sum(l.get("directed_chance", 0.0) for l in lives) / switches if switches else nan,
         }
 
     def collapse_rate_by_generation(self, per: int = 1000) -> dict[int, float]:

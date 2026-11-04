@@ -243,6 +243,12 @@ class Simulation:
                 still = last is not None and w.zone_at(last[0], npc.pos) == last[1]
                 if npc.record_zone((t, zone), still):
                     self.stats.count("zone_switches")
+                    # Deficit-directed travel (M2 slice 3b): judged by where it
+                    # arrived, not by what `eat` picked, since eat already
+                    # chooses by deficit.
+                    serves = w.serves(npc.pos)
+                    npc.directed_hits += float(serves[int(np.argmin(npc.nutrients))])
+                    npc.directed_chance += float(serves.mean())
         elif (npc.inventory > 1e-9).any():
             t = int(np.argmax(np.where(npc.inventory > 1e-9, value, -np.inf)))
             amount = min(cfg.bite_size, float(npc.inventory[t]))

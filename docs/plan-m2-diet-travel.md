@@ -1,8 +1,9 @@
 # Plan: M2 Diet drives travel
 
-Status: **slices 1–3 done (2026-11-03); thresholds settled. The control can't
-separate diet-seeking from geometry (slice 3, Reading). Next: 5zorro decides on
-slice 3b, a direct "deficit-directed travel" metric.** Slices are ordered; each one ends with tests passing and a commit.
+Status: **slices 1–3b done (2026-11-03); thresholds settled. Neither the
+control nor the 3b metric shows diet-seeking: trained brains match scratch.
+Next (5zorro): a move-based metric (slice 3b, Proposed next), then 4a, the memory
+stack.** Slices are ordered; each one ends with tests passing and a commit.
 Open decisions (bottom) are 5zorro's.
 
 **For a new session:** read `handoff.md`, `gotchas.md` and this file. M1's plan
@@ -196,6 +197,45 @@ travel if trained brains beat chance and beat scratch by more than seed noise.
 This needs no control world, so geometry and crowding drop out. Then slice 4's
 levers can be judged on it.
 
+### Slice 3b: Deficit-directed travel ✅ (2026-11-03)
+**Built:** `World.serves(pos)` (per nutrient: is this cell in the zone of a food
+rich in it?). At each zone switch, `_eat` adds to `NPC.directed_hits` (served
+its lowest nutrient, measured before the bite) and `NPC.directed_chance` (share
+of nutrients served there). `travel_summary` reports `directed` and `chance`
+per switch; `sweep.py` adds directed/chance/lift columns; `run_headless.py`
+prints them. Observation only: every other column matches slice 2 exactly.
+Tests in `tests/test_zones.py`.
+
+**Results** (`runs/2026-11-03-m2-directed-2d.csv`, `-4d.csv`; same runs and lives
+as slice 2):
+| Brains | 2D directed | 2D chance | 2D lift | 4D directed | 4D chance | 4D lift |
+|---|---|---|---|---|---|---|
+| Scratch | 0.64 | 0.39 | 0.25 ± 0.03 | 0.71 | 0.36 | 0.35 ± 0.05 |
+| Nursery-8 / 4D nursery-2 | 0.66 | 0.40 | 0.26 ± 0.03 | 0.66 | 0.37 | 0.29 ± 0.04 |
+| Nursery-scarce-2 | 0.65 | 0.40 | 0.25 ± 0.04 | | | |
+| Scripted forager | 0.81 | 0.37 | **0.44 ± 0.10** | 0.85 | 0.40 | **0.46 ± 0.08** |
+
+Reading:
+- **Every brain beats chance by the same margin, so this lift isn't diet-seeking.**
+  Trained brains match scratch (2D +0.01, 4D −0.06), and the scripted forager,
+  which walks toward *any* food and knows nothing of diet, scores highest.
+- **Why:** a switch is only recorded when a bite is taken, and `eat` picks the
+  food that fixes the NPC's deficit whenever it's at the cell. So arrivals that
+  happen to serve the need are the ones that get recorded as switches. The eat
+  instinct leaks into any bite-based travel metric. Geometry adds to it: an
+  NPC tends to be low on whatever its last zone didn't serve.
+- **Conclusion: M2 criterion 3 is not demonstrated.** Trained brains are
+  food-seekers that hop patches more than scratch; nothing yet shows they head
+  for the food they need. Scratch brains are the only honest null so far.
+
+**Proposed next (for 5zorro):**
+1. **A move-based metric** that never looks at bites: on each move made while
+   outside the needed food's zones, how much closer did it get to the nearest
+   patch of its needed food, compared with the other foods? Judged against
+   scratch brains (a random walk's drift depends on distance, so 0 isn't the
+   null). Small, like 3b.
+2. **The memory stack** as slice 4's first lever (draft below), judged on 1.
+
 **Original proposal:**
 - `food_layout` config: `"separate"` (today) or `"shared"` (every food type uses
   the same patch centers, so all food grows together). Same total capacity, so
@@ -207,8 +247,33 @@ levers can be judged on it.
   capacity matches the separate layout within a few percent.
 
 ### Slice 4: Levers, only if criterion 3 fails
-Most likely failure: overlap lets NPCs eat well without travel. Candidates, one at
-a time, each judged with `sweep.py`, retraining the nursery after a rule change:
+Criterion 3 isn't demonstrated (slice 3b). 5zorro picked the memory stack as the
+first lever (2026-11-03).
+
+**4a. The memory stack (draft, for 5zorro; design notes in `openitems.md`):**
+- `Config.memory_slots` (e.g. 4; 0 = off, so old snapshots and pools keep
+  their brain shape through `LEGACY`). Each NPC keeps up to K memories: absolute
+  position, tick, and a tag (the food type richest at that cell, as one-hots).
+  A new memory pushes out the oldest. Saved in snapshots; no mass.
+- **Sensed per slot:** filled (0/1), direction to it (`wrapped_delta / half`,
+  like the known-secret sense), freshness `exp(-age / memory_tau)`, tag
+  one-hots. 2D: 1 + 2 + 1 + 3 = 7 inputs per slot, 28 for 4 slots (47 → 75);
+  4D: 9 per slot (62 → 98).
+- **Written by** a new `remember` action ("here, now, what grows here"). One
+  more output; a busy action when it writes.
+- **Not in 4a:** gifts (`share` copying a memory, the inbox slot), work and
+  secret tags, entity ids. Those come with M4/M5 and occupations.
+- **Brain size:** sweep `hidden_units` 16 vs 32 with memory on, since inputs
+  grow by more than half.
+- **Measure:** retrain the nursery (2D and 4D) with memory on, then compare to
+  today's nursery on the move-based metric (proposal 1 above), zone switches,
+  food types per life and collapses. Also: how often `remember` fires, and
+  whether memories get followed (distance to the freshest memory shrinking).
+- **Tests:** stack order and eviction; sense size and contents in 2D and 4D;
+  snapshot round trip; old snapshots load with memory off; mass unaffected.
+
+**Other candidates**, one at a time, each judged with `sweep.py`, retraining the
+nursery after a rule change:
 - **Smaller, separate patches:** a smaller `food_patch_radius`, or a minimum
   distance between centers of different types. 5zorro's **biomes** idea
   (`openitems.md`: food 1 in "mountains", food 2 on "beaches") is the fuller

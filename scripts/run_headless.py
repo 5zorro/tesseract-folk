@@ -72,7 +72,9 @@ def print_summary(sim) -> None:
         print(f"Travel (M2), over {travel['lives']} completed lives of 500+ ticks: "
               f"{travel['zones']:.1f} zones eaten in per life, "
               f"{travel['zone_types']:.1f} of {sim.cfg.n_food_types} food types' zones, "
-              f"{travel['switch_rate']:.1f} zone switches per 1,000 NPC-ticks")
+              f"{travel['switch_rate']:.1f} zone switches per 1,000 NPC-ticks; "
+              f"{travel['directed']:.0%} of switches reached the food for their lowest "
+              f"nutrient (chance {travel['chance']:.0%})")
 
 
 def main() -> None:
