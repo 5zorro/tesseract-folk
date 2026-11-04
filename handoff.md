@@ -71,6 +71,10 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
    consistency); play-world drift fixes (re-seed, lower mutation in play).
 4. Later (M5): the piety lifecycle (full until adulthood, then declines; share
    piety like a secret) as the path to answered prayers and shared secrets.
+5. **5zorro's brainstorm (2026-11-03)** is in `openitems.md` (clock and day/night,
+   occupations and wages, places with abilities, memory stack, sus and monsters,
+   mutation schedule and brain size, immigrants). A proposed roadmap placement
+   was offered on 2026-11-03; `docs/ROADMAP.md` is unchanged until 5zorro decides.
 
 ## Setup (Windows)
 ```bash
