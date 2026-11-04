@@ -1,9 +1,9 @@
 # Plan: M2 Diet drives travel
 
-Status: **slices 1–3b done (2026-11-03); thresholds settled. Neither the
-control nor the 3b metric shows diet-seeking: trained brains match scratch.
-Next (5zorro): a move-based metric (slice 3b, Proposed next), then 4a, the memory
-stack.** Slices are ordered; each one ends with tests passing and a commit.
+Status: **slices 1–3c done (2026-11-03); thresholds settled. The move-based
+metric (3c) shows diet-seeking in 2D (all criteria met there, with criterion 3
+revised) but none in 4D. Next (5zorro): accept the revised criterion 3, then
+slice 4a, the memory stack, aimed at 4D.** Slices are ordered; each one ends with tests passing and a commit.
 Open decisions (bottom) are 5zorro's.
 
 **For a new session:** read `handoff.md`, `gotchas.md` and this file. M1's plan
@@ -235,6 +235,49 @@ Reading:
    scratch brains (a random walk's drift depends on distance, so 0 isn't the
    null). Small, like 3b.
 2. **The memory stack** as slice 4's first lever (draft below), judged on 1.
+
+### Slice 3c: Move-based approach metric ✅ (2026-11-03)
+**Built:** `World.need_distance` (per nutrient, each cell's distance to the
+nearest patch center of a food rich in it; rebuilt from the seed, not saved).
+`_record_approach` runs on every move made while the NPC is outside the zones
+of its lowest nutrient's food: score = mean cells gained toward the other foods'
+patches subtracted from cells gained toward the needed one. The **random-step
+null** is the mean score of all 2 × dims steps from the same cell, recorded
+alongside. `approach - null` (sweep column "excess") is diet-seeking beyond
+chance. Bites never enter, so the eat instinct can't leak in. Tests in
+`tests/test_zones.py`.
+
+Why the null matters: scratch brains scored +0.12 raw. A random walk drifts away
+from near food faster than from far food, and the needed food is usually the
+far one, so random steps score about +0.04 (2D) and +0.03 (4D) on their own.
+
+**Results** (`runs/2026-11-03-m2-approach-2d.csv`, `-4d.csv`; excess in cells
+per move, lives as in slice 2):
+| Brains | 2D excess | 2D vs scratch, per seed | 4D excess | 4D vs scratch |
+|---|---|---|---|---|
+| Scratch | 0.073 ± 0.029 | | 0.005 ± 0.004 | |
+| Nursery-8 / 4D nursery-2 | 0.131 ± 0.042 | +0.058 (4 of 5 seeds higher) | 0.006 ± 0.004 | +0.002 |
+| Nursery-scarce-2 | 0.157 ± 0.075 | +0.083 (5 of 5) | | |
+| Scripted forager | −0.081 ± 0.035 | −0.154 | −0.130 ± 0.061 | −0.135 |
+| Shared layout (any brain) | 0 by construction | | | |
+
+Reading:
+- **In 2D, diet does steer travel.** Every brain beats random steps on every
+  seed, and nursery brains about double scratch: each move gains about 0.13
+  cells more toward the needed food than a random step would.
+- **The metric passes its checks.** The scripted forager, which walks toward
+  *any* food, scores negative: food-seeking alone doesn't fake diet-seeking.
+  The shared layout scores exactly 0.
+- **In 4D, nobody seeks the needed food** (0.005, nursery = scratch). That fits
+  4D's 2.4 food types per life. 4D brains find food, not the right food.
+- Scratch brains beat random in 2D too: play worlds select a little (top-ups
+  come from the hall of fame), so "scratch" isn't a blank brain.
+
+**Proposed criterion 3, revised (for 5zorro):** nursery brains' approach excess is
+above 0 on every seed and above scratch on average. **2D: met** (nursery-8 and
+nursery-scarce-2). **4D: not met.** Criterion 2 also fails in 4D, so the M2
+gap is now 4D. Slice 4a (memory stack) targets it; a 4D retrain with the new
+metric in view is the cheaper first check.
 
 **Original proposal:**
 - `food_layout` config: `"separate"` (today) or `"shared"` (every food type uses

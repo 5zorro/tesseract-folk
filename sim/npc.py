@@ -59,6 +59,12 @@ class NPC:
     # was lowest on (hits), and how often would a random nutrient be served (chance)?
     directed_hits: float = 0.0
     directed_chance: float = 0.0
+    # Move-based (slice 3c), over moves made outside its needed food's zones:
+    # summed (cells closer to the needed food) - (mean cells closer to the others),
+    # and the same for a random step from each of those cells (the null).
+    approach_sum: float = 0.0
+    approach_null: float = 0.0
+    approach_moves: int = 0
 
     def __post_init__(self):
         if self.eaten is None:

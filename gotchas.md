@@ -104,3 +104,8 @@ Traps that already bit us, by area. Add to this when something surprises you.
   "did it reach the needed food") looks diet-directed even for brains that
   know nothing of diet; the scripted forager scores highest. Measure moves, not
   bites, and compare with scratch brains (M2 slice 3b).
+- **Random walks aren't neutral toward targets.** A random step drifts away
+  from near targets faster than from far ones, so "moved toward the far,
+  needed food" scores positive by chance. Always subtract the random-step null
+  (`approach_null`, M2 slice 3c), and treat "scratch" brains as partly
+  evolved, not blank.

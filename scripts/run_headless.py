@@ -74,7 +74,9 @@ def print_summary(sim) -> None:
               f"{travel['zone_types']:.1f} of {sim.cfg.n_food_types} food types' zones, "
               f"{travel['switch_rate']:.1f} zone switches per 1,000 NPC-ticks; "
               f"{travel['directed']:.0%} of switches reached the food for their lowest "
-              f"nutrient (chance {travel['chance']:.0%})")
+              f"nutrient (chance {travel['chance']:.0%}); "
+              f"moves gained {travel['approach']:+.3f} cells toward the needed food "
+              f"vs the others (random steps: {travel['approach_null']:+.3f})")
 
 
 def main() -> None:

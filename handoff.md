@@ -67,8 +67,11 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
    Slice 3b's "deficit-directed" metric beats chance for every brain equally
    (the scripted forager most), because `eat` already picks the needed food, so
    bite-based metrics leak that instinct. Criterion 3 is not demonstrated.
-   Next: a move-based metric, then slice 4a, the memory stack (5zorro's pick; draft
-   in the plan).
+   Slice 3c, a move-based metric with a random-step null, does show it: in 2D
+   nursery brains gain ~0.13 cells per move toward their needed food beyond
+   random (scratch 0.07, scripted forager negative). In 4D, ~0 for everyone.
+   Next: 5zorro accepts the revised criterion 3 (plan, slice 3c), then slice 4a,
+   the memory stack (draft in the plan), aimed at 4D.
 2. Known gaps carried from M1: body starvation is ~35% of collapses; births
    still trail top-ups in 2D (M3's job).
 3. Other levers: a harsher scarcity nursery (half food gave a mild win); **seasons** as a config schedule (famine winters, mostly for

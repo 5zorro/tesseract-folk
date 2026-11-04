@@ -36,6 +36,7 @@ class World:
         self.stink = np.zeros(self.shape)
         self.scent = np.zeros_like(self.food)              # (types, *shape)
         self.profiles = self._make_profiles()              # (types, nutrients)
+        self.need_distance = self._make_need_distance()    # (nutrients, *shape)
         self.shrines: list[Pos] = [self.random_cell(rng) for _ in range(cfg.n_shrines)]
 
     # ----------------------------------------------------------------- setup
@@ -91,6 +92,22 @@ class World:
         for i in range(t):
             prof[i, i % n] = 0.9
         return prof
+
+    def _make_need_distance(self) -> np.ndarray:
+        """Per nutrient: each cell's distance to the nearest patch center of a food
+        rich in it (inf if no food is). Measurement only (M2's move-based metric)."""
+        cfg = self.cfg
+        idx = np.indices(self.shape)
+        rich = np.argmax(self.profiles, axis=1)
+        out = np.full((cfg.n_nutrients,) + self.shape, np.inf)
+        for t, centers in enumerate(self.patch_centers):
+            for center in centers:
+                dist2 = np.zeros(self.shape)
+                for axis in range(cfg.dims):
+                    d = (idx[axis] - center[axis] + cfg.size // 2) % cfg.size - cfg.size // 2
+                    dist2 += d.astype(float) ** 2
+                out[rich[t]] = np.minimum(out[rich[t]], np.sqrt(dist2))
+        return out
 
     # ------------------------------------------------------------- per tick
     def step(self) -> None:

@@ -192,8 +192,10 @@ class Simulation:
         moved = did = False          # did: the action changed something (not just tried)
         if name.startswith("move"):
             sign = 1 if name[4] == "+" else -1
+            before = npc.pos
             npc.pos = self.world.neighbor(npc.pos, int(name[5:]), sign)
             moved = True
+            self._record_approach(npc, before)
             claimed = self.deity.claim_at(npc.pos, self.world)
             if claimed:
                 self.stats.count("secrets_claimed", claimed)
@@ -227,6 +229,29 @@ class Simulation:
         npc.moved_last = moved
         busy = moved or (did and self.cfg.busy_resets_idle)
         npc.idle_streak = 0 if busy else npc.idle_streak + 1
+
+    def _record_approach(self, npc: NPC, before) -> None:
+        """M2 slice 3c: did this move head for the food the NPC needs most, more
+        than for the others? Moves only, so the eat instinct can't leak in."""
+        w = self.world
+        need = int(np.argmin(npc.nutrients))
+        if w.serves(before)[need]:
+            return                         # already where its food grows
+        dist = w.need_distance
+        if not np.isfinite(dist[(need,) + before]) or np.isfinite(np.delete(dist, need, axis=0)[
+                (slice(None),) + before]).sum() == 0:
+            return
+
+        def score(cell) -> float:
+            delta = dist[(slice(None),) + cell] - dist[(slice(None),) + before]
+            others = np.delete(delta, need)
+            return float(others[np.isfinite(others)].mean() - delta[need])
+
+        npc.approach_sum += score(npc.pos)
+        # A random step from the same cell scores this on average. Not 0: a random
+        # walk drifts away from near food faster than from far food (gotchas.md).
+        npc.approach_null += float(np.mean([score(c) for c in w.adjacent(before)]))
+        npc.approach_moves += 1
 
     def _eat(self, npc: NPC) -> bool:
         cfg, w = self.cfg, self.world

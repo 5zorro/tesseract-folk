@@ -38,6 +38,8 @@ class Stats:
             "tick": tick, "lifetime": npc.lifetime, "zones": len(npc.zones_eaten),
             "zone_types": len({t for t, _ in npc.zones_eaten}), "switches": npc.zone_switches,
             "directed_hits": npc.directed_hits, "directed_chance": npc.directed_chance,
+            "approach_sum": npc.approach_sum, "approach_null": npc.approach_null,
+            "approach_moves": npc.approach_moves,
         })
 
     def travel_summary(self, since_tick: int = 0, min_lifetime: int = 500) -> dict:
@@ -47,13 +49,19 @@ class Stats:
         `directed` is the share of zone switches that arrived where the NPC's
         lowest nutrient grows; `chance` is the same for a random nutrient at
         those cells. Diet drives travel when directed beats chance (and beats
-        scratch brains: geometry alone can lift it, gotchas.md)."""
+        scratch brains: geometry alone can lift it, gotchas.md).
+
+        `approach` is the move-based version (slice 3c): per move made outside
+        its needed food's zones, cells gained toward the needed food minus the
+        mean gained toward the others. `approach_null` is what random steps from
+        the same cells would score; diet-seeking shows as approach above it."""
         nan = float("nan")
         lives = [l for l in self.lives if l["tick"] >= since_tick and l["lifetime"] >= min_lifetime]
         if not lives:
             return {"lives": 0, "zones": nan, "zone_types": nan, "switch_rate": nan,
-                    "directed": nan, "chance": nan}
+                    "directed": nan, "chance": nan, "approach": nan, "approach_null": nan}
         switches = sum(l["switches"] for l in lives)
+        moves = sum(l.get("approach_moves", 0) for l in lives)
         return {
             "lives": len(lives),
             "zones": float(np.mean([l["zones"] for l in lives])),
@@ -61,6 +69,8 @@ class Stats:
             "switch_rate": 1000 * switches / sum(l["lifetime"] for l in lives),
             "directed": sum(l.get("directed_hits", 0.0) for l in lives) / switches if switches else nan,
             "chance": sum(l.get("directed_chance", 0.0) for l in lives) / switches if switches else nan,
+            "approach": sum(l.get("approach_sum", 0.0) for l in lives) / moves if moves else nan,
+            "approach_null": sum(l.get("approach_null", 0.0) for l in lives) / moves if moves else nan,
         }
 
     def collapse_rate_by_generation(self, per: int = 1000) -> dict[int, float]:

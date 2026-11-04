@@ -161,6 +161,9 @@ def run_one(overrides: dict, seed: int, ticks: int, late_from: float, log_every:
     out["directed"] = travel["directed"]
     out["directed_chance"] = travel["chance"]
     out["directed_lift"] = travel["directed"] - travel["chance"]
+    out["approach"] = travel["approach"]
+    out["approach_null"] = travel["approach_null"]
+    out["approach_excess"] = travel["approach"] - travel["approach_null"]
     out["distance"] = float(np.mean(moved)) if moved else math.nan
     out["births"] = total("births")
     out["spawns"] = total("spawns")
@@ -226,7 +229,8 @@ def summarize(results: dict, ticks: int, late_from: float, seeds: list[int]) -> 
                  ("switches/1k", "zone_switch_rate", {}),
                  (f"dist/{DISTANCE_EVERY}t", "distance", {}),
                  ("directed", "directed", {"digits": 2}), ("chance", "directed_chance", {"digits": 2}),
-                 ("lift", "directed_lift", {"digits": 2})],
+                 ("lift", "directed_lift", {"digits": 2}), ("approach", "approach", {"digits": 3}),
+                 ("random", "approach_null", {"digits": 3}), ("excess", "approach_excess", {"digits": 3})],
                 results)
 
 

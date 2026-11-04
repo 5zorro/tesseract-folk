@@ -128,6 +128,48 @@ def test_switches_record_whether_they_reached_the_needed_food(lowest, hit):
     assert npc.directed_hits == hit and npc.directed_chance == pytest.approx(1 / 3)
 
 
+@pytest.mark.parametrize("kw", [{}, {"dims": 4, "size": 10, "food_patch_radius": 2.0}])
+def test_need_distance_is_zero_at_each_patch_center(kw):
+    w = World(Config(**kw), np.random.default_rng(3))
+    rich = np.argmax(w.profiles, axis=1)
+    for t, centers in enumerate(w.patch_centers):
+        for c in centers:
+            assert w.need_distance[(rich[t],) + c] == 0.0
+    assert np.isfinite(w.need_distance).all()
+    assert w.need_distance.max() <= w.cfg.size / 2 * np.sqrt(w.cfg.dims)
+
+
+@pytest.mark.parametrize("dims,size", [(2, 16), (4, 8)])
+def test_moves_toward_the_needed_food_score_positive(dims, size):
+    sim = Simulation(Config(**{**SMALL, "dims": dims, "size": size}), log_every=1000)
+    w, npc = sim.world, sim.npcs[0]
+    npc.nutrients[:] = 0.5
+    npc.nutrients[1] = 0.1                            # needs nutrient 1
+    cells = np.argwhere(~np.any(w.zones[np.argmax(w.profiles, axis=1) == 1] >= 0, axis=0))
+    start = tuple(int(v) for v in cells[0])
+    scores = {}
+    for axis in range(dims):
+        for sign in ("+", "-"):
+            npc.pos, npc.approach_sum, npc.approach_null, npc.approach_moves = start, 0.0, 0.0, 0
+            sim._act(npc, sim.actions.index(f"move{sign}{axis}"), {}, [])
+            delta = w.need_distance[(slice(None),) + npc.pos] - w.need_distance[(slice(None),) + start]
+            assert npc.approach_moves == 1
+            assert npc.approach_sum == pytest.approx(np.delete(delta, 1).mean() - delta[1])
+            scores[(axis, sign)] = npc.approach_sum
+    assert max(scores.values()) > 0 > min(scores.values())
+    assert npc.approach_null == pytest.approx(np.mean(list(scores.values())))   # the random step
+
+
+def test_moves_inside_the_needed_food_dont_count():
+    sim = Simulation(Config(**SMALL), log_every=1000)
+    w, npc = sim.world, sim.npcs[0]
+    npc.nutrients[:] = 0.5
+    npc.nutrients[0] = 0.1
+    npc.pos = tuple(w.patch_centers[0][0])           # food 0 is rich in nutrient 0
+    sim._act(npc, sim.actions.index("move+0"), {}, [])
+    assert npc.approach_moves == 0
+
+
 def test_bites_outside_zones_and_from_inventory_dont_count():
     sim = Simulation(Config(**SMALL, zone_core=0.99), log_every=1000)
     npc = sim.npcs[0]
@@ -145,6 +187,7 @@ def test_completed_lives_feed_the_travel_summary():
     npc.zones_eaten = {(0, 0), (0, 1), (2, 0)}
     npc.zone_switches = 4
     npc.directed_hits, npc.directed_chance = 3.0, 1.5
+    npc.approach_sum, npc.approach_null, npc.approach_moves = 2.0, 0.8, 40
     npc.lifetime = 800
     npc.age = sim.cfg.old_age
     sim._die(npc)
@@ -152,6 +195,7 @@ def test_completed_lives_feed_the_travel_summary():
     assert s["lives"] == 1 and s["zones"] == 3 and s["zone_types"] == 2
     assert s["switch_rate"] == pytest.approx(5.0)
     assert s["directed"] == pytest.approx(0.75) and s["chance"] == pytest.approx(0.375)
+    assert s["approach"] == pytest.approx(0.05) and s["approach_null"] == pytest.approx(0.02)
     assert sim.stats.travel_summary(min_lifetime=1000)["lives"] == 0
 
 
