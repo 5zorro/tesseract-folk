@@ -30,6 +30,12 @@ class Simulation:
         self.n_inputs = self.sensor_size()
         self.n_outputs = self.n_actions + self.cfg.memory_units
         c = self.cfg
+        if not (np.isfinite(c.mutations_per_birth) and c.mutations_per_birth >= 0):
+            raise ValueError(f"mutations_per_birth must be a number >= 0, got {c.mutations_per_birth!r}")
+        if not (np.isfinite(c.action_temperature) and c.action_temperature > 0):
+            raise ValueError(f"action_temperature must be a number > 0, got {c.action_temperature!r}")
+        if c.hall_of_fame_min_copies < 0:
+            raise ValueError(f"hall_of_fame_min_copies must be >= 0, got {c.hall_of_fame_min_copies!r}")
         if c.mutation_lineage and not c.mutations_per_birth > 0:
             raise ValueError("mutation_lineage needs mutations_per_birth > 0 (its base count)")
         if not (np.isfinite(c.hall_of_fame_prior_lives) and c.hall_of_fame_prior_lives >= 0):

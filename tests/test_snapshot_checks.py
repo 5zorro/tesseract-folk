@@ -40,3 +40,23 @@ def test_crafted_world_arrays_are_refused(snap, name, make, message):
     tamper(snap, name, bad)
     with pytest.raises(ValueError, match=message):
         load_snapshot(snap)
+
+
+@pytest.mark.parametrize("field,bad", [("lineage", float("nan")), ("body", float("inf")),
+                                       ("nutrients", [0.5, float("nan"), 0.5])])
+def test_npc_numbers_must_be_finite(tmp_path, field, bad):
+    import json
+    sim = Simulation(Config(size=8, initial_npcs=3, min_population=1, seed=1), log_every=10**9)
+    save_snapshot(sim, tmp_path / "s")
+    state = json.loads((tmp_path / "s" / "state.json").read_text())
+    state["npcs"][0][field] = bad
+    (tmp_path / "s" / "state.json").write_text(json.dumps(state))
+    with pytest.raises(ValueError, match=field):
+        load_snapshot(tmp_path / "s")
+
+
+@pytest.mark.parametrize("kw", [dict(action_temperature=0.0), dict(mutations_per_birth=-1.0),
+                                dict(hall_of_fame_min_copies=-1)])
+def test_bad_settings_are_refused_at_start(kw):
+    with pytest.raises(ValueError, match=next(iter(kw))):
+        Simulation(Config(size=8, **kw), log_every=10**9)

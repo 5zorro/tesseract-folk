@@ -68,6 +68,11 @@ Players may share snapshots, so treat every snapshot as untrusted input.
 - **[enforced]** Every world array in `world.npz` must have the shape the
   snapshot's config makes and hold finite numbers; the zone map must hold valid
   patch indices (`snapshot.py: _checked`; tests: `tests/test_snapshot_checks.py`).
+- **[enforced]** Every loaded NPC's numbers (body, nutrients, lineage, ...) and
+  every hall-of-fame entry's numbers must be finite (`NPC.check_finite`,
+  `nursery.hall_of_fame_entry`; tests: `tests/test_snapshot_checks.py`,
+  `tests/test_hall_of_fame.py`). A NaN lineage would otherwise fully mutate
+  every child and spread to its descendants.
 - **[planned]** Before snapshots are shared publicly: size limits on both files
   (and on the config's `size`/`dims`, which set how big the world is), so a
   crafted file fails with a clear error instead of exhausting memory.

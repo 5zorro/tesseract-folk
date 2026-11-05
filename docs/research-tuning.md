@@ -156,9 +156,10 @@ either parent. Births are rare in nurseries, so this matters for play worlds
    10-100 is a plateau; proposed default 30 per child.
 2. ~~Smell reach per dimension~~: done 2026-11-04 (slice R2). Not the cause;
    no setting added.
-3. **Success-rate logging** for the 1/5 (or 1/e) rule: how often a mutated
-   copy outlives its parent. Now the most useful next step on mutation, since
-   it would explain the plateau and could set the rate automatically.
+3. ~~Success-rate logging~~: done 2026-11-04 (slice R3). Copies beat their
+   parents only 8-12% at any count, because a chosen parent's score is mostly
+   luck; the 1/5 rule can't be used as-is. Led to 5zorro's lineage rule (R4) and
+   track record (R5).
 
 ## Sources
 - Such et al., "Deep Neuroevolution: genetic algorithms are a competitive alternative..." (arXiv 1712.06567): https://arxiv.org/pdf/1712.06567

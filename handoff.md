@@ -93,6 +93,14 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
      2D collapses 0.95 -> 0.60 (best yet); 3D same mean, steadier. Proposed as the
      default. 1D/2D regression check: nothing broke. New nurseries live in
      `snapshots/ladder2`. Next idea: gentle-to-harsh nursery ramp (`openitems.md`).
+   - **Random-walk luck (R6, 5zorro):** search time per extra dimension grows by
+     ~0.7 x width / target size at fixed width; our travel-time worlds keep 3D
+     close to 2D. 40,000-tick 3D nurseries = 20,000-tick ones. Not 3D's limit.
+   - **In flight (2026-11-05): 5zorro's two eat actions** (`two_eat_actions`,
+     built, off). `runs/2026-11-05-twoeat.csv` (2D/3D/4D, 6 nurseries) vs
+     `runs/2026-11-04-defaults-{2d,3d}.csv` and `runs/2026-11-05-defaults-4d.csv`:
+     `python scripts/compare_runs.py 3 8 "base=2026-11-04-defaults-3d.csv"
+     "two=2026-11-05-twoeat.csv"`. Also check `eats_most` vs `eats_need`.
    - **4D Miner targets (5zorro, 2026-11-04):** land walkers on 3D surfaces, 4D fish
      and birds in full 4D. Both 3D and 4D must pass.
    - Speed: ticks 27-39% faster (bit-identical); `scripts/fingerprint.py` checks
@@ -100,7 +108,10 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
      decision (`openitems.md` Speed).
    - Tools: `scripts/ladder.py` (dims × brain size, `--worlds time`, `--set`),
      `scripts/travel_time.py`, `scripts/probe_supply.py`, `scripts/probe_crumbs.py`,
-     `scripts/probe_scent.py`, `scripts/fingerprint.py`.
+     `scripts/probe_scent.py`, `scripts/fingerprint.py`, `scripts/mutation_success.py`,
+     `scripts/probe_random_walk.py`, `scripts/compare_runs.py` (nursery-by-nursery
+     tables). Nurseries under today's defaults: `snapshots/ladder2` (and
+     `ladder2-40k`); `snapshots/ladder` is pre-default-change.
 2. Known gaps carried from M1: body starvation is ~35% of collapses; births
    still trail top-ups in 2D (M3's job).
 3. Other levers: a harsher scarcity nursery (half food gave a mild win); **seasons** as a config schedule (famine winters, mostly for

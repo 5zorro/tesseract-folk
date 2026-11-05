@@ -22,7 +22,8 @@ from sim.nursery import load_brain_pool, seed_brains  # noqa: E402
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from ladder import WORLD_SETS, nursery_path  # noqa: E402
 
-LADDER = Path("snapshots/ladder")
+LADDER = Path("snapshots/ladder")   # --ladder DIR: nurseries trained under other defaults
+                                     # (snapshots/ladder holds pre-2026-11-04 mutation rules)
 
 TICKS, SEEDS = 3000, (0, 1)
 
@@ -69,10 +70,13 @@ def probe(job):
 
 
 def main():
+    global LADDER
     rules = {}
     for i, arg in enumerate(sys.argv):
         if arg == "--set":
             rules.update(parse_overrides(sys.argv[i + 1]))
+        if arg == "--ladder":
+            LADDER = Path(sys.argv[i + 1])
     CASES = cases(tuple(sorted(rules.items())))
     jobs = [(l, kw, n, s) for l, kw, n in CASES for s in SEEDS]
     with ProcessPoolExecutor(max_workers=len(jobs)) as pool:

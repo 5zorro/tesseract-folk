@@ -58,7 +58,9 @@ an economy emerging from a thermodynamic resource loop.
   population's (5zorro's lineage-adaptive rule): struggling lineages explore more,
   thriving ones less. Measured in `docs/plan-m2-diet-travel.md`, slices R1-R4.
 - **[built]** Hall of fame: if population falls below a minimum, spawn mutated
-  copies of the best brains seen. Fitness = offspring and lifetime, minus collapses.
+  copies of the best brains seen. **[built, off by default] Track record**
+  (`hall_of_fame_track_record`, 5zorro 2026-11-04): entries are judged by their own
+  life and their copies' lives, so lucky single lives sink. Fitness = offspring and lifetime, minus collapses.
   Deliberately does *not* reward trading directly; trade should emerge.
 - **[idea]** Lifetime learning (Hebbian or reward-modulated) on top of inherited weights.
 - **[partial] Instinct vs. learning.** Some behaviors can run on hard-coded
@@ -81,8 +83,9 @@ Input size scales with dimensions automatically.
 - **[built, off by default] Meal scent** (`Config.scent_min_food`): only food
   beyond a set amount smells, so crumbs are silent. Tested alone in M2 slice 3f
   with no effect; meant to pair with brain-chosen eating.
-- **[idea] Two eat actions** (5zorro, 2026-11-04): `eat_most` (biggest bite) and
-  `eat_need` (best for deficits), so the brain, not an instinct, chooses.
+- **[built, off by default] Two eat actions** (5zorro, 2026-11-04;
+  `Config.two_eat_actions`): `eat_most` (biggest bite) and `eat_need` (best for
+  deficits), so the brain, not an instinct, chooses.
 
 ### Actions (outputs)
 Move ± along each axis (4 in 2D, 8 in 4D), stay, eat, pick up, give, poop,

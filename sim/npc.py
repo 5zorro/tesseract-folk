@@ -140,4 +140,24 @@ class NPC:
         d["zones_eaten"] = {tuple(z) for z in d.get("zones_eaten", [])}   # absent before M2
         if d.get("last_zone") is not None:
             d["last_zone"] = tuple(d["last_zone"])
-        return cls(**d)
+        npc = cls(**d)
+        npc.check_finite()
+        return npc
+
+    def check_finite(self) -> None:
+        """Raise ValueError if any number is NaN or infinite. Snapshots may be
+        shared (docs/SAFETY.md §4), and JSON loads NaN happily; a NaN lineage, for
+        one, would fully mutate every child and spread to its descendants."""
+        for name, value in self.__dict__.items():
+            if isinstance(value, bool) or value is None:
+                continue
+            if isinstance(value, (int, float)):
+                ok = np.isfinite(value)
+            elif isinstance(value, np.ndarray):
+                ok = np.isfinite(value).all()
+            elif isinstance(value, dict):
+                ok = all(np.isfinite(v) for v in value.values())
+            else:
+                continue
+            if not ok:
+                raise ValueError(f"NPC {self.id}: {name} holds a NaN or infinite number")

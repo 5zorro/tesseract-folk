@@ -1,12 +1,14 @@
 # Plan: M2 Diet drives travel
 
-Status: **slices 1–3f done (2026-11-04); thresholds settled. 2D passes all
-criteria (criterion 3 via the move metric, not yet accepted by 5zorro). 3D and 4D
-fail food types per life; 5zorro: explain the trend, don't move goalposts. Cause
-found in 3f: crumb grazing (Gaussian edges + an eat instinct that ignores
-amount). Meal scent alone did nothing. Next: 5zorro's two eat actions (3f), then
-meal scent with them, then 4a (memory stack). See also `docs/research-tuning.md`
-(mutation rate ~100× the 1/L rule).** Slices are ordered; each one ends with tests passing and a commit.
+Status (2026-11-05): **slices 1–3f and research slices R1–R6 done. 2D passes
+all criteria (criterion 3 via the move metric, not yet accepted by 5zorro). 3D
+fails food types per life (2.36-2.41 vs 2.5); 4D fails badly. Cause found in
+3f: crumb grazing. Research (R): smell reach isn't the cause, training length
+isn't, random-walk luck barely is in 3D; mutation is now lineage-adaptive at 30
+per child (the default); a hall-of-fame track record (off) helps 2D a lot.
+In flight: 5zorro's two eat actions (`two_eat_actions`, built, off), 6 nurseries
+in 2D/3D/4D plus a 4D baseline (`runs/2026-11-05-twoeat.csv`,
+`runs/2026-11-05-defaults-4d.csv`). Then meal scent with them, then 4a.** Slices are ordered; each one ends with tests passing and a commit.
 Open decisions (bottom) are 5zorro's.
 
 **For a new session:** read `handoff.md`, `gotchas.md` and this file. M1's plan
@@ -829,7 +831,10 @@ nursery after a rule change:
 - ~~3D as the 4D Miner target~~: settled 2026-11-04 (5zorro): **two targets**.
   Land walkers ("flightless") live on 3D surfaces; 4D fish and birds move
   freely in 4D. So both 3D and 4D have to pass.
-- **Two eat actions** (slice 3f, 5zorro's design): build and test next?
+- ~~Two eat actions~~: built 2026-11-05 (`Config.two_eat_actions`, off);
+  results pending. Default on if they help?
+- **Hall-of-fame track record on by default?** (slice R5: 2D 0.95 -> 0.60
+  collapses, 3D steadier.)
 - ~~Mutation defaults~~: settled 2026-11-04 (5zorro): `mutations_per_birth = 30`
   with `mutation_lineage = true` are the defaults. Old snapshots keep
   per-weight mutation (`LEGACY`); `ladder.py` now refuses to reuse a nursery

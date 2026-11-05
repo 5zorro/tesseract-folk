@@ -31,6 +31,9 @@ LEGACY = {
     "busy_resets_idle": False,     # 2026-11-02
     "mutations_per_birth": 0.0,    # 2026-11-04: older worlds mutate per weight
     "mutation_lineage": False,     # 2026-11-04
+    # Off by default today; listed so old snapshots stay off if a default flips.
+    "hall_of_fame_track_record": False,   # 2026-11-04
+    "two_eat_actions": False,             # 2026-11-05; old brains have one eat output
 }
 
 
