@@ -83,8 +83,12 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
      levers):** smell reach is *not* why 4D fails (the smell points the right way
      92-100% of the time in every dimension). Mutations per child: the textbook 1
      per child loses; 10-100 is a plateau; with mutations held equal, 16 hidden
-     units are no longer worse than 8. Neither fixes 3D's food types. Proposed:
-     `mutations_per_birth = 30` as the default (5zorro decides).
+     units are no longer worse than 8. A chosen parent's score is mostly luck
+     (R3). **5zorro's lineage-adaptive mutation (R4) is the best 3D result yet:**
+     collapses 0.75 vs 1.03, food types 2.36 vs 2.12 (6 of 6 pairs); base 10
+     lost. Proposed defaults: `mutations_per_birth = 30`, `mutation_lineage =
+     true` (5zorro decides). Next ideas: re-test the hall of fame, gentle-to-harsh
+     nursery ramp (`openitems.md`).
    - **4D Miner targets (5zorro, 2026-11-04):** land walkers on 3D surfaces, 4D fish
      and birds in full 4D. Both 3D and 4D must pass.
    - Speed: ticks 27-39% faster (bit-identical); `scripts/fingerprint.py` checks

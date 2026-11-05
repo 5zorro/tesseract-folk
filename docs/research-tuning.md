@@ -52,6 +52,14 @@ With mutations per child held equal, 16 hidden units were no longer worse
 than 8, so the slice 3d "bigger is worse" result was at least partly a
 mutation-count effect. Proposed default: 30 per child.
 
+**Measured further (slices R3, R4):** a chosen parent's single-life score is
+mostly luck (its near-clones are barely better than average; parent-child
+correlation 0.06-0.26), so Rechenberg's success rule can't be applied as-is.
+Mutating costs a child little up to ~20 weights, then more. 5zorro's
+lineage-adaptive rule (base 30, x1/4 to x4 by the ancestors' collapse rate
+relative to the population's) beat a fixed 30 in 3D in 6 of 6 nursery pairs;
+base 10 lost to both. It resembles CLONALG's fitness-scaled hypermutation.
+
 **Crossover (the permutation problem).** Mixing two unrelated networks weight
 by weight tends to break both: the same job can sit in different hidden units
 (Radcliffe 1993; Schaffer et al. 1992 called it "competing conventions"; the reason NEAT has historical markings and Such et al.

@@ -125,6 +125,10 @@ Traps that already bit us, by area. Add to this when something surprises you.
   sizes at one rate also changes how disruptive each birth is
   (`docs/research-tuning.md`). Use `mutations_per_birth` to hold it fixed; and
   don't go by the textbook 1 per child: it loses here (plan-m2 slice R1).
+- **One life is a noisy score.** A brain picked for a perfect life (no
+  collapses) has near-clones that are barely better than average (plan-m2
+  slice R3). Judge brains over several lives or lineages, and don't read much
+  into "child beat parent".
 - **Smell isn't weak in 4D, whatever the decay length says.** NPCs sense the
   scent difference relative to its sum, so even a faint smell points the right
   way (92-100% in 2D-4D, `scripts/probe_scent.py`). Don't "fix" reach unless

@@ -704,7 +704,15 @@ mutations_per_birth=30[,mutation_lineage=true]`
   thriving ones are left nearly alone (down to 7.5), so selection's few good
   finds aren't scrambled. It also partly offsets the luck in a single life
   (R3), since the score averages over ancestors.
-- Next test (5zorro's idea): base 10 (2.5-40 per child) instead of 30.
+- **Base 10 loses (5zorro's "keep it under 20" idea, tested):** same rule, base 10
+  (2.5-40 per child), same 6 nursery seeds (`runs/2026-11-04-mut10-lineage-3d.csv`):
+  collapses 1.30 ± 0.11, food types 2.00 ± 0.06, worse than base 30 in 6 of 6
+  pairs and worse than fixed 30. Per-child cost above ~20 weights (R3) is real,
+  but the nursery's search needs the bigger jumps.
+- **Proposed (for 5zorro):** new defaults `mutations_per_birth = 30` and
+  `mutation_lineage = true` (old snapshots keep per-weight rates via `LEGACY`),
+  then retrain nurseries. Next levers from R3: re-test the hall of fame (track
+  record) and a gentle-to-harsh nursery ramp (5zorro, `openitems.md`).
 
 ### Slice 4: Levers, only if criterion 3 fails
 Criterion 3 isn't demonstrated (slice 3b). 5zorro picked the memory stack as the
@@ -766,8 +774,8 @@ nursery after a rule change:
   Land walkers ("flightless") live on 3D surfaces; 4D fish and birds move
   freely in 4D. So both 3D and 4D have to pass.
 - **Two eat actions** (slice 3f, 5zorro's design): build and test next?
-- **Mutations per child** (slice R1): make `mutations_per_birth = 30` the
-  default for new worlds? The textbook 1 per child lost; 10-100 is a plateau.
+- **Mutation defaults** (slices R1-R4): make `mutations_per_birth = 30` with
+  `mutation_lineage = true` the default for new worlds? Best 3D result so far.
 - **Keyed randomness** (5zorro's "seed x tick" idea, `openitems.md` Speed): every
   random number from (seed, tick, entity, purpose). Its own slice, before or
   with batching? Changes every result once.
