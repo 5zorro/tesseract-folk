@@ -238,19 +238,19 @@ class Simulation:
         if w.serves(before)[need]:
             return                         # already where its food grows
         dist = w.need_distance
-        if not np.isfinite(dist[(need,) + before]) or np.isfinite(np.delete(dist, need, axis=0)[
-                (slice(None),) + before]).sum() == 0:
+        here = dist[(slice(None),) + before]
+        others = np.isfinite(here)
+        others[need] = False
+        if not np.isfinite(here[need]) or not others.any():
             return
-
-        def score(cell) -> float:
-            delta = dist[(slice(None),) + cell] - dist[(slice(None),) + before]
-            others = np.delete(delta, need)
-            return float(others[np.isfinite(others)].mean() - delta[need])
-
-        npc.approach_sum += score(npc.pos)
-        # A random step from the same cell scores this on average. Not 0: a random
-        # walk drifts away from near food faster than from far food (gotchas.md).
-        npc.approach_null += float(np.mean([score(c) for c in w.adjacent(before)]))
+        # Score the move taken, then every possible step from the same cell. Their
+        # mean is what a random step scores. Not 0: a random walk drifts away from
+        # near food faster than from far food (gotchas.md).
+        cells = tuple(np.array([npc.pos] + w.adjacent(before)).T)
+        delta = dist[(slice(None),) + cells] - here[:, None]          # (nutrients, steps)
+        score = delta[others].mean(axis=0) - delta[need]
+        npc.approach_sum += float(score[0])
+        npc.approach_null += float(score[1:].mean())
         npc.approach_moves += 1
 
     def _eat(self, npc: NPC) -> bool:

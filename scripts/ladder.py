@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 import math
 import os
 import sys
@@ -72,12 +73,31 @@ def nursery_path(out: Path, shape: tuple, nseed: int) -> Path:
     return out / f"d{dims}-s{size}-r{radius:g}-h{hidden}{extra}-n{nseed}"
 
 
+def nursery_config(shape: tuple, nseed: int) -> dict:
+    return {**world(shape), **NURSERY_RULES, "seed": nseed}
+
+
+def reusable(path: Path, shape: tuple, nseed: int, ticks: int) -> bool:
+    """An existing nursery is reused only if it was trained exactly as asked now;
+    a folder with the same name but other settings is an error, not a silent reuse."""
+    if not (path / "state.json").exists():
+        return False
+    state = json.loads((path / "state.json").read_text())
+    saved = state.get("config", {})
+    wanted = nursery_config(shape, nseed)
+    differ = sorted(k for k, v in wanted.items() if saved.get(k) != v)
+    if differ or state.get("tick") != ticks:
+        raise ValueError(f"{path} was trained with other settings ({', '.join(differ) or 'ticks'}"
+                         f"; tick {state.get('tick')} vs {ticks}). Delete it or use another --out.")
+    return True
+
+
 def train(job: tuple) -> str:
     shape, nseed, ticks, out = job
     path = nursery_path(out, shape, nseed)
-    if (path / "state.json").exists():
+    if reusable(path, shape, nseed, ticks):
         return f"kept {path.name}"
-    sim = Simulation(Config(**world(shape), **NURSERY_RULES, seed=nseed), log_every=1000)
+    sim = Simulation(Config(**nursery_config(shape, nseed)), log_every=1000)
     sim.run(ticks)
     save_snapshot(sim, path)
     return f"trained {path.name}"
@@ -170,7 +190,7 @@ def read_csv(path: Path) -> list[dict]:
         rows = list(csv.DictReader(f))
     for r in rows:
         for k, v in r.items():
-            if k == "brains":
+            if k in ("brains", "rules"):
                 continue
             try:
                 r[k] = float(v) if v not in ("", "nan") else math.nan

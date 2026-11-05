@@ -1,8 +1,6 @@
 """Only doing nothing counts as idle (5zorro, 2026-11-02)."""
 import json
 
-import numpy as np
-
 from sim import Config, Simulation
 from sim.snapshot import load_snapshot, save_snapshot
 

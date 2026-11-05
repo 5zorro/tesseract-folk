@@ -36,6 +36,7 @@ class World:
         self.stink = np.zeros(self.shape)
         self.scent = np.zeros_like(self.food)              # (types, *shape)
         self.profiles = self._make_profiles()              # (types, nutrients)
+        self.rich = np.argmax(self.profiles, axis=1)       # each food type's rich nutrient
         self.need_distance = self._make_need_distance()    # (nutrients, *shape)
         self.shrines: list[Pos] = [self.random_cell(rng) for _ in range(cfg.n_shrines)]
 
@@ -52,6 +53,8 @@ class World:
         balanced diet needs no travel. The rng draws are the same either way.
         """
         cfg = self.cfg
+        if not (np.isfinite(cfg.scent_min_food) and cfg.scent_min_food >= 0):
+            raise ValueError(f"scent_min_food must be a number >= 0, got {cfg.scent_min_food!r}")
         if cfg.food_layout not in ("separate", "shared"):
             raise ValueError(f"food_layout must be 'separate' or 'shared', got {cfg.food_layout!r}")
         idx = np.indices(self.shape)
@@ -98,7 +101,7 @@ class World:
         rich in it (inf if no food is). Measurement only (M2's move-based metric)."""
         cfg = self.cfg
         idx = np.indices(self.shape)
-        rich = np.argmax(self.profiles, axis=1)
+        rich = self.rich
         out = np.full((cfg.n_nutrients,) + self.shape, np.inf)
         for t, centers in enumerate(self.patch_centers):
             for center in centers:
@@ -174,9 +177,8 @@ class World:
 
     def serves(self, pos: Pos) -> np.ndarray:
         """Per nutrient: is `pos` inside the zone of a food type rich in it?"""
-        rich = np.argmax(self.profiles, axis=1)            # each type's rich nutrient
         in_zone = self.zones[(slice(None),) + pos] >= 0
-        return np.array([in_zone[rich == k].any() for k in range(self.cfg.n_nutrients)])
+        return np.array([in_zone[self.rich == k].any() for k in range(self.cfg.n_nutrients)])
 
     def scent_at(self, pos: Pos) -> np.ndarray:
         """The scent of every food type at one cell."""
