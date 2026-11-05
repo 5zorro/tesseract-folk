@@ -38,6 +38,10 @@ class World:
         self.profiles = self._make_profiles()              # (types, nutrients)
         self.rich = np.argmax(self.profiles, axis=1)       # each food type's rich nutrient
         self.need_distance = self._make_need_distance()    # (nutrients, *shape)
+        # Per-cell lookups, filled on first use (speed only; same values).
+        self._adjacent: dict[Pos, tuple] = {}
+        self._flat_neighbors: dict[Pos, np.ndarray] = {}
+        self._serves, self._serves_zones = np.empty(0), None
         self.shrines: list[Pos] = [self.random_cell(rng) for _ in range(cfg.n_shrines)]
 
     # ----------------------------------------------------------------- setup
@@ -169,7 +173,21 @@ class World:
         return tuple(p)
 
     def adjacent(self, pos: Pos) -> list[Pos]:
-        return [self.neighbor(pos, a, s) for a in range(self.cfg.dims) for s in (1, -1)]
+        """The 2 * dims cells one step away: +1 then -1 along each axis in turn."""
+        cells = self._adjacent.get(pos)
+        if cells is None:
+            cells = self._adjacent[pos] = tuple(
+                self.neighbor(pos, a, s) for a in range(self.cfg.dims) for s in (1, -1))
+        return list(cells)
+
+    def flat_neighbors(self, pos: Pos) -> np.ndarray:
+        """adjacent(pos) as flat indices into a field's spatial axes, so one
+        fancy-index reads every neighbor at once (sense() uses it)."""
+        flat = self._flat_neighbors.get(pos)
+        if flat is None:
+            flat = self._flat_neighbors[pos] = np.ravel_multi_index(
+                tuple(np.array(self.adjacent(pos)).T), self.shape)
+        return flat
 
     def food_at(self, pos: Pos) -> np.ndarray:
         """A view of every food type at one cell (writes go through)."""
@@ -181,8 +199,12 @@ class World:
 
     def serves(self, pos: Pos) -> np.ndarray:
         """Per nutrient: is `pos` inside the zone of a food type rich in it?"""
-        in_zone = self.zones[(slice(None),) + pos] >= 0
-        return np.array([in_zone[self.rich == k].any() for k in range(self.cfg.n_nutrients)])
+        if self._serves_zones is not self.zones:      # built once; rebuilt if zones are replaced
+            in_zone = self.zones >= 0
+            self._serves = np.stack([in_zone[self.rich == k].any(axis=0)
+                                     for k in range(self.cfg.n_nutrients)])
+            self._serves_zones = self.zones
+        return self._serves[(slice(None),) + pos].copy()
 
     def scent_at(self, pos: Pos) -> np.ndarray:
         """The scent of every food type at one cell."""

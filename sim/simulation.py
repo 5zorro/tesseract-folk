@@ -29,6 +29,8 @@ class Simulation:
         self.n_actions = len(self.actions)
         self.n_inputs = self.sensor_size()
         self.n_outputs = self.n_actions + self.cfg.memory_units
+        self._shrine_cache: dict = {}
+        self._shrines_cached: list = []
         self.npcs: list[NPC] = []
         self.hall_of_fame: list[dict] = []   # {"fitness", "generation", "brain"}
         self.overrides: dict[int, object] = {}  # npc id -> controller (see controllers.py)
@@ -125,15 +127,14 @@ class Simulation:
     def sense(self, npc: NPC, index: dict) -> np.ndarray:
         cfg, w, p = self.cfg, self.world, npc.pos
         half = cfg.size / 2
-        food_grad, stink_grad, scent_grad = [], [], []
-        for axis in range(cfg.dims):
-            plus, minus = w.neighbor(p, axis, 1), w.neighbor(p, axis, -1)
-            food_grad.append((w.food_at(plus) - w.food_at(minus)) / cfg.food_capacity)
-            stink_grad.append(w.stink[plus] - w.stink[minus])
-            if cfg.food_scent:
-                # Relative difference: points uphill at any distance, like a nose.
-                s_plus, s_minus = w.scent_at(plus), w.scent_at(minus)
-                scent_grad.append((s_plus - s_minus) / (s_plus + s_minus + 1e-12))
+        # Every neighbor at once: columns are +1, -1 along axis 0, then axis 1...
+        # Gradients come out axis by axis, each holding every food type.
+        nbr = w.flat_neighbors(p)
+        types = w.food.shape[0]
+        food_n = w.food.reshape(types, -1)[:, nbr]
+        food_grad = ((food_n[:, 0::2] - food_n[:, 1::2]) / cfg.food_capacity).T.ravel()
+        stink_n = w.stink.reshape(-1)[nbr]
+        stink_grad = stink_n[0::2] - stink_n[1::2]
 
         secret = self.deity.secrets.get(npc.known_secret) if npc.known_secret is not None else None
         if secret is None:
@@ -142,36 +143,50 @@ class Simulation:
         else:
             secret_part = np.concatenate([[1.0], wrapped_delta(p, secret.pos, cfg.size) / half])
 
-        shrine_part = np.zeros(cfg.dims + 1)
-        if w.shrines:
-            deltas = [wrapped_delta(p, s, cfg.size) for s in w.shrines]
-            nearest = min(deltas, key=lambda d: np.abs(d).sum())
-            shrine_part = np.concatenate([nearest / half, [1.0 if not nearest.any() else 0.0]])
-
         parts = [
             npc.nutrients,
             [npc.health, min(npc.age / cfg.old_age, 1.5),
              npc.body / cfg.npc_start_mass, npc.bowel / cfg.bowel_capacity],
             npc.satiation,
             w.food_at(p) / cfg.food_capacity,
-            np.concatenate(food_grad),
+            food_grad,
             [w.stink[p]],
             stink_grad,
             [min(len(self._neighbors(npc, index)) / 4.0, 1.0)],
             npc.inventory / cfg.carry_capacity,
             [npc.piety, npc.smite],
             secret_part,
-            shrine_part,
+            self._shrine_sense(p),
             [1.0 if npc.moved_last else 0.0],
             npc.memory,
             [1.0],
         ]
         if cfg.food_scent:
             here = w.scent_at(p)
-            parts += [here / (here + cfg.scent_half), np.concatenate(scent_grad)]
-        obs = np.concatenate([np.asarray(x, dtype=float).ravel() for x in parts])
+            scent_n = w.scent.reshape(types, -1)[:, nbr]
+            s_plus, s_minus = scent_n[:, 0::2], scent_n[:, 1::2]
+            # Relative difference: points uphill at any distance, like a nose.
+            parts += [here / (here + cfg.scent_half),
+                      ((s_plus - s_minus) / (s_plus + s_minus + 1e-12)).T.ravel()]
+        obs = np.concatenate(parts, dtype=float)
         assert obs.size == self.n_inputs, (obs.size, self.n_inputs)
         return obs
+
+    def _shrine_sense(self, p) -> np.ndarray:
+        """Direction to the nearest shrine and whether the NPC is on one. Shrines
+        don't move, so it's cached per cell (rebuilt if the shrines change)."""
+        w, cfg = self.world, self.cfg
+        if self._shrines_cached != w.shrines:
+            self._shrine_cache, self._shrines_cached = {}, list(w.shrines)
+        part = self._shrine_cache.get(p)
+        if part is None:
+            part = np.zeros(cfg.dims + 1)
+            if w.shrines:
+                deltas = [wrapped_delta(p, s, cfg.size) for s in w.shrines]
+                nearest = min(deltas, key=lambda d: np.abs(d).sum())
+                part = np.concatenate([nearest / (cfg.size / 2), [1.0 if not nearest.any() else 0.0]])
+            self._shrine_cache[p] = part
+        return part
 
     # ============================================================== thinking
     def _decide(self, npc: NPC, obs: np.ndarray) -> int:
@@ -184,7 +199,11 @@ class Simulation:
         logits -= logits.max()
         probs = np.exp(logits)
         probs /= probs.sum()
-        return int(self.rng.choice(self.n_actions, p=probs))
+        # Same as self.rng.choice(self.n_actions, p=probs), the way NumPy does it
+        # (one uniform draw against the cumulative sum), minus its input checks.
+        cdf = probs.cumsum()
+        cdf /= cdf[-1]
+        return int(cdf.searchsorted(self.rng.random(), side="right"))
 
     # =============================================================== actions
     def _act(self, npc: NPC, action: int, index: dict, births: list[NPC]) -> None:
@@ -248,9 +267,10 @@ class Simulation:
         # near food faster than from far food (gotchas.md).
         cells = tuple(np.array([npc.pos] + w.adjacent(before)).T)
         delta = dist[(slice(None),) + cells] - here[:, None]          # (nutrients, steps)
-        score = delta[others].mean(axis=0) - delta[need]
+        # sum / count is what np.mean computes, without its per-call overhead.
+        score = delta[others].sum(axis=0) / others.sum() - delta[need]
         npc.approach_sum += float(score[0])
-        npc.approach_null += float(score[1:].mean())
+        npc.approach_null += float(score[1:].sum() / (score.size - 1))
         npc.approach_moves += 1
 
     def _eat(self, npc: NPC) -> bool:
@@ -379,8 +399,9 @@ class Simulation:
 
         idle = npc.idle_streak > cfg.idle_grace_ticks
         decay = cfg.nutrient_decay * (cfg.idle_hunger_multiplier if idle else 1.0)
-        npc.nutrients = np.clip(npc.nutrients - decay, 0.0, 1.0)
-        npc.satiation = np.clip(npc.satiation - cfg.satiation_decay, 0.0, 1.0)
+        # np.minimum/maximum: same values as np.clip, much less overhead on tiny arrays.
+        npc.nutrients = np.minimum(np.maximum(npc.nutrients - decay, 0.0), 1.0)
+        npc.satiation = np.minimum(np.maximum(npc.satiation - cfg.satiation_decay, 0.0), 1.0)
         npc.smite = max(0.0, npc.smite - cfg.smite_decay)
 
         npc.lifetime += 1
