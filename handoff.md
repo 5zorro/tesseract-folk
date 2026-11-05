@@ -109,7 +109,7 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
    - Tools: `scripts/ladder.py` (dims × brain size, `--worlds time`, `--set`),
      `scripts/travel_time.py`, `scripts/probe_supply.py`, `scripts/probe_crumbs.py`,
      `scripts/probe_scent.py`, `scripts/fingerprint.py`, `scripts/mutation_success.py`,
-     `scripts/probe_random_walk.py`, `scripts/compare_runs.py` (nursery-by-nursery
+     `scripts/probe_random_walk.py`, `scripts/probe_eat_choice.py`, `scripts/compare_runs.py` (nursery-by-nursery
      tables). Nurseries under today's defaults: `snapshots/ladder2` (and
      `ladder2-40k`); `snapshots/ladder` is pre-default-change.
 2. Known gaps carried from M1: body starvation is ~35% of collapses; births
