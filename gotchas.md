@@ -123,4 +123,12 @@ Traps that already bit us, by area. Add to this when something surprises you.
 - **`mutation_rate` is per weight, so bigger brains get more mutations per
   birth** (~52 at 8 hidden units, ~102 at 16, ~200 at 32). Comparing brain
   sizes at one rate also changes how disruptive each birth is
-  (`docs/research-tuning.md`).
+  (`docs/research-tuning.md`). Use `mutations_per_birth` to hold it fixed; and
+  don't go by the textbook 1 per child: it loses here (plan-m2 slice R1).
+- **Smell isn't weak in 4D, whatever the decay length says.** NPCs sense the
+  scent difference relative to its sum, so even a faint smell points the right
+  way (92-100% in 2D-4D, `scripts/probe_scent.py`). Don't "fix" reach unless
+  senses get noise or a threshold.
+- **Speed refactors must keep the draw order.** One extra or missing rng draw
+  shifts every later number. Run `scripts/fingerprint.py` before and after;
+  the hashes must match.

@@ -68,8 +68,7 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
      steps and beyond scratch). 5zorro hasn't accepted that revised criterion 3.
    - **Higher dimensions fail on food types per life:** 3D (size 14) 2.3 of 2.5,
      4D far worse. **5zorro (2026-11-04): don't move the goalposts; explain the
-     trend first.** 3D, not full 4D, is the proposed 4D Miner target ("3.5D":
-     NPCs on a 3D surface).
+     trend first.**
    - **Found cause (slice 3f): crumbs.** Gaussian patches leave crumbs
      everywhere, and the eat instinct picks food by need *per unit*, so it takes
      a crumb of the needed food even beside a full bite of another (84% of crumb
@@ -80,11 +79,20 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
    - **Next (5zorro's design, plan slice 3f):** two eat actions, `eat_most` (biggest
      bite) and `eat_need` (today's rule), chosen by the brain; then meal scent
      on top; then the memory stack (slice 4a).
-   - Brain size: 8 hidden units were enough everywhere (slice 3d); bigger never
-     helped. But see `docs/research-tuning.md`: our mutation rate hits ~100
-     weights per birth (classic rule: ~1), which may be why bigger did worse.
+   - **Research slice R (2026-11-04, 5zorro: settle the research before new
+     levers):** smell reach is *not* why 4D fails (the smell points the right way
+     92-100% of the time in every dimension). Mutations per child: the textbook 1
+     per child loses; 10-100 is a plateau; with mutations held equal, 16 hidden
+     units are no longer worse than 8. Neither fixes 3D's food types. Proposed:
+     `mutations_per_birth = 30` as the default (5zorro decides).
+   - **4D Miner targets (5zorro, 2026-11-04):** land walkers on 3D surfaces, 4D fish
+     and birds in full 4D. Both 3D and 4D must pass.
+   - Speed: ticks 27-39% faster (bit-identical); `scripts/fingerprint.py` checks
+     refactors. 5zorro's keyed-randomness idea (seed, tick, entity) is an open
+     decision (`openitems.md` Speed).
    - Tools: `scripts/ladder.py` (dims × brain size, `--worlds time`, `--set`),
-     `scripts/travel_time.py`, `scripts/probe_supply.py`, `scripts/probe_crumbs.py`.
+     `scripts/travel_time.py`, `scripts/probe_supply.py`, `scripts/probe_crumbs.py`,
+     `scripts/probe_scent.py`, `scripts/fingerprint.py`.
 2. Known gaps carried from M1: body starvation is ~35% of collapses; births
    still trail top-ups in 2D (M3's job).
 3. Other levers: a harsher scarcity nursery (half food gave a mild win); **seasons** as a config schedule (famine winters, mostly for

@@ -5,7 +5,7 @@ single one, but several well-known results map onto our knobs. Each suggests a
 *dimensionless ratio* to hold fixed when the world, the brain or the dimension
 changes. None is tested here yet; each is a candidate for a plan slice.
 
-## 1. Mutation: about one mutation per genome per birth (the 1/L rule)
+## 1. Mutation: about one mutation per genome per birth (the 1/L rule; measured: loses here)
 - Classic genetic-algorithm guideline: per-gene mutation rate ≈ 1/L, where L is
   the genome length, so each child gets about one mutation. Traced to
   Bremermann (1966) and De Jong (1975); Mühlenbein (1992) showed it optimal for
@@ -42,6 +42,15 @@ child lands **31–35% of the brain's own length** away from its parent (one
 mutation: 3–4%). In the nursery nearly every newcomer is a mutated copy of a
 hall-of-fame brain (2D: 7 births vs 99 copies in 4,000 ticks; 3D: 0 vs 155),
 so mutation is the nursery's only source of variation.
+
+**Measured 2026-11-04 (plan-m2 slice R1):** in our nursery the textbook rule
+*loses*. 1 or 3 mutated weights per child gave clearly worse 3D nurseries
+(collapses up 60-100%, food types per life down ~20%); 10, 30 and today's
+52-102 sit on a plateau within noise. Likely because the nursery is short and
+noisy (one life per evaluation), so tiny changes are invisible to selection.
+With mutations per child held equal, 16 hidden units were no longer worse
+than 8, so the slice 3d "bigger is worse" result was at least partly a
+mutation-count effect. Proposed default: 30 per child.
 
 **Crossover (the permutation problem).** Mixing two unrelated networks weight
 by weight tends to break both: the same job can sit in different hidden units
@@ -124,12 +133,13 @@ either parent. Births are rare in nurseries, so this matters for play worlds
   on AMD GPUs under Windows, so the backend would differ.
 
 ## Candidate slices from this (for 5zorro)
-1. **Mutation per genome:** set the rate from the brain size (≈ 1–3 mutations
-   per birth), then redo the hidden-size sweep. Cheap, and it may change the
-   brain-size conclusion.
-2. **Smell reach per dimension:** measure λ in 2D–4D, then scale
-   `scent_diffusion` with dims and rerun the travel-time worlds.
-3. **Success-rate logging** for the 1/5 (or 1/e) rule.
+1. ~~Mutation per genome~~: done 2026-11-04 (slice R1). 1-3 per child loses;
+   10-100 is a plateau; proposed default 30 per child.
+2. ~~Smell reach per dimension~~: done 2026-11-04 (slice R2). Not the cause;
+   no setting added.
+3. **Success-rate logging** for the 1/5 (or 1/e) rule: how often a mutated
+   copy outlives its parent. Now the most useful next step on mutation, since
+   it would explain the plateau and could set the rate automatically.
 
 ## Sources
 - Such et al., "Deep Neuroevolution: genetic algorithms are a competitive alternative..." (arXiv 1712.06567): https://arxiv.org/pdf/1712.06567

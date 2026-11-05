@@ -610,8 +610,45 @@ right way. The scaling setting was removed again (no lever without an effect);
 `scent_diffusion` and `stink_diffusion` are now checked to be within 0–1.
 Smell reach would matter if senses get noise or a detection threshold.
 
-**R1. Mutations per birth: experiment running.** `Config.mutations_per_birth`
-(0 = off, the per-weight `mutation_rate` as before). Results below.
+**R1. Mutations per birth: the textbook rule loses; 10-100 is a flat plateau.**
+`Config.mutations_per_birth` (0 = off, the per-weight `mutation_rate` as
+before; it applies to every mutated copy, births and hall-of-fame top-ups).
+`python scripts/ladder.py --worlds time --dims 2 3 --hidden 8 16 --set
+mutations_per_birth=K` for K = 1, 3, 10, 30 (`runs/2026-11-04-mut{K}.csv`),
+against slice 3e's rows (today: ~52 at 8 hidden units, ~102 at 16). Nursery
+means over 2 nurseries x 5 seeds (collapses / food types per life / approach
+excess):
+| Per child | 2D h8 | 2D h16 | 3D h8 | 3D h16 |
+|---|---|---|---|---|
+| today (52 / 102) | 1.01 / 2.80 / 0.104 | 1.10 / 2.78 / 0.123 | 0.94 / 2.30 / 0.062 | 1.15 / 2.06 / 0.048 |
+| 1 | 1.46 / 2.65 / 0.059 | 0.99 / 2.84 / 0.067 | 1.87 / 1.71 / 0.027 | 1.88 / 1.60 / 0.019 |
+| 3 | 1.22 / 2.72 / 0.045 | 1.14 / 2.80 / 0.057 | 1.64 / 1.87 / 0.027 | 1.64 / 1.84 / 0.030 |
+| 10 | 0.86 / 2.78 / 0.137 | 1.25 / 2.74 / 0.067 | 1.01 / 2.14 / 0.030 | 1.32 / 1.94 / 0.029 |
+| 30 | 1.27 / 2.71 / 0.084 | 0.94 / 2.78 / 0.096 | 1.03 / 2.17 / 0.068 | 0.76 / 2.29 / 0.045 |
+Noise: the two nurseries of one cell differ by up to ~0.4 collapses and ~0.5
+food types, so only big gaps count.
+- **1-3 per child is worse, clearly, in 3D** (both nurseries: collapses
+  1.6-2.2 vs 0.9-1.2, food types 1.3-2.0 vs 2.0-2.4, approach excess halved).
+  In 2D the loss is milder. The 1/L rule doesn't fit our nursery.
+- **10, 30 and today's 52-102 are within noise** of each other. The best 3D
+  cell is 30 per child at 16 hidden units (collapses 0.84 / 0.69 per nursery,
+  both better than today's 16-unit 1.17 / 1.12).
+- **Brain size, with mutations held equal:** 16 hidden units are no longer
+  worse than 8 (better at 30 per child, worse at 10, about even at 1-3). So
+  slice 3d's "bigger is worse" was at least partly "more mutations is worse".
+- **Not the 3D fix:** no setting reaches 2.5 food types per life in 3D. Crumb
+  grazing (slice 3f) is still the lead cause.
+- **Why the textbook rule loses (hypothesis):** 1/L is the optimum for long
+  runs on smooth problems. Our nursery is short (20,000 ticks) and noisy (a
+  brain is judged by one life in a random world), so a one-weight change is too
+  small for selection to notice: copies of hall-of-fame brains are near-clones.
+  Ochoa (2002) notes the best rate rises with noise and selection pressure. The
+  1/5 success rule (research §2) would test this directly: log how often a
+  copy outlives its parent at 1, 10, 30 and 100 per child.
+- **Proposed (for 5zorro):** make `mutations_per_birth = 30` the default for new
+  worlds (old snapshots keep per-weight rates via `LEGACY`), so brain sizes
+  compare fairly from now on. Retrains nurseries; results otherwise unchanged
+  within noise.
 
 ### Slice 4: Levers, only if criterion 3 fails
 Criterion 3 isn't demonstrated (slice 3b). 5zorro picked the memory stack as the
@@ -673,8 +710,8 @@ nursery after a rule change:
   Land walkers ("flightless") live on 3D surfaces; 4D fish and birds move
   freely in 4D. So both 3D and 4D have to pass.
 - **Two eat actions** (slice 3f, 5zorro's design): build and test next?
-- **Mutation per genome** (`docs/research-tuning.md`): set the rate from brain
-  size before more brain-size comparisons?
+- **Mutations per child** (slice R1): make `mutations_per_birth = 30` the
+  default for new worlds? The textbook 1 per child lost; 10-100 is a plateau.
 - **Keyed randomness** (5zorro's "seed x tick" idea, `openitems.md` Speed): every
   random number from (seed, tick, entity, purpose). Its own slice, before or
   with batching? Changes every result once.
