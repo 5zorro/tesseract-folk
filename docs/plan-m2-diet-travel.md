@@ -714,6 +714,38 @@ mutations_per_birth=30[,mutation_lineage=true]`
   rates via `LEGACY`). Nurseries need retraining. Next levers from R3: re-test the hall of fame (track
   record) and a gentle-to-harsh nursery ramp (5zorro, `openitems.md`).
 
+**R5. Hall-of-fame track record (5zorro): a big 2D gain, steadier 3D (2026-11-04).**
+`Config.hall_of_fame_track_record` (off by default): each entry is scored by its
+own life and every finished life of its copies (collapses per 1,000 ticks vs
+the population's at the time), with 3 average lives added as a prior so one
+lucky life can't outrank a proven entry; copies are picked by that score. Floor
+(5zorro): after 5 copies, an entry whose copies do worse than the population is
+dropped. It applies in nurseries *and* play worlds. Under the new defaults,
+6 nurseries x 5 seeds, 8 hidden units (`runs/2026-11-04-{defaults,track}-{2d,3d}.csv`,
+nurseries in `snapshots/ladder2`):
+| | Collapses | Scratch | Food types / life | Lowest nutrient | Approach excess | Goals |
+|---|---|---|---|---|---|---|
+| 2D, new defaults | 0.95 ± 0.06 | 1.77 | 2.83 | 0.47 | 0.094 | all |
+| 2D, + track record | **0.60 ± 0.05** | 1.43 | **2.89** | 0.52 | **0.142** | all |
+| 3D, new defaults | 0.75 ± 0.10 | 2.39 | 2.36 ± 0.07 | 0.47 | 0.056 | not types |
+| 3D, + track record | 0.73 ± 0.04 | 2.37 | 2.41 ± 0.02 | 0.46 | 0.058 | not types |
+- 2D: better or equal in 6 of 6 nursery pairs; the best 2D result yet. Part of
+  it is play-world selection (scratch worlds improve too, 1.77 -> 1.43).
+- 3D: same mean, much less spread (every nursery 0.59-0.87 vs 0.47-1.08).
+  Still short of 2.5 food types.
+- Known gap: the hall of fame churns (most lives never collapse, so fresh
+  "perfect" lives keep arriving), and a copy that finishes after its source
+  was pushed out loses its credit (counted as `hall_of_fame_credit_lost`). An
+  archive of displaced entries would keep those records.
+
+**Regression check (5zorro: does what passed still pass?).** The new defaults
+reproduce slice R4's lineage runs exactly (same seeds, same numbers). 2D under
+the new defaults: collapses 0.95 vs 1.01 before, food types 2.83 vs 2.80, every
+goal still met. 1D (coverage world, 2 nurseries): 4.46 vs 4.54 collapses,
+unchanged; 1D never passed (diet 0.78).
+
+**Proposed (for 5zorro):** turn the track record on by default.
+
 ### Slice 4: Levers, only if criterion 3 fails
 Criterion 3 isn't demonstrated (slice 3b). 5zorro picked the memory stack as the
 first lever (2026-11-03).

@@ -89,8 +89,10 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
      lost. **Now the defaults** (5zorro, 2026-11-04): `mutations_per_birth = 30`,
      `mutation_lineage = true`. Earlier runs and ladder nurseries used the old
      rule: rerun baselines before comparing, and retrain nurseries (`ladder.py`
-     refuses stale ones). Next ideas: re-test the hall of fame, gentle-to-harsh
-     nursery ramp (`openitems.md`).
+     refuses stale ones). **Hall-of-fame track record (R5, 5zorro, off by default):**
+     2D collapses 0.95 -> 0.60 (best yet); 3D same mean, steadier. Proposed as the
+     default. 1D/2D regression check: nothing broke. New nurseries live in
+     `snapshots/ladder2`. Next idea: gentle-to-harsh nursery ramp (`openitems.md`).
    - **4D Miner targets (5zorro, 2026-11-04):** land walkers on 3D surfaces, 4D fish
      and birds in full 4D. Both 3D and 4D must pass.
    - Speed: ticks 27-39% faster (bit-identical); `scripts/fingerprint.py` checks
