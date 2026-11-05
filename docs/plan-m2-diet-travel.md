@@ -746,6 +746,30 @@ unchanged; 1D never passed (diet 0.78).
 
 **Proposed (for 5zorro):** turn the track record on by default.
 
+**R6. Does a random walk's "bad luck" explain higher dimensions? (5zorro, 2026-11-05)**
+5zorro: more dimensions mean more ways for a random walk to miss, so scratch brains
+get less reward to learn from; train exponentially longer per dimension (base
+2? e?), or spawn near food and widen the distance slowly.
+`python scripts/probe_random_walk.py [--scaling]`.
+- **The base is the world, not a constant.** Same width, same target (radius 2),
+  same start, only dims changing: each extra dimension multiplies the mean
+  search time by ~3.5x at width 10 and ~4.8x at width 14, steady from 2D to 4D:
+  about 0.7 x width / target radius. Theory agrees: on a grid of N cells a walk
+  needs ~N^2 steps in 1D, ~N log N in 2D, and ~N / (target size) in 3D and up
+  (time follows volume, and volume = width^dims).
+- **Our travel-time worlds already shrink width with dims,** so the walk from
+  one food's core to another's grows only mildly: 10x the shortest trip in 2D,
+  14x in 3D, 23x in 4D, landing within the hunger clock 98% / 97% / 84% of the
+  time. 1D (1,024 cells) is the outlier: ~10,000 steps, 9% (gotchas.md).
+- **Longer training doesn't help 3D:** 40,000-tick nurseries (6 seeds,
+  `runs/2026-11-05-defaults-3d-40k.csv`) match 20,000-tick ones (collapses 0.74
+  vs 0.75, food types 2.35 vs 2.36). 3D nurseries plateau by 20,000 ticks.
+- **So luck isn't 3D's problem;** 3D brains already collapse 3x less than
+  scratch. 4D's walk is 2x slower than 3D's and misses the hunger clock 16% of
+  the time, so a spawn-near-food curriculum may matter there. If training time
+  ever needs scaling, scale it by the measured walk time per world (here 3D
+  x1.4, 4D x2.9 over 2D), not a fixed base.
+
 ### Slice 4: Levers, only if criterion 3 fails
 Criterion 3 isn't demonstrated (slice 3b). 5zorro picked the memory stack as the
 first lever (2026-11-03).

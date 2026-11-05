@@ -103,6 +103,17 @@ either parent. Births are rare in nurseries, so this matters for play worlds
   Scaling `scent_diffusion` by dims / 2 changed nothing. Reach becomes a ratio
   to hold only if senses get noise or a detection threshold.
 
+## 4b. Random-walk search time vs dimension (measured 2026-11-05, plan-m2 R6)
+- On a grid of N cells, a random walk needs about N^2 steps to find a target in
+  1D, N log N in 2D, and N / (target size) in 3D and up (Pólya's transience:
+  above 2D, time follows volume). At a fixed width, volume grows as
+  width^dims, so search time is exponential in dims with base ~0.7 x width /
+  target radius (measured 3.5x at width 10, 4.8x at width 14). There's no
+  universal base like 2 or e.
+- **Ratio to hold:** walk time to the needed food / hunger clock. Our
+  travel-time worlds keep it near 2D's in 3D (97% vs 98% in time), less so in
+  4D (84%).
+
 ## 5. When to leave a patch: the marginal value theorem (Charnov 1976)
 - A forager should leave a patch when its intake rate there drops to the
   average rate for the whole habitat (counting travel). Longer travel means
