@@ -8,8 +8,9 @@ snapshots/*
 .env
 *.key
 
-# Private brainstorming, kept local (see handoff.md)
+# Private, kept local: brainstorming (see handoff.md) and per-tool agent files
 openitems.md
+CLAUDE.md
 
 # Sweep output (scripts/sweep.py --csv)
 runs/
