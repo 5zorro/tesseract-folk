@@ -22,6 +22,35 @@ changes. None is tested here yet; each is a candidate for a plan slice.
 - Fits 5zorro's idea of lowering mutation over the nursery (openitems: Evolution),
   and his ancestor-lifespan idea is a form of self-adaptive mutation.
 
+**For real-valued brains like ours (added 2026-11-04).** The 1/L rule comes
+from bit-string genomes. Neural-network evolution follows the same idea in a
+different form: keep the *total change per child* small and about the same
+whatever the genome size.
+- Evolution strategies theory: the best step per weight shrinks as 1/n with the
+  number of weights n, and the 1/5 rule (§2) tunes it (Beyer; Jägersküpper).
+- Deep neuroevolution (Such et al. 2017, Uber): a plain genetic algorithm
+  evolved ~4 million weights by adding tiny noise to *every* weight
+  (σ ≈ 0.002–0.005), with no crossover.
+- NEAT (Stanley and Miikkulainen 2002/2004): 80% of children get their weights
+  perturbed; crossover lines genes up by "historical markings" so unrelated
+  parents aren't mixed blindly.
+
+**Ours, measured on the ladder nurseries:** an evolved brain's weights are
+~0.3 in size (root mean square), and each mutated weight gets noise of 0.3, so
+one mutation roughly rewrites a weight. With ~52–102 of them per child, a
+child lands **31–35% of the brain's own length** away from its parent (one
+mutation: 3–4%). In the nursery nearly every newcomer is a mutated copy of a
+hall-of-fame brain (2D: 7 births vs 99 copies in 4,000 ticks; 3D: 0 vs 155),
+so mutation is the nursery's only source of variation.
+
+**Crossover (the permutation problem).** Mixing two unrelated networks weight
+by weight tends to break both: the same job can sit in different hidden units
+(Radcliffe 1993; Schaffer et al. 1992 called it "competing conventions"; the reason NEAT has historical markings and Such et al.
+skip crossover). Ours is uniform crossover between whoever mates. In the
+nurseries, a child of two random NPCs lands 75–83% of a brain's length from
+either parent. Births are rare in nurseries, so this matters for play worlds
+(where 2D has ~90 births per run), not for training.
+
 ## 2. Mutation step size: the 1/5 success rule (or 1/e)
 - Rechenberg's rule for evolution strategies: adjust the step size
   (`mutation_scale` here) so that about 1 in 5 mutations is an improvement;
@@ -42,17 +71,20 @@ changes. None is tested here yet; each is a candidate for a plan slice.
   steered by senses. This matches slice 3e/3f (search times grow with
   dimension, 4D NPCs camp on crumbs).
 
-## 4. Smell reach shrinks with dimension in our code (derived, not yet checked)
+## 4. Smell reach shrinks with dimension in our code (measured: harmless)
 - Our scent spreads by mixing each cell with the mean of its 2 × dims
   neighbors. That's a discrete Laplacian divided by 2 × dims, so the effective
   diffusion per axis is `scent_diffusion / (2 * dims)`. With decay k, a smell
   reaches about λ = √(D / k) cells: **2.7 in 2D, 2.2 in 3D, 1.9 in 4D** (with
   0.3 and 0.01). Signals from a source also thin out faster with distance in
   higher dimensions (they spread over more directions).
-- **Ratio to hold:** smell reach ÷ distance between patches. Scaling
-  `scent_diffusion` by dims / 2 would keep λ fixed. Verify by measuring the
-  scent profile around a lone patch in 2D–4D (the test in `tests/test_scent.py`
-  is a template).
+- **Measured 2026-11-04** (`scripts/probe_scent.py`, plan-m2 slice R2): the
+  lengths hold (2.74 / 2.24 / 1.95), but it doesn't matter. NPCs sense the
+  scent difference between neighbors *relative to its sum*, so a faint smell
+  points as well as a strong one: stepping toward the strongest smell gets
+  closer to that food 92–100% of the time in 2D, 3D and 4D, even 6+ cells away.
+  Scaling `scent_diffusion` by dims / 2 changed nothing. Reach becomes a ratio
+  to hold only if senses get noise or a detection threshold.
 
 ## 5. When to leave a patch: the marginal value theorem (Charnov 1976)
 - A forager should leave a patch when its intake rate there drops to the
@@ -100,6 +132,9 @@ changes. None is tested here yet; each is a candidate for a plan slice.
 3. **Success-rate logging** for the 1/5 (or 1/e) rule.
 
 ## Sources
+- Such et al., "Deep Neuroevolution: genetic algorithms are a competitive alternative..." (arXiv 1712.06567): https://arxiv.org/pdf/1712.06567
+- Stanley and Miikkulainen, NEAT parameters (JAIR 2004 appendix): https://www-ai.cs.tu-dortmund.de/DOKUMENTE/JAIR/volume21/stanley04a-html/node9.html.gz
+- Evolution strategy runtime on the sphere, Jägersküpper (GECCO 2005): https://gpbib.pmacs.upenn.edu/gecco2005/docs/p849.pdf
 - Ochoa, "Setting the mutation rate: scope and limitations of the 1/L heuristic" (GECCO 2002): https://www.cs.stir.ac.uk/~goc/papers/SettingMutRateGECCO02.pdf
 - Doerr et al., "Self-adjusting mutation rates with provably optimal success rules" (arXiv 1902.02588): https://arxiv.org/pdf/1902.02588
 - Rechenberg's (1+1)-ES with the 1/5 rule (PyPop7 docs): https://pypop.readthedocs.io/en/latest/es/res.html

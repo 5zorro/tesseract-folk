@@ -55,6 +55,10 @@ class World:
         cfg = self.cfg
         if not (np.isfinite(cfg.scent_min_food) and cfg.scent_min_food >= 0):
             raise ValueError(f"scent_min_food must be a number >= 0, got {cfg.scent_min_food!r}")
+        for name in ("scent_diffusion", "stink_diffusion"):
+            value = getattr(cfg, name)
+            if not (np.isfinite(value) and 0 <= value <= 1):   # a mix with the neighbor mean
+                raise ValueError(f"{name} must be within 0-1, got {value!r}")
         if cfg.food_layout not in ("separate", "shared"):
             raise ValueError(f"food_layout must be 'separate' or 'shared', got {cfg.food_layout!r}")
         idx = np.indices(self.shape)

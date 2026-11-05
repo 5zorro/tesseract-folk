@@ -339,8 +339,9 @@ class Simulation:
         half = cfg.child_mass / 2
         npc.body -= half
         mate.body -= half
-        brain = Brain.crossover(npc.brain, mate.brain, self.rng).mutate(
-            cfg.mutation_rate, cfg.mutation_scale, self.rng)
+        brain = Brain.crossover(npc.brain, mate.brain, self.rng)
+        brain = brain.mutate(brain.mutation_rate(cfg.mutation_rate, cfg.mutations_per_birth),
+                             cfg.mutation_scale, self.rng)
         child = self._make_npc(brain, npc.pos, cfg.child_mass,
                                max(npc.generation, mate.generation) + 1)
         births.append(child)
@@ -485,7 +486,8 @@ class Simulation:
             if candidates:
                 picks = [candidates[int(self.rng.integers(len(candidates)))] for _ in range(3)]
                 _, gen, brain = max(picks, key=lambda c: c[0])
-                brain = brain.mutate(cfg.mutation_rate, cfg.mutation_scale, self.rng)
+                brain = brain.mutate(brain.mutation_rate(cfg.mutation_rate, cfg.mutations_per_birth),
+                                     cfg.mutation_scale, self.rng)
                 gen += 1
             else:
                 brain, gen = self._random_brain(), 0

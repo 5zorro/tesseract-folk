@@ -52,7 +52,8 @@ def seed_brains(sim, pool: list[dict]) -> None:
         entry = pool[i % len(pool)]
         brain = entry["brain"]
         if i >= len(pool):
-            brain = brain.mutate(cfg.mutation_rate, cfg.mutation_scale, sim.rng)
+            brain = brain.mutate(brain.mutation_rate(cfg.mutation_rate, cfg.mutations_per_birth),
+                                 cfg.mutation_scale, sim.rng)
         npc.brain = brain
         npc.generation = entry["generation"]
     sim.hall_of_fame = [dict(e) for e in pool[:cfg.hall_of_fame_size]]

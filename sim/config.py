@@ -53,7 +53,7 @@ class Config:
     # brain's input size. Snapshots saved before it existed load with it off.
     food_scent: bool = True
     scent_emission: float = 0.05          # per unit of food per tick
-    scent_diffusion: float = 0.3
+    scent_diffusion: float = 0.3          # 0-1; reach shrinks with dims, harmlessly (research §4)
     scent_decay: float = 0.01             # slower than stink, so it reaches farther
     scent_half: float = 1.0               # sensed level is s / (s + scent_half)
     # Meal scent (M2 slice 3f, 5zorro): only food beyond this amount per cell smells,
@@ -101,7 +101,12 @@ class Config:
     # --- brains ------------------------------------------------------------
     hidden_units: int = 16
     memory_units: int = 2                 # tiny recurrent memory
-    mutation_rate: float = 0.1
+    mutation_rate: float = 0.1            # chance per weight (ignored if mutations_per_birth > 0)
+    # Mutations per birth (research slice R1, 2026-11-04): > 0 sets the chance per
+    # weight to this / the brain's weight count, so every brain size gets the same
+    # number of mutated weights per child (the "1/L rule" uses 1). 0 = use
+    # mutation_rate per weight (~100 per child in 2D at 16 hidden units).
+    mutations_per_birth: float = 0.0
     mutation_scale: float = 0.3
     action_temperature: float = 0.5
     hall_of_fame_size: int = 20

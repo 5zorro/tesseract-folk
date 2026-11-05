@@ -218,6 +218,9 @@ re-derive. So:
   C++ headers (`4dm.h`), from the 4D-Modding GitHub organization.
 - The prototype is N-dimensional, so 4D rules can be tested in Python first
   (`--dims 4`).
+- **Two kinds of movers** (5zorro, 2026-11-04): land walkers can't fly, so they
+  live on 3D surfaces (`--dims 3`); 4D fish and birds move freely in 4D. Both
+  have to work, so M2 is judged in 3D and in 4D.
 - Port order: brain forward pass and JSON loading, then world fields, then NPC
   loop, then rendering and the 4D body.
 - Risks: the framework is reverse-engineered (game updates can break mods),

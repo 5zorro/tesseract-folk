@@ -56,6 +56,13 @@ class Brain:
         hidden = np.tanh(self.w1 @ x + self.b1)
         return self.w2 @ hidden + self.b2
 
+    def mutation_rate(self, rate: float, per_birth: float) -> float:
+        """Chance per weight: `rate`, or `per_birth` / weight count when per_birth > 0
+        (the same number of mutated weights per child at any brain size)."""
+        if not (np.isfinite(per_birth) and per_birth >= 0):
+            raise ValueError(f"mutations_per_birth must be a number >= 0, got {per_birth!r}")
+        return min(1.0, per_birth / self.n_params) if per_birth > 0 else rate
+
     def mutate(self, rate: float, scale: float, rng: np.random.Generator) -> "Brain":
         new = []
         for a in self._arrays():

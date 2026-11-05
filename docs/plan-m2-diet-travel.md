@@ -589,6 +589,30 @@ Keep `scent_min_food` as an option (default off).
 - For 3: re-measure food types per life after 1 is fixed, before changing
   the metric.
 
+### Slice R: Research before levers (5zorro, 2026-11-04)
+5zorro: settle what the research says ("standing on the shoulders of giants")
+before adding features or levers. Two candidates from `docs/research-tuning.md`.
+
+**R2. Smell reach per dimension: measured, not the cause.**
+`python scripts/probe_scent.py`. Part 1 (one food cell, steady smell): the
+derived decay lengths hold (2.74 / 2.24 / 1.95 cells in 2D/3D/4D), and smell
+drops below 10% of its peak at 5 / 3 / 2 cells. Scaling `scent_diffusion` by
+dims / 2 keeps the decay length but barely moves those numbers (5 / 3 / 2;
+1%: 10 / 7 / 5), because a point's smell also thins out over more directions.
+Part 2 (travel-time worlds after 1,000 ticks of grazing): stepping toward the
+strongest smell of a food brings an NPC closer to that food's nearest core
+**92–100% of the time in every dimension**, even 6+ cells away (chance:
+22–52%). Scaling changes nothing (within 0.01).
+Why: NPCs sense the scent *difference* between neighbors relative to its sum,
+so even a faint smell points the right way; the sim has no noise floor.
+So 4D NPCs aren't lost for lack of a signal; the smell is there and points the
+right way. The scaling setting was removed again (no lever without an effect);
+`scent_diffusion` and `stink_diffusion` are now checked to be within 0–1.
+Smell reach would matter if senses get noise or a detection threshold.
+
+**R1. Mutations per birth: experiment running.** `Config.mutations_per_birth`
+(0 = off, the per-weight `mutation_rate` as before). Results below.
+
 ### Slice 4: Levers, only if criterion 3 fails
 Criterion 3 isn't demonstrated (slice 3b). 5zorro picked the memory stack as the
 first lever (2026-11-03).
@@ -645,7 +669,9 @@ nursery after a rule change:
 
 - **Revised criterion 3** (slice 3c): nursery brains' approach excess above 0
   on every seed and above scratch. Proposed 2026-11-03, not yet accepted.
-- **3D as the 4D Miner target** (slice 3e) instead of free movement in 4D.
+- ~~3D as the 4D Miner target~~: settled 2026-11-04 (5zorro): **two targets**.
+  Land walkers ("flightless") live on 3D surfaces; 4D fish and birds move
+  freely in 4D. So both 3D and 4D have to pass.
 - **Two eat actions** (slice 3f, 5zorro's design): build and test next?
 - **Mutation per genome** (`docs/research-tuning.md`): set the rate from brain
   size before more brain-size comparisons?
