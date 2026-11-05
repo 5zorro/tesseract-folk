@@ -165,4 +165,4 @@ In WSL, make a separate venv (`.venv/bin/python`); see `gotchas.md`.
 - No ML frameworks; never script or reward the emergent behaviors.
 - All randomness through `sim.rng`.
 - 5zorro pushes. Agents may commit locally, with no Co-Authored-By or AI attribution
-  lines (a GitHub hook enforces this).
+  lines (a local commit-msg hook in `.git/hooks`, not tracked, rejects them for any AI tool).
