@@ -52,40 +52,47 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
     half food) and `nursery-4d-1/2` (4D, `--dims 4 --size 10`, radius 2). Older ones were trained under older rules
     (`nursery-1/2` also need `--set food_scent=false`). Retrain with the
     commands in `scripts/run_headless.py`'s docstring.
+    `snapshots/ladder/` holds the slice 3d/3e/3f nurseries, named by world
+    (`d{dims}-s{size}-r{radius}-h{hidden}[-rule]-n{seed}`); `ladder.py` reuses
+    one only if its saved settings match.
   - Nobody learns or shares secrets, and there's no channel for food
     locations. No social structure is measurable yet (`openitems.md`).
   - 4D needs `food_patch_radius=2.0`: at the default radius every 4D cell grows
     every food, and foraging is trivial (`gotchas.md`).
 
 ## Where to pick up
-1. **M2: diet drives travel.** Plan: `docs/plan-m2-diet-travel.md`. Slices 1–3
-   are done and the thresholds are settled (5zorro, 2026-11-03). Slice 3's
-   shared-patches control (`food_layout=shared`) halves zone switches, but it
-   halves them for scratch brains too: geometry, not diet. Trained brains hop
-   patches ~60% more than scratch in both layouts. Shared patches also crowd
-   NPCs into stink. 4D still misses criterion 2 (2.4 food types per life).
-   Slice 3b's "deficit-directed" metric beats chance for every brain equally
-   (the scripted forager most), because `eat` already picks the needed food, so
-   bite-based metrics leak that instinct. Criterion 3 is not demonstrated.
-   Slice 3c, a move-based metric with a random-step null, does show it: in 2D
-   nursery brains gain ~0.13 cells per move toward their needed food beyond
-   random (scratch 0.07, scripted forager negative). In 4D, ~0 for everyone.
-   Slice 3d, the dimensions ladder (`scripts/ladder.py`, 5zorro's idea): brain
-   size isn't the limit. 4 hidden units meet every goal in 2D, and 4 → 32 never
-   helps in any dimension. At ~1,000 cells, 3D/4D worlds are so small that diet
-   needs no travel (nothing to learn) and 1D fails at every size (trips too
-   long). 5zorro's point: 4D Miner NPCs live on a 3D surface, so dims=3 matters most.
-   Next: 5zorro accepts the revised criterion 3 (plan, slice 3c); then slice 3e,
-   worlds matched on travel time and total food; then slice 4a (memory stack).
-   **Slice 3e ran (2026-11-04):** in 3D (size 14, radius 1.88) nursery brains
-   seek their needed food and halve collapses; only food types per life misses
-   (2.3 of 2.5). Full 4D with matched trips starves (pinpoint patches, 3% bite
-   coverage). Proposed: 3D is the 4D Miner target (5zorro's "3.5D"); 8 hidden
-   units are enough. Speed/GPU notes for 5zorro's RX 6800 XT: `openitems.md`.
+1. **M2: diet drives travel.** Plan: `docs/plan-m2-diet-travel.md` (the history
+   of slices 1–3f with every table lives there). Where it stands (2026-11-04):
+   - **2D passes every criterion,** with criterion 3 measured by the move-based
+     metric (slice 3c: nursery brains head for their needed food beyond random
+     steps and beyond scratch). 5zorro hasn't accepted that revised criterion 3.
+   - **Higher dimensions fail on food types per life:** 3D (size 14) 2.3 of 2.5,
+     4D far worse. **5zorro (2026-11-04): don't move the goalposts; explain the
+     trend first.** 3D, not full 4D, is the proposed 4D Miner target ("3.5D":
+     NPCs on a 3D surface).
+   - **Found cause (slice 3f): crumbs.** Gaussian patches leave crumbs
+     everywhere, and the eat instinct picks food by need *per unit*, so it takes
+     a crumb of the needed food even beside a full bite of another (84% of crumb
+     bites in 2D). In 4D, crumbs dominate (mean bite 7% of a full one, 88% body
+     starvation). Brains don't learn to skip crumbs. Carried food is never eaten.
+   - **Meal scent** (`Config.scent_min_food`, default off) was tested: no effect
+     alone.
+   - **Next (5zorro's design, plan slice 3f):** two eat actions, `eat_most` (biggest
+     bite) and `eat_need` (today's rule), chosen by the brain; then meal scent
+     on top; then the memory stack (slice 4a).
+   - Brain size: 8 hidden units were enough everywhere (slice 3d); bigger never
+     helped. But see `docs/research-tuning.md`: our mutation rate hits ~100
+     weights per birth (classic rule: ~1), which may be why bigger did worse.
+   - Tools: `scripts/ladder.py` (dims × brain size, `--worlds time`, `--set`),
+     `scripts/travel_time.py`, `scripts/probe_supply.py`, `scripts/probe_crumbs.py`.
 2. Known gaps carried from M1: body starvation is ~35% of collapses; births
    still trail top-ups in 2D (M3's job).
 3. Other levers: a harsher scarcity nursery (half food gave a mild win); **seasons** as a config schedule (famine winters, mostly for
    consistency); play-world drift fixes (re-seed, lower mutation in play).
+   **Research (2026-11-04):** `docs/research-tuning.md` lists tuning rules
+   that map onto our knobs (mutations per genome, the 1/5 success rule, Pólya's
+   random walks, smell reach per dimension, the marginal value theorem) and
+   similar projects (Polyworld, The Bibites, EvoJAX). Three candidate slices.
 4. Later (M5): the piety lifecycle (full until adulthood, then declines; share
    piety like a secret) as the path to answered prayers and shared secrets.
 5. **5zorro's brainstorm (2026-11-03)** is in `openitems.md` (clock and day/night,

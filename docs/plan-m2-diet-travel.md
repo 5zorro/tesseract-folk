@@ -1,12 +1,12 @@
 # Plan: M2 Diet drives travel
 
-Status: **slices 1–3e done (2026-11-04); thresholds settled. The move-based
-metric (3c) shows diet-seeking in 2D (all criteria met there, with criterion 3
-revised) but none in 4D. Slice 3d (dimensions ladder) found brain size isn't
-the limit: 4 hidden units pass in 2D, and bigger never helps. Next (5zorro):
-accept the revised criterion 3; slice 3e (travel time) found 3D learns diet-seeking
-and is one criterion short; full 4D starves with matched trips. Then 5zorro picks:
-3D as the 4D Miner target, then 4a (memory stack) or a 3D trip-time ladder.** Slices are ordered; each one ends with tests passing and a commit.
+Status: **slices 1–3f done (2026-11-04); thresholds settled. 2D passes all
+criteria (criterion 3 via the move metric, not yet accepted by 5zorro). 3D and 4D
+fail food types per life; 5zorro: explain the trend, don't move goalposts. Cause
+found in 3f: crumb grazing (Gaussian edges + an eat instinct that ignores
+amount). Meal scent alone did nothing. Next: 5zorro's two eat actions (3f), then
+meal scent with them, then 4a (memory stack). See also `docs/research-tuning.md`
+(mutation rate ~100× the 1/L rule).** Slices are ordered; each one ends with tests passing and a commit.
 Open decisions (bottom) are 5zorro's.
 
 **For a new session:** read `handoff.md`, `gotchas.md` and this file. M1's plan
@@ -642,6 +642,13 @@ nursery after a rule change:
   select. Retrain the nursery whenever M2 changes the rules.
 - **Zone core threshold** (`zone_core`, 0.5 of `food_capacity` proposed): how big
   a "zone" is. Smaller cores make the metric stricter.
+
+- **Revised criterion 3** (slice 3c): nursery brains' approach excess above 0
+  on every seed and above scratch. Proposed 2026-11-03, not yet accepted.
+- **3D as the 4D Miner target** (slice 3e) instead of free movement in 4D.
+- **Two eat actions** (slice 3f, 5zorro's design): build and test next?
+- **Mutation per genome** (`docs/research-tuning.md`): set the rate from brain
+  size before more brain-size comparisons?
 
 ## Tuning log
 | Date | Change | Why | Effect (seeds × ticks) |

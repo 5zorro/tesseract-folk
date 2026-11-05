@@ -114,3 +114,13 @@ Traps that already bit us, by area. Add to this when something surprises you.
   diet needs no travel. Match distances between foods too, not just coverage
   (M2 slice 3d). Bigger brains also evolve slower: 16 hidden units was never
   better than 4.
+- **Crumbs are everywhere, and `eat` takes them.** Gaussian patches never reach
+  zero, so almost every cell grows a crumb. `eat` takes ground food before
+  carried food (so carried food is never eaten while any crumb is underfoot),
+  and it picks food by need per unit, ignoring amount. In higher dimensions most
+  of a patch is thin edge, so bites shrink (4D: 7% of a full bite). Check bite
+  sizes (`scripts/probe_supply.py`) before blaming brains.
+- **`mutation_rate` is per weight, so bigger brains get more mutations per
+  birth** (~52 at 8 hidden units, ~102 at 16, ~200 at 32). Comparing brain
+  sizes at one rate also changes how disruptive each birth is
+  (`docs/research-tuning.md`).

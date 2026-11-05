@@ -74,6 +74,11 @@ Input size scales with dimensions automatically.
   spreads farther than stink, so an NPC short on a nutrient can follow the smell
   of the food that has it. The brain gets raw scents; linking them to its own
   deficits is left to evolution.
+- **[built, off by default] Meal scent** (`Config.scent_min_food`): only food
+  beyond a set amount smells, so crumbs are silent. Tested alone in M2 slice 3f
+  with no effect; meant to pair with brain-chosen eating.
+- **[idea] Two eat actions** (5zorro, 2026-11-04): `eat_most` (biggest bite) and
+  `eat_need` (best for deficits), so the brain, not an instinct, chooses.
 
 ### Actions (outputs)
 Move ± along each axis (4 in 2D, 8 in 4D), stay, eat, pick up, give, poop,
@@ -105,6 +110,9 @@ mate, pray, worship, share (a secret).
   layer everywhere since 2026-11-02), and food scent leads NPCs to them. The
   world keeps a zone map (patch cores) so travel between zones can be measured
   (M2). In 4D at size 10, use `food_patch_radius=2.0`, or patches cover everything.
+  Patches are Gaussians, so their thin edges grow crumbs almost everywhere; in
+  higher dimensions most of a patch is edge (M2 slice 3f). `food_layout=shared`
+  (a measurement control) grows every food in the same patches.
 - **[idea] Biomes:** named, separated zones (food 1 in "mountains", food 2 on
   "beaches"), readable to players and matching 4D Miner's own biomes.
 - **[built] Poop and stink.** Digestion fills the bowel; pooping (or an
