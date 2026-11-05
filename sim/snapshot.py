@@ -14,10 +14,10 @@ from pathlib import Path
 
 import numpy as np
 
-from .brain import Brain
 from .clock import SimClock
 from .config import Config
 from .npc import NPC
+from .nursery import entry_to_dict, hall_of_fame_entry
 from .simulation import Simulation
 
 ARRAYS = ("soil", "food", "poop", "stink", "scent", "capacity", "profiles", "zones")
@@ -47,9 +47,7 @@ def save_snapshot(sim: Simulation, path: str | Path) -> Path:
         "clock": sim.clock.to_dict(),
         "deity": sim.deity.to_dict(),
         "npcs": [n.to_dict() for n in sim.npcs],
-        "hall_of_fame": [{"fitness": e["fitness"], "generation": e["generation"],
-                          "rate": e.get("rate", -1.0), "lineage": e.get("lineage", -1.0),
-                          "brain": e["brain"].to_dict()} for e in sim.hall_of_fame],
+        "hall_of_fame": [entry_to_dict(e) for e in sim.hall_of_fame],
         "rng_state": sim.rng.bit_generator.state,
     }
     (path / "state.json").write_text(json.dumps(state))
@@ -87,10 +85,7 @@ def load_snapshot(path: str | Path, log_every: int = 100) -> Simulation:
     sim.clock = SimClock.from_dict(state["clock"])
     sim.deity.load_dict(state["deity"])
     sim.npcs = [NPC.from_dict(n) for n in state["npcs"]]
-    sim.hall_of_fame = [{"fitness": e["fitness"], "generation": e["generation"],
-                         "rate": float(e.get("rate", -1.0)),
-                         "lineage": float(e.get("lineage", -1.0)),
-                         "brain": Brain.from_dict(e["brain"])} for e in state["hall_of_fame"]]
+    sim.hall_of_fame = [hall_of_fame_entry(e) for e in state["hall_of_fame"]]
     sim.rng.bit_generator.state = state["rng_state"]
     for brain in [n.brain for n in sim.npcs] + [e["brain"] for e in sim.hall_of_fame]:
         brain.check(sim.n_inputs, sim.cfg.hidden_units, sim.n_outputs)

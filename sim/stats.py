@@ -13,7 +13,8 @@ CAUSES = DAMAGE_CAUSES + ["unknown"]
 COUNTERS = [
     "births", "deaths", "collapses", "spawns", "eats", "gives", "poops", "accidents",
     "prayers_answered", "prayers_silent", "prayers_ignored", "smitings", "worships",
-    "secrets_claimed", "secrets_shared", "secrets_stale", "zone_switches",
+    "secrets_claimed", "secrets_shared", "secrets_stale", "zone_switches", "hall_of_fame_dropped",
+    "hall_of_fame_credit_lost",
 ] + [f"collapse_{c}" for c in CAUSES] + [f"death_{c}" for c in CAUSES]
 
 
@@ -41,7 +42,7 @@ class Stats:
             "approach_sum": npc.approach_sum, "approach_null": npc.approach_null,
             "approach_moves": npc.approach_moves,
             "origin": npc.origin, "mutations": npc.mutations, "parent_rate": npc.parent_rate,
-            "rate": npc.collapse_rate(), "lineage": npc.lineage,
+            "rate": npc.collapse_rate(), "lineage": npc.lineage, "source": npc.source,
         })
 
     def travel_summary(self, since_tick: int = 0, min_lifetime: int = 500) -> dict:

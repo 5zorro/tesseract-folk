@@ -75,6 +75,9 @@ class NPC:
     # Ancestors' collapse rate when it was made: parents 1/2, grandparents 1/4...
     # (-1 = unknown). Drives lineage-adaptive mutation (Config.mutation_lineage).
     lineage: float = -1.0
+    # The hall-of-fame entry this copy was made from (-1 = none), so its finished
+    # life can be added to that entry's track record.
+    source: int = -1
 
     def __post_init__(self):
         if self.eaten is None:

@@ -119,6 +119,17 @@ class Config:
     mutation_scale: float = 0.3
     action_temperature: float = 0.5
     hall_of_fame_size: int = 20
+    # Hall-of-fame track record (5zorro, research slice R5, 2026-11-04). One life is
+    # a noisy score (slice R3), so with this on, each entry is scored by its own
+    # life *and* every finished life of its copies: collapses per 1,000 ticks
+    # above (+) or below (-) the population's at the time, averaged with
+    # `hall_of_fame_prior_lives` average lives added, so a newcomer's one lucky life
+    # can't outrank an entry proven over many. Copies are picked by that score too.
+    # Floor: after `hall_of_fame_min_copies` copies (0 = never), an entry whose
+    # copies average worse than the population is dropped. Off = rank by fitness.
+    hall_of_fame_track_record: bool = False
+    hall_of_fame_prior_lives: float = 3.0
+    hall_of_fame_min_copies: int = 5
 
     # --- deity, prayer, secrets --------------------------------------------
     n_shrines: int = 2

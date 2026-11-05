@@ -32,12 +32,14 @@ class Simulation:
         c = self.cfg
         if c.mutation_lineage and not c.mutations_per_birth > 0:
             raise ValueError("mutation_lineage needs mutations_per_birth > 0 (its base count)")
+        if not (np.isfinite(c.hall_of_fame_prior_lives) and c.hall_of_fame_prior_lives >= 0):
+            raise ValueError(f"hall_of_fame_prior_lives must be a number >= 0, got {c.hall_of_fame_prior_lives!r}")
         if not (np.isfinite(c.mutation_lineage_max) and c.mutation_lineage_max >= 1):
             raise ValueError(f"mutation_lineage_max must be a number >= 1, got {c.mutation_lineage_max!r}")
         self._shrine_cache: dict = {}
         self._shrines_cached: list = []
         self.npcs: list[NPC] = []
-        self.hall_of_fame: list[dict] = []   # {"fitness", "generation", "brain", "rate", "lineage"}
+        self.hall_of_fame: list[dict] = []   # see nursery.hall_of_fame_entry for the fields
         self.overrides: dict[int, object] = {}  # npc id -> controller (see controllers.py)
         self.tick = 0
         self.next_id = 0
@@ -535,11 +537,57 @@ class Simulation:
         return brain.mutate(rate, self.cfg.mutation_scale, self.rng), rate * brain.n_params, lineage
 
     def _record_hall_of_fame(self, npc: NPC) -> None:
+        """A finished life: add it to the entry its brain was copied from (track
+        record), then offer it a place of its own."""
+        cfg = self.cfg
+        population = self.population_collapse_rate()
+        excess = npc.collapse_rate() - population if population >= 0 else 0.0
+        if cfg.hall_of_fame_track_record and npc.source >= 0:
+            self._credit_source(npc.source, excess)
         self.hall_of_fame.append({"fitness": npc.fitness(), "generation": npc.generation,
                                   "brain": npc.brain, "rate": npc.collapse_rate(),
-                                  "lineage": npc.lineage})
-        self.hall_of_fame.sort(key=lambda e: e["fitness"], reverse=True)
+                                  "lineage": npc.lineage, "id": npc.id, "lives": 1.0,
+                                  "excess_sum": excess, "copies": 0.0, "copy_excess_sum": 0.0})
+        self._rank_hall_of_fame()
+
+    def _rank_hall_of_fame(self) -> None:
+        key = self._merit if self.cfg.hall_of_fame_track_record else (lambda e: e["fitness"])
+        self.hall_of_fame.sort(key=key, reverse=True)
         del self.hall_of_fame[self.cfg.hall_of_fame_size:]
+
+    def _merit(self, entry: dict) -> float:
+        """Track-record score of a hall-of-fame entry, higher is better: minus
+        its average collapses above the population's, over its own life and its
+        copies' lives, with `hall_of_fame_prior_lives` average (0) lives added."""
+        return -entry["excess_sum"] / (entry["lives"] + self.cfg.hall_of_fame_prior_lives)
+
+    def _living_merit(self, npc: NPC, population: float) -> float:
+        """The same score for a living NPC: its life so far counts as a fraction
+        of a life (lifetime / old_age, at most 1)."""
+        if population < 0:
+            return 0.0
+        weight = min(1.0, npc.lifetime / self.cfg.old_age)
+        return -(npc.collapse_rate() - population) * weight / (weight + self.cfg.hall_of_fame_prior_lives)
+
+    def _credit_source(self, source: int, excess: float) -> None:
+        """A copy's finished life joins its source entry's track record. After
+        hall_of_fame_min_copies copies, an entry whose copies do worse than the
+        population on average is dropped (5zorro's floor)."""
+        cfg = self.cfg
+        for i, entry in enumerate(self.hall_of_fame):
+            if entry.get("id", -1) != source:
+                continue
+            entry["lives"] += 1
+            entry["excess_sum"] += excess
+            entry["copies"] += 1
+            entry["copy_excess_sum"] += excess
+            if (cfg.hall_of_fame_min_copies > 0 and entry["copies"] >= cfg.hall_of_fame_min_copies
+                    and entry["copy_excess_sum"] > 0):
+                del self.hall_of_fame[i]
+                self.stats.count("hall_of_fame_dropped")
+            self._rank_hall_of_fame()
+            return
+        self.stats.count("hall_of_fame_credit_lost")   # its source was pushed out first
 
     def _top_up(self) -> None:
         """If the population drops too low, spawn mutated copies of the best
@@ -548,21 +596,25 @@ class Simulation:
         while len(self.npcs) < cfg.min_population:
             if not self.world.take_from_soil(cfg.npc_start_mass):
                 break
-            candidates = [(e["fitness"], e["generation"], e["brain"], e.get("rate", -1.0),
-                           e.get("lineage", -1.0)) for e in self.hall_of_fame]
-            candidates += [(n.fitness(), n.generation, n.brain, n.collapse_rate(), n.lineage)
+            track = cfg.hall_of_fame_track_record
+            population = self.population_collapse_rate() if track else -1.0
+            candidates = [(self._merit(e) if track else e["fitness"], e["generation"], e["brain"],
+                           e.get("rate", -1.0), e.get("lineage", -1.0), e.get("id", -1))
+                          for e in self.hall_of_fame]
+            candidates += [(self._living_merit(n, population) if track else n.fitness(),
+                            n.generation, n.brain, n.collapse_rate(), n.lineage, -1)
                            for n in self.npcs]
-            origin, mutations, parent_rate, lineage = "", -1.0, -1.0, -1.0
+            origin, mutations, parent_rate, lineage, source = "", -1.0, -1.0, -1.0, -1
             if candidates:
                 picks = [candidates[int(self.rng.integers(len(candidates)))] for _ in range(3)]
-                _, gen, brain, parent_rate, parent_lineage = max(picks, key=lambda c: c[0])
+                _, gen, brain, parent_rate, parent_lineage, source = max(picks, key=lambda c: c[0])
                 brain, mutations, lineage = self.mutate_child(brain, parent_rate, parent_lineage)
                 origin, gen = "copy", gen + 1
             else:
                 brain, gen = self._random_brain(), 0
             npc = self._spawn(brain, self.world.random_cell(self.rng), cfg.npc_start_mass, gen)
             npc.origin, npc.mutations, npc.parent_rate = origin, mutations, parent_rate
-            npc.lineage = lineage
+            npc.lineage, npc.source = lineage, source
             self.stats.count("spawns")
 
     # ============================================================== helpers
