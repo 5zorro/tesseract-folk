@@ -29,10 +29,15 @@ class Simulation:
         self.n_actions = len(self.actions)
         self.n_inputs = self.sensor_size()
         self.n_outputs = self.n_actions + self.cfg.memory_units
+        c = self.cfg
+        if c.mutation_lineage and not c.mutations_per_birth > 0:
+            raise ValueError("mutation_lineage needs mutations_per_birth > 0 (its base count)")
+        if not (np.isfinite(c.mutation_lineage_max) and c.mutation_lineage_max >= 1):
+            raise ValueError(f"mutation_lineage_max must be a number >= 1, got {c.mutation_lineage_max!r}")
         self._shrine_cache: dict = {}
         self._shrines_cached: list = []
         self.npcs: list[NPC] = []
-        self.hall_of_fame: list[dict] = []   # {"fitness", "generation", "brain"}
+        self.hall_of_fame: list[dict] = []   # {"fitness", "generation", "brain", "rate", "lineage"}
         self.overrides: dict[int, object] = {}  # npc id -> controller (see controllers.py)
         self.tick = 0
         self.next_id = 0
@@ -360,10 +365,14 @@ class Simulation:
         npc.body -= half
         mate.body -= half
         brain = Brain.crossover(npc.brain, mate.brain, self.rng)
-        brain = brain.mutate(brain.mutation_rate(cfg.mutation_rate, cfg.mutations_per_birth),
-                             cfg.mutation_scale, self.rng)
+        parent_rate = (npc.collapse_rate() + mate.collapse_rate()) / 2
+        known = [p.lineage for p in (npc, mate) if p.lineage >= 0]
+        brain, mutations, lineage = self.mutate_child(
+            brain, parent_rate, sum(known) / len(known) if known else -1.0)
         child = self._make_npc(brain, npc.pos, cfg.child_mass,
                                max(npc.generation, mate.generation) + 1)
+        child.origin, child.mutations, child.parent_rate = "birth", mutations, parent_rate
+        child.lineage = lineage
         births.append(child)
         for parent in (npc, mate):
             parent.offspring += 1
@@ -489,9 +498,46 @@ class Simulation:
         self.npcs.append(npc)
         return npc
 
+    def population_collapse_rate(self) -> float:
+        """Collapses per 1,000 ticks lived, over everyone alive (weighted by
+        time lived, so newborns' noisy rates barely count)."""
+        lived = sum(n.lifetime for n in self.npcs)
+        return 1000.0 * sum(n.collapses for n in self.npcs) / lived if lived else -1.0
+
+    def mutation_rate(self, brain: Brain, lineage: float) -> float:
+        """Chance per weight for a child whose ancestors collapsed at this rate
+        (per 1,000 ticks; -1 = unknown). Measurement scripts override it."""
+        cfg = self.cfg
+        rate = brain.mutation_rate(cfg.mutation_rate, cfg.mutations_per_birth)
+        if not cfg.mutation_lineage or lineage < 0:
+            return rate
+        # 5zorro's rule: ancestors collapsing more than the population today -> more
+        # mutations; less -> fewer. Relative, so the rate doesn't just follow how
+        # harsh the world is.
+        top = cfg.mutation_lineage_max
+        average = self.population_collapse_rate()
+        if average > 0:
+            factor = min(max(lineage / average, 1.0 / top), top)
+        else:
+            factor = top if lineage > 0 else 1.0
+        return min(1.0, rate * factor)
+
+    def mutate_child(self, brain: Brain, parent_rate: float,
+                     parent_lineage: float = -1.0) -> tuple[Brain, float, float]:
+        """A mutated copy, its expected number of mutated weights, and its
+        lineage (ancestors' collapse rate: parents 1/2, then their lineage 1/2).
+        Every child, top-up and seeded copy goes through here."""
+        if parent_rate < 0:
+            lineage = -1.0
+        else:
+            lineage = 0.5 * parent_rate + 0.5 * (parent_lineage if parent_lineage >= 0 else parent_rate)
+        rate = self.mutation_rate(brain, lineage)
+        return brain.mutate(rate, self.cfg.mutation_scale, self.rng), rate * brain.n_params, lineage
+
     def _record_hall_of_fame(self, npc: NPC) -> None:
         self.hall_of_fame.append({"fitness": npc.fitness(), "generation": npc.generation,
-                                  "brain": npc.brain})
+                                  "brain": npc.brain, "rate": npc.collapse_rate(),
+                                  "lineage": npc.lineage})
         self.hall_of_fame.sort(key=lambda e: e["fitness"], reverse=True)
         del self.hall_of_fame[self.cfg.hall_of_fame_size:]
 
@@ -502,17 +548,21 @@ class Simulation:
         while len(self.npcs) < cfg.min_population:
             if not self.world.take_from_soil(cfg.npc_start_mass):
                 break
-            candidates = [(e["fitness"], e["generation"], e["brain"]) for e in self.hall_of_fame]
-            candidates += [(n.fitness(), n.generation, n.brain) for n in self.npcs]
+            candidates = [(e["fitness"], e["generation"], e["brain"], e.get("rate", -1.0),
+                           e.get("lineage", -1.0)) for e in self.hall_of_fame]
+            candidates += [(n.fitness(), n.generation, n.brain, n.collapse_rate(), n.lineage)
+                           for n in self.npcs]
+            origin, mutations, parent_rate, lineage = "", -1.0, -1.0, -1.0
             if candidates:
                 picks = [candidates[int(self.rng.integers(len(candidates)))] for _ in range(3)]
-                _, gen, brain = max(picks, key=lambda c: c[0])
-                brain = brain.mutate(brain.mutation_rate(cfg.mutation_rate, cfg.mutations_per_birth),
-                                     cfg.mutation_scale, self.rng)
-                gen += 1
+                _, gen, brain, parent_rate, parent_lineage = max(picks, key=lambda c: c[0])
+                brain, mutations, lineage = self.mutate_child(brain, parent_rate, parent_lineage)
+                origin, gen = "copy", gen + 1
             else:
                 brain, gen = self._random_brain(), 0
-            self._spawn(brain, self.world.random_cell(self.rng), cfg.npc_start_mass, gen)
+            npc = self._spawn(brain, self.world.random_cell(self.rng), cfg.npc_start_mass, gen)
+            npc.origin, npc.mutations, npc.parent_rate = origin, mutations, parent_rate
+            npc.lineage = lineage
             self.stats.count("spawns")
 
     # ============================================================== helpers

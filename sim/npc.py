@@ -65,6 +65,16 @@ class NPC:
     approach_sum: float = 0.0
     approach_null: float = 0.0
     approach_moves: int = 0
+    # Mutation bookkeeping (research slice R3): how this NPC's brain was made
+    # ("birth", "copy" = a hall-of-fame top-up or seeded copy, "" = not recorded),
+    # how many weights were mutated (expected count; -1 = none), and its parents'
+    # collapse rate per 1,000 ticks when it was made (-1 = unknown).
+    origin: str = ""
+    mutations: float = -1.0
+    parent_rate: float = -1.0
+    # Ancestors' collapse rate when it was made: parents 1/2, grandparents 1/4...
+    # (-1 = unknown). Drives lineage-adaptive mutation (Config.mutation_lineage).
+    lineage: float = -1.0
 
     def __post_init__(self):
         if self.eaten is None:
@@ -84,6 +94,11 @@ class NPC:
         directly; the point is to see whether those emerge on their own.
         """
         return self.offspring * 500.0 + self.lifetime - self.collapses * 100.0
+
+    def collapse_rate(self) -> float:
+        """Collapses per 1,000 ticks lived. Comparable between finished and
+        ongoing lives, unlike lifetime or fitness."""
+        return 1000.0 * self.collapses / max(self.lifetime, 1)
 
     def record_zone(self, zone: tuple, still_in_last: bool) -> bool:
         """A bite eaten inside `zone` (food type, patch index). True if it's a

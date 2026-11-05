@@ -107,6 +107,13 @@ class Config:
     # number of mutated weights per child (the "1/L rule" uses 1). 0 = use
     # mutation_rate per weight (~100 per child in 2D at 16 hidden units).
     mutations_per_birth: float = 0.0
+    # Lineage-adaptive mutation (5zorro, research slice R4): scale mutations_per_birth
+    # by the ancestors' collapse rate relative to the population's, so struggling
+    # lineages explore more and thriving ones less. The ancestors' rate weighs
+    # parents 1/2, grandparents 1/4, and so on. The factor stays within
+    # 1/mutation_lineage_max .. mutation_lineage_max. Needs mutations_per_birth > 0.
+    mutation_lineage: bool = False
+    mutation_lineage_max: float = 4.0
     mutation_scale: float = 0.3
     action_temperature: float = 0.5
     hall_of_fame_size: int = 20

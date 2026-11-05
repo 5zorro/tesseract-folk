@@ -46,6 +46,7 @@ def save_snapshot(sim: Simulation, path: str | Path) -> Path:
         "deity": sim.deity.to_dict(),
         "npcs": [n.to_dict() for n in sim.npcs],
         "hall_of_fame": [{"fitness": e["fitness"], "generation": e["generation"],
+                          "rate": e.get("rate", -1.0), "lineage": e.get("lineage", -1.0),
                           "brain": e["brain"].to_dict()} for e in sim.hall_of_fame],
         "rng_state": sim.rng.bit_generator.state,
     }
@@ -85,6 +86,8 @@ def load_snapshot(path: str | Path, log_every: int = 100) -> Simulation:
     sim.deity.load_dict(state["deity"])
     sim.npcs = [NPC.from_dict(n) for n in state["npcs"]]
     sim.hall_of_fame = [{"fitness": e["fitness"], "generation": e["generation"],
+                         "rate": float(e.get("rate", -1.0)),
+                         "lineage": float(e.get("lineage", -1.0)),
                          "brain": Brain.from_dict(e["brain"])} for e in state["hall_of_fame"]]
     sim.rng.bit_generator.state = state["rng_state"]
     for brain in [n.brain for n in sim.npcs] + [e["brain"] for e in sim.hall_of_fame]:

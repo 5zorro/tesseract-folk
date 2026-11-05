@@ -5,7 +5,7 @@ So brains evolve offline under harsh rules (e.g. a big collapse_age_penalty),
 get saved as a snapshot, and new worlds start from that snapshot's best
 brains under the gentle play rules. See docs/plan-m1-survival.md, slice 4b.
 
-A brain pool is a list of {"fitness", "generation", "brain"}, best first,
+A brain pool is a list of {"fitness", "generation", "rate", "lineage", "brain"}, best first,
 the same shape as Simulation.hall_of_fame.
 """
 from __future__ import annotations
@@ -22,10 +22,12 @@ def load_brain_pool(path: str | Path) -> list[dict]:
     of fame plus the NPCs alive when it was saved."""
     state = json.loads((Path(path) / "state.json").read_text())
     pool = [{"fitness": e["fitness"], "generation": e["generation"],
+             "rate": float(e.get("rate", -1.0)), "lineage": float(e.get("lineage", -1.0)),
              "brain": Brain.from_dict(e["brain"])} for e in state["hall_of_fame"]]
     for data in state["npcs"]:
         npc = NPC.from_dict(data)
-        pool.append({"fitness": npc.fitness(), "generation": npc.generation, "brain": npc.brain})
+        pool.append({"fitness": npc.fitness(), "generation": npc.generation,
+                     "rate": npc.collapse_rate(), "lineage": npc.lineage, "brain": npc.brain})
     pool.sort(key=lambda e: e["fitness"], reverse=True)   # stable, so ties keep file order
     return pool
 
@@ -52,8 +54,10 @@ def seed_brains(sim, pool: list[dict]) -> None:
         entry = pool[i % len(pool)]
         brain = entry["brain"]
         if i >= len(pool):
-            brain = brain.mutate(brain.mutation_rate(cfg.mutation_rate, cfg.mutations_per_birth),
-                                 cfg.mutation_scale, sim.rng)
+            parent_rate = entry.get("rate", -1.0)
+            brain, mutations, npc.lineage = sim.mutate_child(brain, parent_rate,
+                                                             entry.get("lineage", -1.0))
+            npc.origin, npc.mutations, npc.parent_rate = "copy", mutations, parent_rate
         npc.brain = brain
         npc.generation = entry["generation"]
     sim.hall_of_fame = [dict(e) for e in pool[:cfg.hall_of_fame_size]]

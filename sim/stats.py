@@ -40,6 +40,8 @@ class Stats:
             "directed_hits": npc.directed_hits, "directed_chance": npc.directed_chance,
             "approach_sum": npc.approach_sum, "approach_null": npc.approach_null,
             "approach_moves": npc.approach_moves,
+            "origin": npc.origin, "mutations": npc.mutations, "parent_rate": npc.parent_rate,
+            "rate": npc.collapse_rate(), "lineage": npc.lineage,
         })
 
     def travel_summary(self, since_tick: int = 0, min_lifetime: int = 500) -> dict:
