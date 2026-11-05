@@ -53,6 +53,10 @@ an economy emerging from a thermodynamic resource loop.
   recurrent memory units fed back as inputs. ~900 weights in 2D, ~1,100 in 4D.
 - **[built]** Plain arrays, JSON-serializable, no ML framework, so a C++ port is trivial.
 - **[built]** Neuroevolution: children get crossed-over, mutated parent weights.
+- **[built] Mutation size** (2026-11-04): 30 mutated weights per child at any
+  brain size, scaled 1/4x-4x by the lineage's collapse rate relative to the
+  population's (5zorro's lineage-adaptive rule): struggling lineages explore more,
+  thriving ones less. Measured in `docs/plan-m2-diet-travel.md`, slices R1-R4.
 - **[built]** Hall of fame: if population falls below a minimum, spawn mutated
   copies of the best brains seen. Fitness = offspring and lifetime, minus collapses.
   Deliberately does *not* reward trading directly; trade should emerge.

@@ -16,6 +16,17 @@ def test_a_nursery_is_reused_only_when_trained_the_same_way(tmp_path):
         reusable(path, SHAPE[:3] + (8, ()), 100, 30)   # same folder, other brain size
 
 
+def test_a_changed_default_blocks_reuse(tmp_path):
+    import json
+    train((SHAPE, 100, 30, tmp_path))
+    path = nursery_path(tmp_path, SHAPE, 100)
+    state = json.loads((path / "state.json").read_text())
+    state["config"]["mutation_lineage"] = False        # trained before a default changed
+    (path / "state.json").write_text(json.dumps(state))
+    with pytest.raises(ValueError, match="mutation_lineage"):
+        reusable(path, SHAPE, 100, 30)
+
+
 def row(brains, seed, collapse, excess, **kw):
     return {"dims": 2, "hidden": 4, "brains": brains, "seed": seed, "collapse_rate": collapse,
             "min_nutrient": 0.5, "diet_diversity": 0.95, "zone_types_per_life": 2.8,

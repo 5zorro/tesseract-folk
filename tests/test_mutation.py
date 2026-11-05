@@ -37,9 +37,27 @@ def test_children_get_about_that_many_mutations():
     assert np.mean(changed) == pytest.approx(5, abs=0.5)
 
 
+def test_defaults_are_lineage_adaptive_at_30_per_child():
+    cfg = Config()
+    assert cfg.mutations_per_birth == 30 and cfg.mutation_lineage
+
+
+def test_old_snapshots_keep_per_weight_mutation(tmp_path):
+    import json
+    from sim.snapshot import load_snapshot, save_snapshot
+    sim = Simulation(Config(size=8, initial_npcs=5, min_population=2, seed=1), log_every=10**9)
+    save_snapshot(sim, tmp_path / "s")
+    state = json.loads((tmp_path / "s" / "state.json").read_text())
+    for key in ("mutations_per_birth", "mutation_lineage"):    # as saved before 2026-11-04
+        del state["config"][key]
+    (tmp_path / "s" / "state.json").write_text(json.dumps(state))
+    cfg = load_snapshot(tmp_path / "s").cfg
+    assert cfg.mutations_per_birth == 0 and not cfg.mutation_lineage
+
+
 def test_simulation_runs_with_mutations_per_birth():
-    sim = Simulation(Config(size=16, initial_npcs=20, min_population=15, mutations_per_birth=2, seed=3),
-                     log_every=10**9)
+    sim = Simulation(Config(size=16, initial_npcs=20, min_population=15, mutations_per_birth=2,
+                            mutation_lineage=False, seed=3), log_every=10**9)
     sim.run(300)
     assert sim.npcs
 
@@ -86,7 +104,7 @@ def test_lineage_rule_off_ignores_lineage():
 
 def test_lineage_rule_needs_a_base_count():
     with pytest.raises(ValueError, match="mutations_per_birth"):
-        Simulation(Config(size=8, mutation_lineage=True), log_every=10**9)
+        Simulation(Config(size=8, mutations_per_birth=0, mutation_lineage=True), log_every=10**9)
     with pytest.raises(ValueError, match="mutation_lineage_max"):
         Simulation(Config(size=8, mutations_per_birth=30, mutation_lineage_max=0.5), log_every=10**9)
 

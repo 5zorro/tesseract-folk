@@ -34,7 +34,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from sim import Config, Simulation  # noqa: E402
 from sim.config import parse_overrides  # noqa: E402
-from sim.snapshot import save_snapshot  # noqa: E402
+from sim.snapshot import LEGACY, save_snapshot  # noqa: E402
 from sweep import run_one  # noqa: E402
 
 # dims -> (size, food_patch_radius), per way of matching worlds across dimensions:
@@ -83,8 +83,11 @@ def reusable(path: Path, shape: tuple, nseed: int, ticks: int) -> bool:
     if not (path / "state.json").exists():
         return False
     state = json.loads((path / "state.json").read_text())
-    saved = state.get("config", {})
-    wanted = nursery_config(shape, nseed)
+    # Every setting, not just the ones passed: a default that changed since the
+    # nursery was trained (e.g. the mutation rule) counts. Missing fields are read
+    # the way load_snapshot reads them.
+    saved = Config.from_dict({**LEGACY, **state.get("config", {})}).to_dict()
+    wanted = Config(**nursery_config(shape, nseed)).to_dict()
     differ = sorted(k for k, v in wanted.items() if saved.get(k) != v)
     if differ or state.get("tick") != ticks:
         raise ValueError(f"{path} was trained with other settings ({', '.join(differ) or 'ticks'}"

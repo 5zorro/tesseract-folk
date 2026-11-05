@@ -29,6 +29,8 @@ FORMAT = 3   # 2 added food scent (M1 slice 6); 3 added the zone map (M2)
 LEGACY = {
     "food_scent": False,           # M1 slice 6; without it, old brains wouldn't fit
     "busy_resets_idle": False,     # 2026-11-02
+    "mutations_per_birth": 0.0,    # 2026-11-04: older worlds mutate per weight
+    "mutation_lineage": False,     # 2026-11-04
 }
 
 

@@ -709,9 +709,9 @@ mutations_per_birth=30[,mutation_lineage=true]`
   collapses 1.30 ± 0.11, food types 2.00 ± 0.06, worse than base 30 in 6 of 6
   pairs and worse than fixed 30. Per-child cost above ~20 weights (R3) is real,
   but the nursery's search needs the bigger jumps.
-- **Proposed (for 5zorro):** new defaults `mutations_per_birth = 30` and
-  `mutation_lineage = true` (old snapshots keep per-weight rates via `LEGACY`),
-  then retrain nurseries. Next levers from R3: re-test the hall of fame (track
+- **Adopted 2026-11-04 (5zorro):** `mutations_per_birth = 30` and
+  `mutation_lineage = true` are the defaults (old snapshots keep per-weight
+  rates via `LEGACY`). Nurseries need retraining. Next levers from R3: re-test the hall of fame (track
   record) and a gentle-to-harsh nursery ramp (5zorro, `openitems.md`).
 
 ### Slice 4: Levers, only if criterion 3 fails
@@ -774,8 +774,11 @@ nursery after a rule change:
   Land walkers ("flightless") live on 3D surfaces; 4D fish and birds move
   freely in 4D. So both 3D and 4D have to pass.
 - **Two eat actions** (slice 3f, 5zorro's design): build and test next?
-- **Mutation defaults** (slices R1-R4): make `mutations_per_birth = 30` with
-  `mutation_lineage = true` the default for new worlds? Best 3D result so far.
+- ~~Mutation defaults~~: settled 2026-11-04 (5zorro): `mutations_per_birth = 30`
+  with `mutation_lineage = true` are the defaults. Old snapshots keep
+  per-weight mutation (`LEGACY`); `ladder.py` now refuses to reuse a nursery
+  trained under other defaults. Every earlier run used the old rule, so rerun
+  baselines before comparing with them.
 - **Keyed randomness** (5zorro's "seed x tick" idea, `openitems.md` Speed): every
   random number from (seed, tick, entity, purpose). Its own slice, before or
   with batching? Changes every result once.
