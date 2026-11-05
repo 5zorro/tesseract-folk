@@ -9,8 +9,9 @@ Mass is conserved, so the economy comes from a real resource loop:
 soil -> food -> NPC body -> bowel -> poop (stinks) -> soil
 ```
 
-The world is N-dimensional. It runs in 2D for prototyping and 4D for the
-eventual 4D Miner mod.
+The world is N-dimensional (1D to 4D). 2D is for prototyping; the eventual
+4D Miner mod needs two kinds of movers: land walkers on the 3D surface of the
+4D world, and fish and birds that move freely in all four dimensions.
 
 ## Quickstart
 
@@ -31,6 +32,7 @@ python scripts/run_headless.py --load snapshots/baseline --ticks 2000
 python scripts/sweep.py --seeds 5 --variant metabolism_rate=0.008   # compare configs over seeds
 python scripts/run_headless.py --set collapse_age_penalty=600 --ticks 20000 --save snapshots/nursery-1  # evolve offline
 python scripts/run_headless.py --brains-from snapshots/nursery-1 --ticks 5000   # fresh world, trained brains
+python scripts/ladder.py --help                     # train nurseries and score them in 1D-4D worlds
 ```
 
 Viewer keys: SPACE pause, A toggle AFK (aging pauses), F turn the clock
@@ -51,16 +53,21 @@ sim/            engine-agnostic simulation core (no rendering)
   nursery.py    start fresh worlds from a snapshot's best brains
   controllers.py scripted / Claude-controlled NPC hooks
   stats.py      metrics for the roadmap pass criteria (incl. collapse causes)
-scripts/        headless runner, multi-seed sweep, pygame viewer
+scripts/        headless runner, multi-seed sweep, dimensions ladder, probes, pygame viewer
 tests/          pytest suite (includes the mass-conservation invariant)
-docs/           DESIGN.md (all ideas), ROADMAP.md (milestones), SAFETY.md (threat model)
+docs/           DESIGN.md (all ideas), ROADMAP.md (milestones), SAFETY.md (threat model),
+                plan-*.md (feature plans and results), research-tuning.md (what the
+                literature says vs. what we measured)
+handoff.md      current status; gotchas.md: traps to know before measuring
 ```
 
 ## Status
 
-Milestones 0 (plumbing) and 1 (survival) are done; M2 (diet drives travel) is
-next. See
-`docs/ROADMAP.md` for what "proof of concept passes" means.
+Milestones 0 (plumbing) and 1 (survival) are done. M2 (diet drives travel) is
+in progress: it passes in 2D; 3D passes with an optional second eat action
+(`two_eat_actions`, off by default); 4D does not pass yet. Details in
+`docs/plan-m2-diet-travel.md`; `docs/ROADMAP.md` says what "proof of concept
+passes" means.
 
 `--until-stable` does not succeed yet: the population is still propped up
 by hall-of-fame top-ups rather than births, and the stability check now says
