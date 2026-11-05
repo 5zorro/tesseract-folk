@@ -211,6 +211,8 @@ def main() -> None:
     ap.add_argument("--nursery-ticks", type=int, default=20_000)
     ap.add_argument("--ticks", type=int, default=10_000)
     ap.add_argument("--seeds", type=int, default=5)
+    ap.add_argument("--nursery-seeds", type=int, nargs="+", default=list(NURSERY_SEEDS),
+                    help="nursery seeds (more nurseries = less nursery-to-nursery noise)")
     ap.add_argument("--out", type=str, default="snapshots/ladder")
     ap.add_argument("--csv", type=str, default="runs/ladder.csv")
     ap.add_argument("--jobs", type=int, default=None)
@@ -238,13 +240,13 @@ def main() -> None:
     shapes = [(d, *worlds[d], h, rules) for d in args.dims for h in args.hidden]
     # Biggest jobs first, so the pool doesn't finish on one long straggler.
     shapes.sort(key=lambda s: -(s[1] ** s[0]) * s[3])
-    nursery_jobs = [(s, n, args.nursery_ticks, out) for s in shapes for n in NURSERY_SEEDS]
+    nursery_jobs = [(s, n, args.nursery_ticks, out) for s in shapes for n in args.nursery_seeds]
     print(f"Training {len(nursery_jobs)} nurseries ({args.nursery_ticks} ticks) on {workers} processes.",
           flush=True)
     for msg in run_pool(train, nursery_jobs, workers, "nursery"):
         print(f"    {msg}")
 
-    brains = ["scratch"] + [f"n{n}" for n in NURSERY_SEEDS]
+    brains = ["scratch"] + [f"n{n}" for n in args.nursery_seeds]
     play_jobs = [(s, b, seed, args.ticks, out) for s in shapes for b in brains for seed in range(args.seeds)]
     print(f"Running {len(play_jobs)} play worlds ({args.ticks} ticks).", flush=True)
     rows = run_pool(play, play_jobs, workers, "play")

@@ -681,6 +681,31 @@ copied. Copies (top-ups) only; births were too few in 3D.
   lineage-proven ranking should make selection far more accurate. Proposed as
   the next slice.
 
+**R4. 5zorro's lineage-adaptive mutation: a real 3D gain (2026-11-04).**
+`Config.mutation_lineage` (off by default): each child's mutated weights are
+`mutations_per_birth` x (its ancestors' collapse rate / the population's now),
+within 1/4x-4x. Ancestors: parents 1/2, grandparents 1/4, and so on. Relative
+to the population, so a thriving lineage mutates less and the rate doesn't just
+follow how harsh the world is. `python scripts/ladder.py --worlds time --dims 3
+--hidden 8 --nursery-seeds 100 101 102 103 104 105 --set
+mutations_per_birth=30[,mutation_lineage=true]`
+(`runs/2026-11-04-mut30*.csv`). 3D, 8 hidden units, 6 nurseries x 5 seeds each:
+| | Collapses | Food types / life | Approach excess | Lowest nutrient | Births |
+|---|---|---|---|---|---|
+| Fixed 30 per child | 1.03 ± 0.09 | 2.12 ± 0.06 | 0.057 | 0.42 | 8 |
+| 30, lineage-adaptive | **0.75 ± 0.10** | **2.36 ± 0.07** | 0.056 | 0.47 | 32 |
+- Paired by nursery seed: collapses lower or equal in 6 of 6, food types higher
+  in 6 of 6 (chance of that by luck ~3%). 2 of the 6 nurseries reach 2.5 food
+  types; the mean doesn't yet.
+- 2D and 3D at 16 hidden units (2 nurseries each): within noise of fixed 30.
+- Approach excess is unchanged, so the gain is in survival and diet, not in
+  steering.
+- Why it may work: struggling lineages get big jumps (up to 120 weights),
+  thriving ones are left nearly alone (down to 7.5), so selection's few good
+  finds aren't scrambled. It also partly offsets the luck in a single life
+  (R3), since the score averages over ancestors.
+- Next test (5zorro's idea): base 10 (2.5-40 per child) instead of 30.
+
 ### Slice 4: Levers, only if criterion 3 fails
 Criterion 3 isn't demonstrated (slice 3b). 5zorro picked the memory stack as the
 first lever (2026-11-03).
