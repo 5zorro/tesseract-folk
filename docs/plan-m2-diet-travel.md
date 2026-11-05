@@ -675,6 +675,9 @@ nursery after a rule change:
 - **Two eat actions** (slice 3f, 5zorro's design): build and test next?
 - **Mutation per genome** (`docs/research-tuning.md`): set the rate from brain
   size before more brain-size comparisons?
+- **Keyed randomness** (5zorro's "seed x tick" idea, `openitems.md` Speed): every
+  random number from (seed, tick, entity, purpose). Its own slice, before or
+  with batching? Changes every result once.
 
 ## Tuning log
 | Date | Change | Why | Effect (seeds × ticks) |
