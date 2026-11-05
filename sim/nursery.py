@@ -70,8 +70,9 @@ def seed_brains(sim, pool: list[dict]) -> None:
         except ValueError as e:
             raise ValueError(
                 f"a pool brain doesn't fit this world: {e}. dims, n_food_types, "
-                f"n_nutrients, hidden_units, memory_units and food_scent must match the "
-                f"snapshot's (pools saved before food scent need food_scent=false).") from e
+                f"n_nutrients, hidden_units, memory_units, food_scent and two_eat_actions "
+                f"must match the snapshot's (pools saved before food scent need "
+                f"food_scent=false).") from e
     cfg = sim.cfg
     pool = [dict(e) for e in pool]
     if cfg.hall_of_fame_track_record:

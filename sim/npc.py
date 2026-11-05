@@ -14,10 +14,15 @@ BASE_ACTIONS = ["stay", "eat", "pick_up", "give", "poop", "mate", "pray", "worsh
 DAMAGE_CAUSES = ["nutrient_starve", "body_starve", "stink", "smite", "elder"]
 
 
-def build_actions(dims: int) -> list[str]:
-    """Two moves per axis (so 4 in 2D, 8 in 4D), then everything else."""
+def build_actions(dims: int, two_eat_actions: bool = False) -> list[str]:
+    """Two moves per axis (so 4 in 2D, 8 in 4D), then everything else. With
+    two_eat_actions, `eat` becomes `eat_most` and `eat_need` (Config)."""
     moves = [f"move{sign}{axis}" for axis in range(dims) for sign in ("+", "-")]
-    return moves + BASE_ACTIONS
+    base = list(BASE_ACTIONS)
+    if two_eat_actions:
+        i = base.index("eat")
+        base[i:i + 1] = ["eat_most", "eat_need"]
+    return moves + base
 
 
 @dataclass

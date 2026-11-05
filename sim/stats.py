@@ -14,7 +14,7 @@ COUNTERS = [
     "births", "deaths", "collapses", "spawns", "eats", "gives", "poops", "accidents",
     "prayers_answered", "prayers_silent", "prayers_ignored", "smitings", "worships",
     "secrets_claimed", "secrets_shared", "secrets_stale", "zone_switches", "hall_of_fame_dropped",
-    "hall_of_fame_credit_lost",
+    "hall_of_fame_credit_lost", "eats_most", "eats_need",
 ] + [f"collapse_{c}" for c in CAUSES] + [f"death_{c}" for c in CAUSES]
 
 

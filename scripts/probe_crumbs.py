@@ -49,7 +49,7 @@ def probe(job):
     sim = Simulation(Config(**kw, seed=seed), log_every=1000)
     if nursery:
         seed_brains(sim, load_brain_pool(nursery))
-    eat = sim.actions.index("eat")
+    eat = {i for i, a in enumerate(sim.actions) if a.startswith("eat")}   # one or two eat actions
     bite = sim.cfg.bite_size
     seen = {b: 0 for b in BUCKETS}
     ate = {b: 0 for b in BUCKETS}
@@ -60,7 +60,7 @@ def probe(job):
         most = float(sim.world.food_at(npc.pos).max())
         b = "crumb" if most < 0.25 * bite else "partial" if most < bite else "full"
         seen[b] += 1
-        ate[b] += action == eat
+        ate[b] += action in eat
         return action
 
     sim._decide = logged

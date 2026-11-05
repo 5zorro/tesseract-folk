@@ -61,6 +61,13 @@ class Config:
     # food smells (before 2026-11-04); bite_size (0.2) = only more than a bite.
     scent_min_food: float = 0.0
 
+    # Two eat actions (5zorro, M2 slice 3f; built 2026-11-05): `eat_most` takes the
+    # biggest pile here (most mass), `eat_need` the food that best fixes deficits
+    # (the old `eat` rule, crumbs included). The brain chooses, instead of an
+    # instinct that takes a crumb of the needed food beside a full meal. Adds one
+    # brain output, so it's fixed for a world's life and pools must match.
+    two_eat_actions: bool = False
+
     # --- npc body ----------------------------------------------------------
     initial_npcs: int = 60
     min_population: int = 30              # below this, top up from hall of fame

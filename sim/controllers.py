@@ -40,7 +40,7 @@ class ScriptedController:
         if npc.bowel > 0.8 * cfg.bowel_capacity:
             return A["poop"]
         if npc.nutrients.min() < 0.6 and sim.world.food_at(npc.pos).sum() > 0.05:
-            return A["eat"]
+            return A["eat"] if "eat" in A else A["eat_need"]
         # Walk toward more food, away from stink.
         best, best_score = None, -np.inf
         for axis in range(cfg.dims):

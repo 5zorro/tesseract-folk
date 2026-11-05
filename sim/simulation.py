@@ -25,7 +25,7 @@ class Simulation:
         self.deity = Deity(self.cfg)
         self.clock = SimClock()
         self.stats = Stats(log_every)
-        self.actions = build_actions(self.cfg.dims)
+        self.actions = build_actions(self.cfg.dims, self.cfg.two_eat_actions)
         self.n_actions = len(self.actions)
         self.n_inputs = self.sensor_size()
         self.n_outputs = self.n_actions + self.cfg.memory_units
@@ -225,8 +225,10 @@ class Simulation:
             claimed = self.deity.claim_at(npc.pos, self.world)
             if claimed:
                 self.stats.count("secrets_claimed", claimed)
-        elif name == "eat":
-            did = self._eat(npc)
+        elif name in ("eat", "eat_need"):
+            did = self._eat(npc, "need")
+        elif name == "eat_most":
+            did = self._eat(npc, "most")
         elif name == "pick_up":
             did = self._pick_up(npc)
         elif name == "give":
@@ -280,13 +282,17 @@ class Simulation:
         npc.approach_null += float(score[1:].sum() / (score.size - 1))
         npc.approach_moves += 1
 
-    def _eat(self, npc: NPC) -> bool:
+    def _eat(self, npc: NPC, rule: str = "need") -> bool:
+        """Eat a bite from the ground, else from the inventory. `rule` picks the
+        food: "need" = the one that best fixes deficits per unit (crumbs count),
+        "most" = the biggest pile (eat_most)."""
         cfg, w = self.cfg, self.world
         deficit = 1.0 - npc.nutrients
         value = (w.profiles @ deficit) * (1.0 - npc.satiation)
         here = w.food_at(npc.pos)
         if (here > 1e-9).any():
-            t = int(np.argmax(np.where(here > 1e-9, value, -np.inf)))
+            score = here if rule == "most" else value
+            t = int(np.argmax(np.where(here > 1e-9, score, -np.inf)))
             amount = min(cfg.bite_size, float(here[t]))
             here[t] -= amount
             zone = w.zone_at(t, npc.pos)
@@ -302,7 +308,8 @@ class Simulation:
                     npc.directed_hits += float(serves[int(np.argmin(npc.nutrients))])
                     npc.directed_chance += float(serves.mean())
         elif (npc.inventory > 1e-9).any():
-            t = int(np.argmax(np.where(npc.inventory > 1e-9, value, -np.inf)))
+            score = npc.inventory if rule == "most" else value
+            t = int(np.argmax(np.where(npc.inventory > 1e-9, score, -np.inf)))
             amount = min(cfg.bite_size, float(npc.inventory[t]))
             npc.inventory[t] -= amount
         else:
@@ -315,6 +322,8 @@ class Simulation:
         npc.satiation[t] = min(1.0, npc.satiation[t] + cfg.satiation_gain * frac)
         npc.eaten[t] += amount
         self.stats.count("eats")
+        if cfg.two_eat_actions:
+            self.stats.count(f"eats_{rule}")
         return True
 
     def _pick_up(self, npc: NPC) -> bool:
