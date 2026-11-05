@@ -650,6 +650,37 @@ food types, so only big gaps count.
   compare fairly from now on. Retrains nurseries; results otherwise unchanged
   within noise.
 
+**R3. Do copies beat their parents? Mostly luck (2026-11-04).**
+`python scripts/mutation_success.py` (`runs/2026-11-04-mutation-success.csv`):
+harsh nurseries (2D/3D x 8/16 hidden units x 8 seeds, 20,000 ticks) where every
+copy gets a random 1-150 mutated weights; 17,544 finished lives. Each life is
+scored by collapses per 1,000 ticks lived, against its parent's when it was
+copied. Copies (top-ups) only; births were too few in 3D.
+- **Copies beat their parent only 8-12% of the time, at every count.** Even
+  near-clones (1-5 mutations) did worse 76-83% of the time.
+- **Why: the parents' scores are mostly luck.** 70-85% of chosen parents had
+  never collapsed (rate 0), yet their near-clones collapse 1.2-1.6 per 1,000
+  ticks, close to the population's 1.5-1.8. So ~85-90% of a chosen parent's
+  apparent edge doesn't carry over. Parent-child correlation is 0.06-0.26.
+  This is 5zorro's "lucky ones" (openitems: lucky brains in the hall of fame).
+- **So the 1/5 success rule can't be used as-is:** most parents score 0, which
+  a child can only tie, and luck swamps the rest.
+- **What it does show: the cost of mutating.** Late lives (after tick 10,000),
+  child collapse rate by mutated weights:
+| | 1-5 | 5-20 | 20-60 | 60-150 |
+|---|---|---|---|---|
+| 2D h8 | 1.22 | 1.26 | 1.53 | 1.97 |
+| 2D h16 | 1.43 | 1.51 | 1.69 | 2.03 |
+| 3D h8 | 1.64 | 1.61 | 1.72 | 2.44 |
+| 3D h16 | 1.64 | 1.65 | 1.85 | 2.11 |
+  Flat up to ~20, then worse. With R1 (1-3 per child gave worse *nurseries*):
+  a few mutations cost a child almost nothing, but too few starve the search
+  over generations. Sweet spot ~10-30 per child.
+- **Biggest lever this points at:** selection is judging brains on one noisy
+  life. Re-testing the hall of fame (a track record per entry) or 5zorro's
+  lineage-proven ranking should make selection far more accurate. Proposed as
+  the next slice.
+
 ### Slice 4: Levers, only if criterion 3 fails
 Criterion 3 isn't demonstrated (slice 3b). 5zorro picked the memory stack as the
 first lever (2026-11-03).

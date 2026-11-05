@@ -8,11 +8,15 @@ counts can be compared fairly. Each finished life is scored by collapses per
 1,000 ticks lived, against its parents' rate when it was made.
 
 Reported per mutation-count bin: lives, the share that beat the parent (fewer
-collapses per tick), tied, and did worse, plus the mean gain (parent rate -
-own rate; regression to the mean makes it negative overall, but the same for
-every bin) and the mean gain among winners. Rechenberg's 1/5 rule says
-progress is fastest where about 1 in 5 copies wins; the count with the most
-wins is not the best, since tiny changes win or tie by doing nothing.
+collapses per tick), tied, and did worse; the mean gain (parent rate - own
+rate); then, for lives ending in the second half, the parents' and children's
+mean rate, the share of parents that never collapsed, and the parent-child
+correlation.
+
+Reading (2026-11-04, plan-m2 slice R3): most chosen parents never collapsed,
+and their near-clones are barely better than average, so a parent's score is
+mostly luck and "beat the parent" can't drive Rechenberg's 1/5 rule. The
+children's own rate by mutation count shows what mutating costs.
 
     python scripts/mutation_success.py                # 2D and 3D, 8 and 16 hidden units
     python scripts/mutation_success.py --dims 3 --hidden 16 --seeds 100 101 102 103
@@ -60,26 +64,33 @@ def run(job: tuple) -> list[dict]:
 
 
 def report(lives: list[dict]) -> None:
+    half = max(r["tick"] for r in lives) / 2
     for dims in sorted({r["dims"] for r in lives}):
         for hidden in sorted({r["hidden"] for r in lives}):
-            for origin in ("copy", "birth"):   # copies: top-ups and seeded copies
+            for origin in ("copy", "birth"):   # copy: a hall-of-fame top-up or seeded copy
                 rows = [r for r in lives if r["dims"] == dims and r["hidden"] == hidden
                         and r["origin"] == origin]
                 if not rows:
                     continue
-                print(f"\n{dims}D, {hidden} hidden units, {origin}s ({len(rows)} finished lives)")
-                print(f"{'mutated':>9} {'lives':>6} {'beat':>5} {'tie':>5} {'worse':>5} "
-                      f"{'gain':>6} {'win gain':>8}")
+                print(f"\n{dims}D, {hidden} hidden units, {origin} ({len(rows)} finished lives)")
+                print(f"{'mutated':>9} {'lives':>6} {'beat':>5} {'tie':>5} {'worse':>5} {'gain':>6}"
+                      f"  late: {'parent':>6} {'child':>6} {'p=0':>5} {'corr':>5}")
                 for lo, hi in zip(BINS, BINS[1:]):
                     cell = [r for r in rows if lo <= r["mutations"] < hi]
                     if not cell:
                         continue
                     gain = np.array([r["parent_rate"] - r["rate"] for r in cell])
                     beat, tie = (gain > 1e-9).mean(), (np.abs(gain) <= 1e-9).mean()
-                    wins = gain[gain > 1e-9]
+                    late = [r for r in cell if r["tick"] > half]
+                    parent = np.array([r["parent_rate"] for r in late])
+                    child = np.array([r["rate"] for r in late])
+                    corr = (np.corrcoef(parent, child)[0, 1]
+                            if len(late) > 2 and parent.std() > 0 and child.std() > 0 else math.nan)
                     label = f"{lo:g}-{hi:g}" if hi < 1e9 else f"{lo:g}+"
+                    late_part = (f"{parent.mean():6.2f} {child.mean():6.2f} {(parent == 0).mean():5.0%} "
+                                 f"{corr:5.2f}" if late else "")
                     print(f"{label:>9} {len(cell):>6} {beat:5.0%} {tie:5.0%} {1 - beat - tie:5.0%} "
-                          f"{gain.mean():+6.2f} {wins.mean() if wins.size else math.nan:8.2f}")
+                          f"{gain.mean():+6.2f}        {late_part}")
 
 
 def main() -> None:
@@ -98,7 +109,8 @@ def main() -> None:
     csv_path = Path(args.csv)
     if args.report_only:
         with csv_path.open() as f:
-            lives = [{k: (v if k == "origin" else float(v)) for k, v in r.items()} for r in csv.DictReader(f)]
+            lives = [{k: (v if k == "origin" else int(float(v)) if k in ("dims", "hidden") else float(v))
+                      for k, v in r.items()} for r in csv.DictReader(f)]
         report(lives)
         return
     rules = {}
