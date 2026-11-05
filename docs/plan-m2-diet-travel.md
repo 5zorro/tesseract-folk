@@ -6,9 +6,9 @@ fails food types per life (2.36-2.41 vs 2.5); 4D fails badly. Cause found in
 3f: crumb grazing. Research (R): smell reach isn't the cause, training length
 isn't, random-walk luck barely is in 3D; mutation is now lineage-adaptive at 30
 per child (the default); a hall-of-fame track record (off) helps 2D a lot.
-In flight: 5zorro's two eat actions (`two_eat_actions`, built, off), 6 nurseries
-in 2D/3D/4D plus a 4D baseline (`runs/2026-11-05-twoeat.csv`,
-`runs/2026-11-05-defaults-4d.csv`). Then meal scent with them, then 4a.** Slices are ordered; each one ends with tests passing and a commit.
+5zorro's two eat actions (slice 3g, built, off) make **3D meet every goal** and
+cut 4D collapses 58%; 4D still fails. Next: decide defaults (two eat, track
+record), then meal scent with two eat, then 4a.** Slices are ordered; each one ends with tests passing and a commit.
 Open decisions (bottom) are 5zorro's.
 
 **For a new session:** read `handoff.md`, `gotchas.md` and this file. M1's plan
@@ -772,6 +772,33 @@ get less reward to learn from; train exponentially longer per dimension (base
   ever needs scaling, scale it by the measured walk time per world (here 3D
   x1.4, 4D x2.9 over 2D), not a fixed base.
 
+### Slice 3g: 5zorro's two eat actions: 3D passes (2026-11-05)
+`Config.two_eat_actions`: `eat` becomes `eat_most` (biggest pile here) and
+`eat_need` (the old rule). New defaults, 6 nurseries x 5 seeds, 8 hidden units
+(`runs/2026-11-05-twoeat.csv` vs `runs/2026-11-04-defaults-{2d,3d}.csv` and
+`runs/2026-11-05-defaults-4d.csv`; `scripts/compare_runs.py`):
+| | Collapses | Scratch | Food types / life | Diet | Lowest nutrient | Body starvation | Births | Goals |
+|---|---|---|---|---|---|---|---|---|
+| 2D base | 0.95 | 1.77 | 2.83 | 0.97 | 0.47 | 27% | 45 | all |
+| 2D two eat | 1.02 | 1.44 | **2.94** | 0.92 | 0.45 | **2%** | **185** | all |
+| 3D base | 0.75 | 2.39 | 2.36 | 0.97 | 0.47 | 22% | 32 | not food types |
+| 3D two eat | 0.82 | 1.43 | **2.69** | 0.92 | 0.41 | **3%** | 76 | **all** |
+| 4D base | 6.32 | 8.98 | 0.69 | 0.88 | 0.34 | 82% | 0 | fails 3 |
+| 4D two eat | **2.63** | 3.99 | 1.72 | 0.82 | 0.31 | **9%** | 2 | fails 3 |
+- **3D meets every goal for the first time;** body starvation nearly vanishes
+  everywhere; 4D collapses fall 58%. Scratch worlds improve too.
+- **Caveats:** 3D's lowest nutrient (0.41) sits on the 0.40 line; diet
+  diversity dips (0.97 -> 0.92); 3D approach excess halves (0.056 -> 0.032),
+  though still above scratch on every run.
+- **Brains don't choose by situation** (probe, 3 nurseries x 2 seeds per
+  dims): the share of eat_most vs eat_need is flat whether the cell holds only
+  crumbs, a full bite of the needed food, or a crumb of it beside a full bite
+  of another. 2D/3D brains lean eat_need (2-4 : 1), 4D brains eat_most (~3 : 1).
+  So the gain is from having a full-bite option, with evolution tuning a
+  fixed habit per dimension, not from context-sensitive choice. Meal scent
+  (slice 3f, B) or a sharper signal may be what makes context matter.
+- **4D still fails** nutrient, diet and food types.
+
 ### Slice 4: Levers, only if criterion 3 fails
 Criterion 3 isn't demonstrated (slice 3b). 5zorro picked the memory stack as the
 first lever (2026-11-03).
@@ -831,8 +858,9 @@ nursery after a rule change:
 - ~~3D as the 4D Miner target~~: settled 2026-11-04 (5zorro): **two targets**.
   Land walkers ("flightless") live on 3D surfaces; 4D fish and birds move
   freely in 4D. So both 3D and 4D have to pass.
-- ~~Two eat actions~~: built 2026-11-05 (`Config.two_eat_actions`, off);
-  results pending. Default on if they help?
+- **Two eat actions on by default?** (slice 3g: 3D passes, body starvation
+  nearly gone; brains use a fixed habit, not situational choice.) Built,
+  off. Pools would need retraining (one more output).
 - **Hall-of-fame track record on by default?** (slice R5: 2D 0.95 -> 0.60
   collapses, 3D steadier.)
 - ~~Mutation defaults~~: settled 2026-11-04 (5zorro): `mutations_per_birth = 30`

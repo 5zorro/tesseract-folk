@@ -96,11 +96,11 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
    - **Random-walk luck (R6, 5zorro):** search time per extra dimension grows by
      ~0.7 x width / target size at fixed width; our travel-time worlds keep 3D
      close to 2D. 40,000-tick 3D nurseries = 20,000-tick ones. Not 3D's limit.
-   - **In flight (2026-11-05): 5zorro's two eat actions** (`two_eat_actions`,
-     built, off). `runs/2026-11-05-twoeat.csv` (2D/3D/4D, 6 nurseries) vs
-     `runs/2026-11-04-defaults-{2d,3d}.csv` and `runs/2026-11-05-defaults-4d.csv`:
-     `python scripts/compare_runs.py 3 8 "base=2026-11-04-defaults-3d.csv"
-     "two=2026-11-05-twoeat.csv"`. Also check `eats_most` vs `eats_need`.
+   - **5zorro's two eat actions (slice 3g, 2026-11-05, built, off): 3D meets every
+     goal** (food types 2.36 -> 2.69; lowest nutrient 0.41, on the line). Body
+     starvation nearly gone everywhere; 4D collapses 6.3 -> 2.6 but 4D still
+     fails. Brains use a fixed eat_most/eat_need habit per dimension, not
+     situational choice. Pending 5zorro: two eat and track record as defaults.
    - **4D Miner targets (5zorro, 2026-11-04):** land walkers on 3D surfaces, 4D fish
      and birds in full 4D. Both 3D and 4D must pass.
    - Speed: ticks 27-39% faster (bit-identical); `scripts/fingerprint.py` checks
