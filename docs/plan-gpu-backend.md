@@ -282,9 +282,26 @@ A batch can't mix them (`STRUCTURAL`). Tests: `tests/test_precision.py`.
   metabolism), which the same rule would fix. In float64 this changes last
   bits, so applying it everywhere is a re-baseline (5zorro's call); it's also
   how the C++ mod should move mass in float32.
-- **M2 verdicts in float32:** running (`runs/2026-11-06-f32{,-twoeat}.csv`,
-  nurseries in `snapshots/ladder-f32{,-twoeat}`), with today's float32 (drift
-  ~3e-5 per 10,000 ticks, far below anything behavior can notice).
+- **M2 verdicts in float32: unchanged in all 6 rows.** Same ladder command as
+  G1's re-check plus `precision=float32` (`runs/2026-11-06-f32{,-twoeat}.csv`,
+  nurseries `snapshots/ladder-f32{,-twoeat}`); today's float32, without the
+  transfer fix. Means over 6 nurseries x 5 seeds, float64 (G1) -> float32:
+  | | Collapses | Food types / life | Lowest nutrient | Births | Goals |
+  |---|---|---|---|---|---|
+  | 2D one eat | 0.74 ± 0.10 -> 0.86 ± 0.04 | 2.87 -> 2.83 | 0.51 -> 0.49 | 90 -> 63 | all, both |
+  | 2D two eat | 1.06 ± 0.05 -> 1.14 ± 0.08 | 2.88 -> 2.90 | 0.45 -> 0.45 | 121 -> 200 | all, both |
+  | 3D one eat | 0.85 ± 0.11 -> 1.00 ± 0.10 | 2.32 -> 2.18 | 0.45 -> 0.44 | 9 -> 9 | not food types, both |
+  | 3D two eat | 0.76 ± 0.07 -> 0.84 ± 0.08 | 2.68 -> 2.61 | 0.42 -> 0.42 | 112 -> 58 | all, both |
+  | 4D one eat | 6.86 ± 0.37 -> 6.45 ± 0.30 | 0.67 -> 0.68 | 0.35 -> 0.34 | 0 -> 0 | fails 3, both |
+  | 4D two eat | 2.53 ± 0.17 -> 2.49 ± 0.16 | 1.81 -> 1.83 | 0.31 -> 0.31 | 2 -> 2 | fails 3, both |
+  Every gap is within about 1.5 standard errors. Collapses are higher in 4 of
+  6 rows (2D and 3D) and lower in both 4D rows; 4 of 6 is what chance gives
+  (p ~ 0.7), so no direction is shown. Births swing as in G1's re-check
+  (noise). Each float32 ladder took a few minutes (the float64 ones before G2:
+  ~11 min each).
+- **So for research runs, float32 looks safe for behavior**, and the remaining
+  question is mass bookkeeping (the transfer fix) and whether to make it the
+  default (5zorro).
 
 ## Decisions (5zorro)
 Settled 2026-11-05 ("I fully agree with the approach"): D1, D3, D5, D6 as
