@@ -857,6 +857,26 @@ thousands of ticks and "only raise" overshot into a crash to the top-up floor.
   (e.g. 40, 75, 150) gives hunger vs. population per dimension, and play score
   vs. settled hunger is 5zorro's "how much survival intensity crowds out good
   behavior" curve.
+- **Ramp mode (5zorro: no thermostat, hunger only rises, lean on the ranked
+  hall of fame).** Hunger climbs from 0.15x to an end level over 12,000 ticks,
+  then phase 2 as above; the top-up floor (`min_population`) at 30 or 100.
+  `runs/ramp-e*-f*.csv`.
+
+  | Ramp end | Top-up floor | 3D collapses | 3D goals | 4D collapses | 4D types |
+  |---|---|---|---|---|---|
+  | 1.0x | 30 | 0.95 | all 5 | 2.91 | 1.67 |
+  | 1.0x | 100 | 1.32 | 3 of 5 | 2.83 | 1.75 |
+  | 1.5x | 30 | 1.16 | all 5 | 2.70 | 1.78 |
+  | 1.5x | 100 | 1.01 | all 5 | **2.51** | 1.94 |
+  | fixed nursery | 30 | **0.68** | all 5 | **2.50** | 1.96 |
+
+  No ramp beats the fixed nursery; the best ties it in 4D only. **Relationship
+  across every nursery so far:** the more ticks spent at full pressure, the
+  better (thermostat at 0.2-0.6x < ramps, which spend 8,000 ticks at the end
+  level < fixed, 20,000 ticks at play hunger plus a doubled collapse penalty).
+  A gentle start spends budget without selection. A heavier hall-of-fame floor
+  helps only at the harsher end. Differences of ~0.3 collapses between ramps may
+  be noise (10 runs each).
 - Brain diversity (mean distance from the mean brain) barely moves in any
   anneal (6.0 -> 5.5), so a "brains have converged" stopping rule wouldn't fire.
 - **Found on the way:** the rounding plug posted to the median soil cell, which

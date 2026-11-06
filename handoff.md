@@ -107,7 +107,10 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
      width with the best at 4 in 3D and 4D; 4D fails at every width (not brain
      capacity). 5zorro's anneal nursery (`scripts/anneal.py`) loses to the fixed
      nursery, because hunger settles at 0.2-0.6x play under a 150-NPC line.
-     Next: sweep the line (hunger vs. population, then score vs. hunger).
+     5zorro's ramp (hunger only rises, top-up floor 30/100) doesn't beat the
+     fixed nursery either: more ticks at full pressure = better so far. Next
+     proposed: crossover top-ups (a top-up is the child of two tournament
+     winners), spawn-near-food as a separate switch.
    - **4D Miner targets (5zorro, 2026-11-04):** land walkers on 3D surfaces, 4D fish
      and birds in full 4D. Both 3D and 4D must pass.
    - Speed: ticks 27-39% faster (bit-identical); `scripts/fingerprint.py` checks
