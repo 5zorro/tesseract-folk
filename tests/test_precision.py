@@ -73,3 +73,19 @@ def test_top_ups_keep_the_ledger():
     sim.run(500)
     assert sim.stats.window.get("spawns", 0) + sum(h["spawns"] for h in sim.stats.history) > 0
     assert sim.total_mass() == pytest.approx(start, rel=1e-8)
+
+
+def test_the_plug_never_makes_soil_negative():
+    """Most soil cells empty (as after a population boom): the median cell holds
+    0, so the entry must go to a cell that can absorb it."""
+    sim = Simulation(Config(**SMALL, precision="float32", mass_plug_every=10), log_every=50)
+    sim.run(5)
+    soil = sim.world.soil.reshape(-1)
+    keep = soil.size // 4
+    moved = float(soil[keep:].sum(dtype=np.float64))
+    soil[keep:] = 0.0
+    soil[:keep] += np.float32(moved / keep)                  # same mass, three quarters empty
+    sim.batch.mass_target[sim.index] = sim.total_mass() - 1e-4   # a rounding-sized withdrawal
+    sim.plug_mass()
+    assert soil.min() >= 0.0
+    assert soil[keep:].max() == 0.0                           # the empty cells weren't touched

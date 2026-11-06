@@ -301,8 +301,17 @@ class Simulation:
                 f"{diff:+.3g} ({diff / target:+.2e} of {target:.6g}); that's not rounding but a "
                 f"conservation bug (mass_plug_max {self.cfg.mass_plug_max:g})")
         if diff:
+            # The median of the cells that can absorb the entry. Not the median of
+            # all cells: once a boom has emptied most of the soil, that one holds
+            # ~0, a negative entry made it negative, and growth's soil / (soil +
+            # half_saturation) blew up and leaked 2.5e-5 of all mass in one tick
+            # (anneal nursery, 3D, tick 27,402; 2026-11-06).
             soil = self.world.soil.reshape(-1)
-            cell = int(np.argpartition(soil, soil.size // 2)[soil.size // 2])   # the median cell
+            able = np.flatnonzero(soil > 10 * abs(diff))
+            if not able.size:
+                raise RuntimeError(f"world {self.index}, tick {self.tick}: no soil cell can absorb "
+                                   f"the rounding entry {diff:+.3g}")
+            cell = int(able[np.argsort(soil[able], kind="stable")[able.size // 2]])
             soil[cell] += diff
             self.stats.mass_plugged += diff
             self.stats.mass_plugs += 1
