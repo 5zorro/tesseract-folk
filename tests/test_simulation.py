@@ -55,7 +55,7 @@ def test_young_npcs_collapse_instead_of_dying():
     sim = Simulation(small(), log_every=1000)
     npc = sim.npcs[0]
     npc.health = -1
-    sim._metabolize(npc, aging=False)
+    sim.metabolize([npc], aging=False)
     assert npc.alive and npc.collapses == 1
 
 
@@ -65,7 +65,7 @@ def test_elders_die_and_return_mass():
     npc = sim.npcs[0]
     npc.age = sim.cfg.old_age + 1
     npc.health = -1
-    sim._metabolize(npc, aging=False)
+    sim.metabolize([npc], aging=False)
     assert not npc.alive
     sim.npcs = [n for n in sim.npcs if n.alive]
     assert sim.total_mass() == pytest.approx(start, rel=1e-9)

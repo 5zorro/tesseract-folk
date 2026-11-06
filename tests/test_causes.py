@@ -26,7 +26,7 @@ def test_smiting_collapse_is_blamed_on_smite():
     npc = sim.npcs[0]
     npc.piety, npc.smite, npc.health = 0.0, 0.4, 0.2   # one more bad prayer smites
     assert sim.deity.pray(npc, sim.tick) == "smitten"
-    sim._metabolize(npc, aging=False)
+    sim.metabolize([npc], aging=False)
     assert npc.collapses == 1
     assert sim.stats.window["collapse_smite"] == 1
     assert npc.damage == {}                            # fresh start after a collapse
@@ -46,7 +46,7 @@ def test_starvation_collapse_is_blamed_on_nutrients():
     npc = sim.npcs[0]
     npc.nutrients[:] = 0.0
     npc.health = 0.01
-    sim._metabolize(npc, aging=False)
+    sim.metabolize([npc], aging=False)
     assert sim.stats.window["collapse_nutrient_starve"] == 1
 
 
@@ -55,7 +55,7 @@ def test_elder_death_is_blamed_on_age():
     npc = sim.npcs[0]
     npc.age = 2 * sim.cfg.old_age
     npc.health = 0.001
-    sim._metabolize(npc, aging=False)
+    sim.metabolize([npc], aging=False)
     assert not npc.alive
     assert sim.stats.window["death_elder"] == 1
 
@@ -65,7 +65,7 @@ def test_damage_record_clears_once_fully_healed():
     npc = sim.npcs[0]
     npc.take_damage("stink", 0.005)
     assert npc.damage == {"stink": 0.005}
-    sim._metabolize(npc, aging=False)                  # healthy and fed: heals to 1.0
+    sim.metabolize([npc], aging=False)                  # healthy and fed: heals to 1.0
     assert npc.health == 1.0 and npc.damage == {}
 
 

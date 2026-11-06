@@ -3,7 +3,7 @@
 The tick rules (docs/plan-gpu-backend.md, G1): every NPC senses the world as it
 was at the start of the tick and decides; then the chosen actions resolve in
 fixed phases (moves; eats and pick-ups; give, mate, share; the rest), then
-metabolism. Within a phase NPCs go in priority order, a fresh keyed draw each
+everyone's metabolism, then deaths and collapses. Within a phase NPCs go in priority order, a fresh keyed draw each
 tick (lowest first). All randomness is keyed (sim/keyed.py).
 
 Invariant: total mass (soil + food + poop + secret caches + everything NPCs
@@ -91,9 +91,7 @@ class Simulation:
         chosen = self.decide_all(order, self._spatial_index())
         births: list[NPC] = []
         self.resolve(order, chosen, births)
-        for npc in order:
-            if npc.alive:
-                self._metabolize(npc, aging)
+        self.metabolize(order, aging)
 
         self.npcs = [n for n in self.npcs if n.alive] + births
         self._top_up()
@@ -468,6 +466,15 @@ class Simulation:
         return shared > 0
 
     # ============================================================ metabolism
+    def metabolize(self, npcs: list[NPC], aging: bool) -> None:
+        """Everyone's metabolism first, then the fallen (health gone) in this order."""
+        for npc in npcs:
+            if npc.alive:
+                self._metabolize(npc, aging)
+        for npc in npcs:
+            if npc.alive and npc.health <= 0:
+                self._fall(npc)
+
     def _metabolize(self, npc: NPC, aging: bool) -> None:
         cfg, w = self.cfg, self.world
 
@@ -510,11 +517,13 @@ class Simulation:
             if npc.health >= 1.0:
                 npc.damage.clear()
 
-        if npc.health <= 0:
-            if npc.age >= cfg.old_age:
-                self._die(npc)
-            else:
-                self._collapse(npc)
+
+    def _fall(self, npc: NPC) -> None:
+        """Health ran out: elders die, the young collapse."""
+        if npc.age >= self.cfg.old_age:
+            self._die(npc)
+        else:
+            self._collapse(npc)
 
     def _drop_inventory(self, npc: NPC) -> None:
         here = self.world.food_at(npc.pos)

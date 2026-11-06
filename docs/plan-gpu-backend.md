@@ -1,7 +1,7 @@
 # Plan: CPU/GPU-agnostic simulation
 
 Status (2026-11-05): **G0 and G1 done (G1 passes its M2 re-check); G2 next.** 5zorro agreed with the
-approach (2026-11-05): D1-D3, D5, D6 as recommended. D4 (PyTorch) and anything
+approach (2026-11-05): D1, D3, D5, D6 as recommended; D2 (precision) reopened. D4 (PyTorch) and anything
 about the C++ port get discussed with 5zorro before they're touched; neither is
 needed before G4. Stages are ordered;
 each ends with tests passing and a commit.
@@ -179,8 +179,8 @@ means over 6 nurseries x 5 seeds, +- standard error:
   NumPy vs GPU must match within about 1e-12 for the first few ticks and
   agree statistically over a sweep. A GPU run must repeat itself exactly:
   no floating-point atomics, use sorted segment sums.
-- **float64 stays.** This card does float64 at 1/16 the float32 rate, but our
-  work is limited by memory and launches, not arithmetic (D2).
+- **Precision (D2, reopened):** float64 until G2's bit-for-bit check is done,
+  then float32 measured, not assumed.
 - **Rule 7** gets one line: "except a re-baseline approved by 5zorro and
   recorded in the plan with old and new hashes."
 - **Controllers** (the AI-model pawn, scripted controllers in sweeps) still
@@ -190,14 +190,23 @@ means over 6 nurseries x 5 seeds, +- standard error:
   must be vectorized too, or they become the bottleneck.
 
 ## Decisions (5zorro)
-Settled 2026-11-05 ("I fully agree with the approach"): D1, D2, D3, D5, D6 as
-recommended. Open: D4, and anything touching the C++ port (talk first).
+Settled 2026-11-05 ("I fully agree with the approach"): D1, D3, D5, D6 as
+recommended. Open: D2 (reopened), D4, and anything touching the C++ port
+(talk first).
 
 - **D1. New tick rules (above) with one re-baseline?** Recommended: yes.
   Every batching path needs it; the rules are simpler to port, and the old
   results get re-checked in G1. The alternative (two engines, old one kept
   bit-for-bit) doesn't exist: one-at-a-time order can't be batched.
-- **D2. Keep float64 everywhere?** Recommended: yes (see risks).
+- **D2. Precision. Reopened by 5zorro (2026-11-05):** "our hardware is good
+  enough" isn't a reason to spend 16x. Revised proposal (his call): float64
+  stays only as the reference while porting (G2's bit-for-bit check needs one
+  precision on both sides); `sim/` gets a dtype switch next to `xp`; G3/G4
+  measure float32 (speed, mass drift per 100,000 ticks, the M2 verdicts) and
+  float32 becomes the default if they hold. The mod uses float32 regardless
+  (game convention, half the memory, 2x SIMD lanes on the CPU), and exact
+  mass conservation there may be better done with integer mass units than
+  with float width.
 - **D3. Keep G1's per-NPC engine as the reference** (test oracle on small
   worlds, and the readable spec for the C++ port)? Recommended: yes. Cost:
   each rule change is made twice, and a test catches when they disagree.

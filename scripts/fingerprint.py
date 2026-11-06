@@ -30,7 +30,7 @@ def fingerprint(sim: Simulation) -> str:
     w = sim.world
     for a in (w.food, w.scent, w.stink, w.soil, w.poop):
         h.update(a.tobytes())
-    for n in sim.npcs:
+    for n in sorted(sim.npcs, key=lambda n: n.id):    # by id: list order isn't part of the state
         h.update(np.array([*n.pos, n.body, n.health, n.bowel, n.approach_sum, n.approach_null,
                            *n.nutrients, *n.memory]).tobytes())
     h.update(repr(sim.tick).encode())
