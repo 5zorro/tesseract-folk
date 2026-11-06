@@ -1,6 +1,7 @@
 """The multi-seed harness in scripts/sweep.py (M1 slice 2)."""
 import math
 
+import numpy as np
 import pytest
 
 from scripts.sweep import bucket_rates, cover_with, distances, parse_overrides, run_one, where_now
@@ -43,7 +44,7 @@ def test_scripted_cover_includes_new_npcs_and_drops_dead_ones():
     ctrl = ScriptedController()
     cover_with(sim, ctrl)
     gone = sim.npcs.pop()                             # as if it died
-    newcomer = sim._spawn(sim._random_brain(), sim.world.random_cell(sim.rng), 1.0, 0)
+    newcomer = sim._spawn(sim._random_brain(np.random.default_rng(0)), sim.world.random_cell(np.random.default_rng(1)), 1.0, 0)
     cover_with(sim, ctrl)
     assert sim.overrides[newcomer.id] is ctrl
     assert gone.id not in sim.overrides

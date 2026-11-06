@@ -59,7 +59,7 @@ def seed_brains(sim, pool: list[dict]) -> None:
     """Give a fresh world's NPCs the pool's brains, best first, and start its
     hall of fame from the pool's best.
 
-    NPCs beyond the pool's size get mutated copies (through sim.rng, so runs
+    NPCs beyond the pool's size get mutated copies (keyed draws, so runs
     stay deterministic). Only brains and generations change, never mass.
     """
     if not pool:
@@ -86,7 +86,7 @@ def seed_brains(sim, pool: list[dict]) -> None:
         if i >= len(pool):
             parent_rate = entry.get("rate", -1.0)
             brain, mutations, npc.lineage = sim.mutate_child(brain, parent_rate,
-                                                             entry.get("lineage", -1.0))
+                                                             entry.get("lineage", -1.0), key_id=npc.id)
             npc.origin, npc.mutations, npc.parent_rate = "copy", mutations, parent_rate
         npc.source = int(entry.get("id", -1))     # an exact brain is a re-test of its entry
         npc.brain = brain

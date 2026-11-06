@@ -114,16 +114,16 @@ def make_format_1(path):
     np.savez_compressed(path / "world.npz", **kept)
 
 
-def test_pre_scent_snapshots_resume_without_scent(tmp_path):
+def test_pre_scent_snapshots_seed_brains_but_dont_resume(tmp_path):
+    """Snapshots from before the G1 tick rules (format < 4) can't be resumed
+    (docs/plan-gpu-backend.md, D5), but their brains still seed new worlds."""
     a = Simulation(Config(**SMALL, food_scent=False), log_every=1000)
     a.run(60)
     path = save_snapshot(a, tmp_path / "old")
     make_format_1(path)
-    b = load_snapshot(path, log_every=1000)
-    assert b.cfg.food_scent is False
-    a.run(30)
-    b.run(30)
-    assert [n.pos for n in a.npcs] == [n.pos for n in b.npcs]
+    with pytest.raises(ValueError, match="predates the G1 tick rules"):
+        load_snapshot(path, log_every=1000)
+    seed_brains(Simulation(Config(**SMALL, food_scent=False), log_every=1000), load_brain_pool(path))
 
 
 def test_pre_scent_pools_need_scent_off(tmp_path):

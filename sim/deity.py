@@ -13,6 +13,7 @@ from dataclasses import asdict, dataclass
 
 import numpy as np
 
+from . import keyed
 from .config import Config
 from .world import Pos, World, wrapped_delta
 
@@ -33,7 +34,8 @@ class Deity:
         self.secrets: dict[int, Secret] = {}
         self.next_id = 0
 
-    def step(self, tick: int, world: World, rng: np.random.Generator, stats) -> None:
+    def step(self, tick: int, world: World, keys, stats) -> None:
+        """`keys`: the simulation's keyed.Keys; a new secret's draws are keyed by its id."""
         for s in list(self.secrets.values()):
             if tick >= s.expires:
                 world.soil[s.pos] += s.amount
@@ -42,6 +44,7 @@ class Deity:
 
         cfg = self.cfg
         if tick % cfg.secret_interval == 0 and len(self.secrets) < cfg.max_secrets:
+            rng = keys.stream(tick, self.next_id, keyed.SECRET)
             pos = world.random_cell(rng)
             amount = min(cfg.secret_amount, float(world.soil[pos]))
             if amount > 0:

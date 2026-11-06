@@ -1,7 +1,7 @@
 """Fingerprint a few short runs, to prove a speed refactor changes nothing.
 
 Run it before and after the change; every hash must match. Covers the world
-fields, every NPC's state and the rng state after 600 ticks in 2D, 3D and 4D
+fields, every NPC's state and the tick after 600 ticks in 2D, 3D and 4D
 (the slice 3e travel-time worlds). Hashes depend on the NumPy version, so
 compare runs on the same machine and environment. Times are printed too.
 
@@ -33,7 +33,7 @@ def fingerprint(sim: Simulation) -> str:
     for n in sim.npcs:
         h.update(np.array([*n.pos, n.body, n.health, n.bowel, n.approach_sum, n.approach_null,
                            *n.nutrients, *n.memory]).tobytes())
-    h.update(repr(sim.rng.bit_generator.state).encode())
+    h.update(repr(sim.tick).encode())
     return h.hexdigest()[:16]
 
 

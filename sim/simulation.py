@@ -1,5 +1,11 @@
 """The core tick loop: senses -> tiny brain -> action -> metabolism.
 
+The tick rules (docs/plan-gpu-backend.md, G1): every NPC senses the world as it
+was at the start of the tick and decides; then the chosen actions resolve in
+fixed phases (moves; eats and pick-ups; give, mate, share; the rest), then
+metabolism. Within a phase NPCs go in priority order, a fresh keyed draw each
+tick (lowest first). All randomness is keyed (sim/keyed.py).
+
 Invariant: total mass (soil + food + poop + secret caches + everything NPCs
 carry in body, bowel and inventory) never changes. tests/test_simulation.py
 checks this. If you add a mechanic, keep it true.
@@ -11,22 +17,37 @@ import numpy as np
 from .brain import Brain
 from .clock import SimClock
 from .config import Config
+from . import keyed
 from .deity import Deity
 from .npc import NPC, build_actions
 from .stats import Stats
 from .world import World, wrapped_delta
 
 
+# Rule 2's phases, in the order they resolve. "stay" and anything unlisted go last.
+N_PHASES = 4
+SOCIAL_PHASE = 2
+_PHASES = {"eat": 1, "eat_need": 1, "eat_most": 1, "pick_up": 1,
+           "give": SOCIAL_PHASE, "mate": SOCIAL_PHASE, "share": SOCIAL_PHASE}
+
+
+def action_phase(name: str) -> int:
+    return 0 if name.startswith("move") else _PHASES.get(name, 3)
+
+
 class Simulation:
     def __init__(self, cfg: Config | None = None, populate: bool = True, log_every: int = 100):
         self.cfg = cfg or Config()
-        self.rng = np.random.default_rng(self.cfg.seed)
-        self.world = World(self.cfg, self.rng)
+        # The world is built from one NumPy stream (so maps match those before
+        # keyed randomness); every draw after that is keyed.
+        self.world = World(self.cfg, np.random.default_rng(self.cfg.seed))
+        self.keys = keyed.Keys(self.cfg.seed)
         self.deity = Deity(self.cfg)
         self.clock = SimClock()
         self.stats = Stats(log_every)
         self.actions = build_actions(self.cfg.dims, self.cfg.two_eat_actions)
         self.n_actions = len(self.actions)
+        self._phase = [action_phase(a) for a in self.actions]
         self.n_inputs = self.sensor_size()
         self.n_outputs = self.n_actions + self.cfg.memory_units
         c = self.cfg
@@ -51,7 +72,8 @@ class Simulation:
         self.next_id = 0
         if populate:
             for _ in range(self.cfg.initial_npcs):
-                self._spawn(self._random_brain(), self.world.random_cell(self.rng),
+                draw = self.keys.stream(0, self.next_id, keyed.INIT)
+                self._spawn(self._random_brain(draw), self.world.random_cell(draw),
                             self.cfg.npc_start_mass, generation=0)
 
     # ============================================================ public API
@@ -63,16 +85,13 @@ class Simulation:
         aging = self.clock.aging_active
         self.tick += 1
         self.world.step()
-        self.deity.step(self.tick, self.world, self.rng, self.stats)
+        self.deity.step(self.tick, self.world, self.keys, self.stats)
 
-        index = self._spatial_index()
+        order = self._priority_order()
+        chosen = self.decide_all(order, self._spatial_index())
         births: list[NPC] = []
-        for i in self.rng.permutation(len(self.npcs)):
-            npc = self.npcs[i]
-            if not npc.alive:
-                continue
-            action = self._decide(npc, self.sense(npc, index))
-            self._act(npc, action, index, births)
+        self.resolve(order, chosen, births)
+        for npc in order:
             if npc.alive:
                 self._metabolize(npc, aging)
 
@@ -202,7 +221,39 @@ class Simulation:
         return part
 
     # ============================================================== thinking
-    def _decide(self, npc: NPC, obs: np.ndarray) -> int:
+    def _priority_order(self) -> list[NPC]:
+        """The living NPCs, lowest priority draw first (ties, practically never,
+        by id). Every phase of the tick goes in this order."""
+        npcs = [n for n in self.npcs if n.alive]
+        if not npcs:
+            return []
+        ids = np.array([n.id for n in npcs])
+        prio = self.keys.uniform(self.tick, ids, keyed.ORDER)
+        return [npcs[i] for i in np.lexsort((ids, prio))]
+
+    def decide_all(self, order: list[NPC], index: dict) -> list[int]:
+        """Rule 1: everyone senses the start-of-tick world and picks an action.
+        Deciding changes only the NPC's own memory, so the order doesn't matter.
+        (5zorro's reaction-time queue would hand `resolve` actions decided
+        earlier instead; docs/plan-gpu-backend.md.)"""
+        if not order:
+            return []
+        draws = self.keys.uniform(self.tick, [n.id for n in order], keyed.ACTION)
+        return [self._decide(npc, self.sense(npc, index), float(u)) for npc, u in zip(order, draws)]
+
+    def resolve(self, order: list[NPC], chosen: list[int], births: list[NPC]) -> None:
+        """Rules 2-3: actions take effect phase by phase, in priority order. Social
+        actions see where everyone is after the moves."""
+        index = None
+        for phase in range(N_PHASES):
+            if phase == SOCIAL_PHASE:
+                index = self._spatial_index()
+            for npc, action in zip(order, chosen):
+                if self._phase[action] == phase:
+                    self._act(npc, action, index, births)
+
+    def _decide(self, npc: NPC, obs: np.ndarray, u: float) -> int:
+        """`u` is this NPC's keyed uniform draw for the tick (keyed.ACTION)."""
         controller = self.overrides.get(npc.id)
         if controller is not None:
             return controller.decide(self, npc, obs)
@@ -212,14 +263,14 @@ class Simulation:
         logits -= logits.max()
         probs = np.exp(logits)
         probs /= probs.sum()
-        # Same as self.rng.choice(self.n_actions, p=probs), the way NumPy does it
-        # (one uniform draw against the cumulative sum), minus its input checks.
+        # The way NumPy's rng.choice(p=probs) samples (one uniform draw against the
+        # cumulative sum), with the NPC's keyed draw `u`.
         cdf = probs.cumsum()
         cdf /= cdf[-1]
-        return int(cdf.searchsorted(self.rng.random(), side="right"))
+        return int(cdf.searchsorted(u, side="right"))
 
     # =============================================================== actions
-    def _act(self, npc: NPC, action: int, index: dict, births: list[NPC]) -> None:
+    def _act(self, npc: NPC, action: int, index: dict | None, births: list[NPC]) -> None:
         name = self.actions[action]
         moved = did = False          # did: the action changed something (not just tried)
         if name.startswith("move"):
@@ -347,10 +398,11 @@ class Simulation:
         if npc.inventory.sum() <= 1e-9:
             return False
         cap = self.cfg.carry_capacity
-        takers = [n for n in self._neighbors(npc, index) if cap - n.inventory.sum() > 1e-9]
+        takers = sorted((n for n in self._neighbors(npc, index) if cap - n.inventory.sum() > 1e-9),
+                        key=lambda n: n.id)            # by id: the pick mustn't depend on list order
         if not takers:
             return False
-        other = takers[int(self.rng.integers(len(takers)))]
+        other = takers[self.keys.stream(self.tick, npc.id, keyed.GIVE).integers(len(takers))]
         t = int(np.argmax(npc.inventory))
         amount = min(self.cfg.bite_size, float(npc.inventory[t]), cap - float(other.inventory.sum()))
         npc.inventory[t] -= amount
@@ -373,19 +425,23 @@ class Simulation:
         npc.mate_ready_until = self.tick + cfg.mate_window
         if len(self.npcs) + len(births) >= cfg.max_population:
             return False
-        partners = [n for n in self._neighbors(npc, index)
-                    if n.mate_ready_until >= self.tick and self._can_mate(n)]
+        partners = sorted((n for n in self._neighbors(npc, index)
+                           if n.mate_ready_until >= self.tick and self._can_mate(n)),
+                          key=lambda n: n.id)
+
         if not partners:
             return False
-        mate = partners[int(self.rng.integers(len(partners)))]
+        mate = partners[self.keys.stream(self.tick, npc.id, keyed.MATE).integers(len(partners))]
         half = cfg.child_mass / 2
         npc.body -= half
         mate.body -= half
-        brain = Brain.crossover(npc.brain, mate.brain, self.rng)
+        child_id = self.next_id                      # the child's draws are keyed by its id
+        brain = Brain.crossover(npc.brain, mate.brain,
+                                self.keys.stream(self.tick, child_id, keyed.CROSSOVER))
         parent_rate = (npc.collapse_rate() + mate.collapse_rate()) / 2
         known = [p.lineage for p in (npc, mate) if p.lineage >= 0]
         brain, mutations, lineage = self.mutate_child(
-            brain, parent_rate, sum(known) / len(known) if known else -1.0)
+            brain, parent_rate, sum(known) / len(known) if known else -1.0, key_id=child_id)
         child = self._make_npc(brain, npc.pos, cfg.child_mass,
                                max(npc.generation, mate.generation) + 1)
         child.origin, child.mutations, child.parent_rate = "birth", mutations, parent_rate
@@ -470,7 +526,7 @@ class Simulation:
         carry, wake up somewhere else, and age faster for the trouble."""
         cfg = self.cfg
         self._drop_inventory(npc)
-        npc.pos = self.world.random_cell(self.rng)
+        npc.pos = self.world.random_cell(self.keys.stream(self.tick, npc.id, keyed.COLLAPSE))
         npc.health = cfg.collapse_health
         npc.nutrients = np.maximum(npc.nutrients, cfg.collapse_nutrient_floor)
         npc.age += cfg.collapse_age_penalty
@@ -495,8 +551,9 @@ class Simulation:
         self.stats.record_life(npc, self.tick)
 
     # ========================================================= population
-    def _random_brain(self) -> Brain:
-        return Brain.random(self.n_inputs, self.cfg.hidden_units, self.n_outputs, self.rng)
+    def _random_brain(self, draw) -> Brain:
+        """`draw`: a keyed stream (keyed.Stream) or anything with NumPy's normal()."""
+        return Brain.random(self.n_inputs, self.cfg.hidden_units, self.n_outputs, draw)
 
     def _make_npc(self, brain: Brain, pos, body: float, generation: int) -> NPC:
         cfg = self.cfg
@@ -521,9 +578,10 @@ class Simulation:
         lived = sum(n.lifetime for n in self.npcs)
         return 1000.0 * sum(n.collapses for n in self.npcs) / lived if lived else -1.0
 
-    def mutation_rate(self, brain: Brain, lineage: float) -> float:
+    def mutation_rate(self, brain: Brain, lineage: float, key_id: int = -1) -> float:
         """Chance per weight for a child whose ancestors collapsed at this rate
-        (per 1,000 ticks; -1 = unknown). Measurement scripts override it."""
+        (per 1,000 ticks; -1 = unknown). Measurement scripts override it (`key_id`
+        is the new brain's NPC id, for their own keyed draws)."""
         cfg = self.cfg
         rate = brain.mutation_rate(cfg.mutation_rate, cfg.mutations_per_birth)
         if not cfg.mutation_lineage or lineage < 0:
@@ -539,17 +597,20 @@ class Simulation:
             factor = top if lineage > 0 else 1.0
         return min(1.0, rate * factor)
 
-    def mutate_child(self, brain: Brain, parent_rate: float,
-                     parent_lineage: float = -1.0) -> tuple[Brain, float, float]:
+    def mutate_child(self, brain: Brain, parent_rate: float, parent_lineage: float = -1.0,
+                     key_id: int | None = None) -> tuple[Brain, float, float]:
         """A mutated copy, its expected number of mutated weights, and its
         lineage (ancestors' collapse rate: parents 1/2, then their lineage 1/2).
-        Every child, top-up and seeded copy goes through here."""
+        Every child, top-up and seeded copy goes through here. Draws are keyed
+        by `key_id`, the NPC that gets the brain (default: the next new id)."""
+        key_id = self.next_id if key_id is None else key_id
         if parent_rate < 0:
             lineage = -1.0
         else:
             lineage = 0.5 * parent_rate + 0.5 * (parent_lineage if parent_lineage >= 0 else parent_rate)
-        rate = self.mutation_rate(brain, lineage)
-        return brain.mutate(rate, self.cfg.mutation_scale, self.rng), rate * brain.n_params, lineage
+        rate = self.mutation_rate(brain, lineage, key_id)
+        draw = self.keys.stream(self.tick, key_id, keyed.MUTATE)
+        return brain.mutate(rate, self.cfg.mutation_scale, draw), rate * brain.n_params, lineage
 
     def _record_hall_of_fame(self, npc: NPC) -> None:
         """A finished life: add it to the entry its brain was copied from (track
@@ -618,16 +679,17 @@ class Simulation:
                           for e in self.hall_of_fame]
             candidates += [(self._living_merit(n, population) if track else n.fitness(),
                             n.generation, n.brain, n.collapse_rate(), n.lineage, -1)
-                           for n in self.npcs]
+                           for n in sorted(self.npcs, key=lambda n: n.id)]   # by id, not list order
             origin, mutations, parent_rate, lineage, source = "", -1.0, -1.0, -1.0, -1
+            draw = self.keys.stream(self.tick, self.next_id, keyed.SPAWN)
             if candidates:
-                picks = [candidates[int(self.rng.integers(len(candidates)))] for _ in range(3)]
+                picks = [candidates[draw.integers(len(candidates))] for _ in range(3)]
                 _, gen, brain, parent_rate, parent_lineage, source = max(picks, key=lambda c: c[0])
                 brain, mutations, lineage = self.mutate_child(brain, parent_rate, parent_lineage)
                 origin, gen = "copy", gen + 1
             else:
-                brain, gen = self._random_brain(), 0
-            npc = self._spawn(brain, self.world.random_cell(self.rng), cfg.npc_start_mass, gen)
+                brain, gen = self._random_brain(draw), 0
+            npc = self._spawn(brain, self.world.random_cell(draw), cfg.npc_start_mass, gen)
             npc.origin, npc.mutations, npc.parent_rate = origin, mutations, parent_rate
             npc.lineage, npc.source = lineage, source
             self.stats.count("spawns")
@@ -640,7 +702,7 @@ class Simulation:
         return index
 
     def _neighbors(self, npc: NPC, index: dict) -> list[NPC]:
-        """NPCs in the same cell or one step away. Uses positions from the
-        start of the tick, which is fine for a prototype."""
+        """NPCs in the same cell or one step away, by the positions `index` was
+        built from (start of tick for senses, after the moves for social actions)."""
         cells = [npc.pos] + self.world.adjacent(npc.pos)
         return [o for c in cells for o in index.get(c, ()) if o is not npc and o.alive]

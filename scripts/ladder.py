@@ -34,7 +34,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from sim import Config, Simulation  # noqa: E402
 from sim.config import parse_overrides  # noqa: E402
-from sim.snapshot import LEGACY, save_snapshot  # noqa: E402
+from sim.snapshot import FORMAT, LEGACY, save_snapshot  # noqa: E402
 from sweep import run_one  # noqa: E402
 
 # dims -> (size, food_patch_radius), per way of matching worlds across dimensions:
@@ -83,6 +83,9 @@ def reusable(path: Path, shape: tuple, nseed: int, ticks: int) -> bool:
     if not (path / "state.json").exists():
         return False
     state = json.loads((path / "state.json").read_text())
+    if state.get("format", 1) != FORMAT:
+        raise ValueError(f"{path} was saved in snapshot format {state.get('format', 1)}, "
+                         f"not {FORMAT} (other tick rules). Delete it or use another --out.")
     # Every setting, not just the ones passed: a default that changed since the
     # nursery was trained (e.g. the mutation rule) counts. Missing fields are read
     # the way load_snapshot reads them.

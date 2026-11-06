@@ -1,7 +1,9 @@
 # Plan: CPU/GPU-agnostic simulation
 
-Status (2026-11-05): **planned, nothing built.** Open decisions (bottom) are
-5zorro's; stage G1 can't start until D1-D3 are settled. Stages are ordered;
+Status (2026-11-05): **G0 done, G1 in progress.** 5zorro agreed with the
+approach (2026-11-05): D1-D3, D5, D6 as recommended. D4 (PyTorch) and anything
+about the C++ port get discussed with 5zorro before they're touched; neither is
+needed before G4. Stages are ordered;
 each ends with tests passing and a commit.
 
 **For a new session:** read `handoff.md`, `gotchas.md` and this file. The
@@ -80,11 +82,37 @@ nothing order-dependent to fight:
    the same bits on any backend. World creation keeps `default_rng(seed)`,
    so maps stay identical to today's and the comparison isolates behavior.
 
+### The seam for 5zorro's reaction-time queue
+5zorro's idea (private notes, "Reaction time and an action queue"): neurons
+fire now, the action takes effect a few ticks later, and a stack of queued
+decisions keeps an NPC acting while it lags; an AI-model pawn could fill the
+queue a few actions ahead, or inject inputs instead. Rule 1 above is that
+queue with a delay of zero: decisions are made from one tick's state and
+resolved afterwards. So G1 splits the code into "decide" (writes each NPC's
+chosen action) and "resolve" (reads it), and G2 keeps the chosen action as a
+per-NPC array. A queue then means resolve reads an action decided k ticks ago
+(a small ring buffer per NPC) instead of this tick's; nothing else changes.
+Not built here; it gets its own plan, since it changes behavior (re-measure).
+
 ## Stages
-- **G0. Freeze the old numbers.** Before changing anything: save a sweep CSV
-  (2D/3D/4D, 10 seeds, the M2 metrics) and the ladder's M2 result to
-  `runs/pre-g1/`, and their summary in this file. Add a `--backend` (no-op
-  for now) to fingerprint.py. No sim change.
+- **G0. Freeze the old numbers. Done 2026-11-05, no new runs needed:** the
+  slice 3g ladder runs used today's rules (the only later `sim/` change,
+  fc498fe, adds input checks). Baseline = `runs/2026-11-05-twoeat.csv` (two
+  eat) and `runs/2026-11-04-defaults-{2d,3d}.csv` + `runs/2026-11-05-defaults-4d.csv`
+  (one eat): 6 nurseries (seeds 100-105) x 5 seeds, 8 hidden, `--worlds time`.
+  Means over nurseries (plan-m2 slice 3g):
+  | | Collapses | Scratch | Food types / life | Diet | Lowest nutrient | Births | Goals |
+  |---|---|---|---|---|---|---|---|
+  | 2D one eat | 0.95 | 1.77 | 2.83 | 0.97 | 0.47 | 45 | all |
+  | 2D two eat | 1.02 | 1.44 | 2.94 | 0.92 | 0.45 | 185 | all |
+  | 3D one eat | 0.75 | 2.39 | 2.36 | 0.97 | 0.47 | 32 | not food types |
+  | 3D two eat | 0.82 | 1.43 | 2.69 | 0.92 | 0.41 | 76 | all |
+  | 4D one eat | 6.32 | 8.98 | 0.69 | 0.88 | 0.34 | 0 | fails 3 |
+  | 4D two eat | 2.63 | 3.99 | 1.72 | 0.82 | 0.31 | 2 | fails 3 |
+  Re-run after G1 with the same command into new folders:
+  `python scripts/ladder.py --worlds time --hidden 8 --nursery-seeds 100 101 102 103 104 105
+  [--set two_eat_actions=true] --out snapshots/ladder-g1[-twoeat] --csv runs/2026-11-05-g1[-twoeat].csv`,
+  then `scripts/compare_runs.py` per dims.
 - **G1. New tick rules + keyed randomness, still per-NPC Python code.** The
   one planned re-baseline: record old and new hashes here. Write
   `sim/keyed.py` (hash -> uniforms, normals) and route all 25 draws through
@@ -131,7 +159,10 @@ nothing order-dependent to fight:
 - **M2 metrics** (`_record_approach`, zone switches) are 12-13% of a tick and
   must be vectorized too, or they become the bottleneck.
 
-## Open decisions (5zorro)
+## Decisions (5zorro)
+Settled 2026-11-05 ("I fully agree with the approach"): D1, D2, D3, D5, D6 as
+recommended. Open: D4, and anything touching the C++ port (talk first).
+
 - **D1. New tick rules (above) with one re-baseline?** Recommended: yes.
   Every batching path needs it; the rules are simpler to port, and the old
   results get re-checked in G1. The alternative (two engines, old one kept

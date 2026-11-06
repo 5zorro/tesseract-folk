@@ -21,7 +21,8 @@ from .nursery import entry_to_dict, hall_of_fame_entry
 from .simulation import Simulation
 
 ARRAYS = ("soil", "food", "poop", "stink", "scent", "capacity", "profiles", "zones")
-FORMAT = 3   # 2 added food scent (M1 slice 6); 3 added the zone map (M2)
+FORMAT = 4   # 2 added food scent (M1 slice 6); 3 added the zone map (M2);
+             # 4: the G1 tick rules and keyed randomness (no rng state to save)
 
 # Config fields added after snapshots existed, with the value that reproduces
 # the behavior from before them. A snapshot saved without a field gets this
@@ -51,7 +52,6 @@ def save_snapshot(sim: Simulation, path: str | Path) -> Path:
         "deity": sim.deity.to_dict(),
         "npcs": [n.to_dict() for n in sim.npcs],
         "hall_of_fame": [entry_to_dict(e) for e in sim.hall_of_fame],
-        "rng_state": sim.rng.bit_generator.state,
     }
     (path / "state.json").write_text(json.dumps(state))
     return path
@@ -76,6 +76,11 @@ def _checked(name: str, loaded: np.ndarray, fresh: np.ndarray, cfg: Config) -> n
 def load_snapshot(path: str | Path, log_every: int = 100) -> Simulation:
     path = Path(path)
     state = json.loads((path / "state.json").read_text())
+    if state.get("format", 1) < 4:
+        # Saved under the old tick rules: resuming would continue a different
+        # world. Its brains still work as a pool (--brains-from).
+        raise ValueError(f"{path} predates the G1 tick rules (format {state.get('format', 1)}); "
+                         f"it can't be resumed, but its brains can seed a new world (--brains-from)")
     config = {**LEGACY, **state["config"]}   # fields the snapshot predates keep the old behavior
     sim = Simulation(Config.from_dict(config), populate=False, log_every=log_every)
     with np.load(path / "world.npz") as arrays:
@@ -89,7 +94,6 @@ def load_snapshot(path: str | Path, log_every: int = 100) -> Simulation:
     sim.deity.load_dict(state["deity"])
     sim.npcs = [NPC.from_dict(n) for n in state["npcs"]]
     sim.hall_of_fame = [hall_of_fame_entry(e) for e in state["hall_of_fame"]]
-    sim.rng.bit_generator.state = state["rng_state"]
     for brain in [n.brain for n in sim.npcs] + [e["brain"] for e in sim.hall_of_fame]:
         brain.check(sim.n_inputs, sim.cfg.hidden_units, sim.n_outputs)
     return sim

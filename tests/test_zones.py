@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 
 from sim import Config, Simulation
+from sim.nursery import load_brain_pool, seed_brains
 from sim.snapshot import load_snapshot, save_snapshot
 from sim.world import World
 
@@ -224,7 +225,7 @@ def test_zones_survive_a_snapshot_and_runs_resume_identically(tmp_path, dims, si
     assert a.total_mass() == pytest.approx(b.total_mass(), rel=1e-12)
 
 
-def test_snapshots_from_before_zones_still_load(tmp_path):
+def test_snapshots_from_before_zones_seed_brains_but_dont_resume(tmp_path):
     a = Simulation(Config(**SMALL), log_every=1000)
     a.run(40)
     path = save_snapshot(a, tmp_path / "old")
@@ -237,6 +238,8 @@ def test_snapshots_from_before_zones_still_load(tmp_path):
     with np.load(path / "world.npz") as arrays:
         kept = {k: arrays[k] for k in arrays.files if k != "zones"}
     np.savez_compressed(path / "world.npz", **kept)
-    b = load_snapshot(path, log_every=1000)
-    assert np.array_equal(a.world.zones, b.world.zones)      # rebuilt from the seed
-    assert all(n.zones_eaten == set() for n in b.npcs)
+    with pytest.raises(ValueError, match="predates the G1 tick rules"):   # D5
+        load_snapshot(path, log_every=1000)
+    b = Simulation(Config(**SMALL), log_every=1000)
+    seed_brains(b, load_brain_pool(path))
+    assert np.array_equal(a.world.zones, b.world.zones)      # same seed, same map

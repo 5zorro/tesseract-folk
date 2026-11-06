@@ -36,7 +36,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from sim import Config, Simulation  # noqa: E402
+from sim import Config, Simulation, keyed  # noqa: E402
 from sim.config import parse_overrides  # noqa: E402
 from ladder import NURSERY_RULES, WORLD_SETS  # noqa: E402
 
@@ -44,11 +44,12 @@ BINS = (1, 2, 5, 10, 20, 50, 100, 1e9)
 
 
 class RandomMutations(Simulation):
-    """Each copy gets a random number of mutated weights (through sim.rng)."""
+    """Each copy gets a random number of mutated weights (a keyed draw)."""
     low, high = 1.0, 150.0
 
-    def mutation_rate(self, brain, lineage):
-        k = math.exp(self.rng.uniform(math.log(self.low), math.log(self.high)))
+    def mutation_rate(self, brain, lineage, key_id=-1):
+        draw = self.keys.stream(self.tick, key_id, keyed.SCRIPT)
+        k = math.exp(draw.uniform(math.log(self.low), math.log(self.high)))
         return min(1.0, k / brain.n_params)
 
 
