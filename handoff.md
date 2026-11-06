@@ -112,6 +112,18 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
      `scripts/probe_random_walk.py`, `scripts/probe_eat_choice.py`, `scripts/compare_runs.py` (nursery-by-nursery
      tables). Nurseries under today's defaults: `snapshots/ladder2` (and
      `ladder2-40k`); `snapshots/ladder` is pre-default-change.
+1b. **Next (5zorro, 2026-11-05): make the sim CPU/GPU-agnostic.** Start from
+   `openitems.md` Speed (profile, the 4-step path, AMD-on-Windows nuances) and
+   keyed randomness (needed for batched worlds). Shape: one array-module seam
+   (`xp` = NumPy or a GPU array library) instead of NumPy calls scattered
+   through `sim/`; struct-of-arrays NPC state; actions as masks. Guards:
+   `scripts/fingerprint.py` must stay identical on the NumPy backend, mass
+   checks stay at ~1e-13, `tests/test_safety.py` stays green. Hardware: AMD
+   RX 6800 XT (RDNA2, gfx1030), i7-10700K. Environment facts (2026-11-05): WSL
+   has `/dev/dxg` (GPU paravirtualization) but no `/dev/kfd`; whether ROCm on
+   WSL supports this RDNA2 card is unverified (check AMD's ROCm-on-WSL
+   compatibility list before planning on it). Windows-native options don't
+   depend on that. Write `docs/plan-gpu-backend.md` before coding.
 2. Known gaps carried from M1: body starvation is ~35% of collapses; births
    still trail top-ups in 2D (M3's job).
 3. Other levers: a harsher scarcity nursery (half food gave a mild win); **seasons** as a config schedule (famine winters, mostly for

@@ -1,6 +1,7 @@
 __pycache__/
 *.pyc
 .venv/
+.venv-*/
 venv/
 .pytest_cache/
 snapshots/*
@@ -11,6 +12,12 @@ snapshots/*
 # Private, kept local: brainstorming (see handoff.md) and per-tool agent files
 openitems.md
 CLAUDE.md
+.claude/
+.cursor/
+.codex/
+.aider*
+.windsurf/
+.continue/
 
 # Sweep output (scripts/sweep.py --csv)
 runs/

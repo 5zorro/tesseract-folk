@@ -56,10 +56,22 @@ Traps that already bit us, by area. Add to this when something surprises you.
   EOF"). Write the script to the scratchpad with the Write tool and run it.
 - A venv doesn't survive being moved: its `Scripts/*.exe` launchers hard-code
   the old path. After moving the folder, delete `.venv` and recreate it.
-- Commit from Windows git: it uses the GitHub noreply identity. WSL git is set
-  to a personal email, which shouldn't go into this public repo's history.
+- Commit identity: the repo's own `.git/config` pins `user.name`/`user.email`
+  to the GitHub noreply identity (2026-11-05), so Windows and WSL git both
+  commit as 5zorro. WSL's global git identity is personal: never remove the
+  repo-local setting, and set it in any new clone.
 - `.venv/` is created on the Windows side (`.venv/Scripts/python`). A WSL shell
-  needs its own venv (`.venv/bin/python`); don't share one between the two.
+  needs its own venv: use `.venv-wsl/` (gitignored), not `.venv/`.
+- Line endings: Windows git has `core.autocrlf=true`, WSL git has nothing.
+  `.gitattributes` (`* text=auto`) keeps both seeing a clean tree on the same
+  checkout; keep it.
+- An agent's shell here may be Windows (the desktop app's Bash is Git Bash, and
+  plain `python` is Windows Python without pytest: use `.venv/Scripts/python`).
+  To run in WSL from it: `wsl.exe -e sh -c 'cd "/mnt/c/Users/.../tesseract-folk" && ...'`.
+- The local `commit-msg` hook (`.git/hooks`, untracked) rejects attribution
+  lines from any AI tool. It can also reject a harmless message such as "fix
+  made by moving the cursor" ("made by ... cursor"); reword it, never
+  `--no-verify`. A reinstallable copy lives outside the repo.
 
 ## Nursery
 - **Probe scripts were throwaway.** The deadlier-collapse, pretraining and seasons
