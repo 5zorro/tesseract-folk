@@ -88,6 +88,13 @@ class Config:
     # instinct that takes a crumb of the needed food beside a full meal. Adds one
     # brain output, so it's fixed for a world's life and pools must match.
     two_eat_actions: bool = True          # default since 2026-11-06 (5zorro)
+    # Outputs vs training time (5zorro, 2026-11-06: "the quantity of training time
+    # vs the number of outputs"): switch off optional actions ("pray+worship";
+    # moves, eating and poop can't be) or add do-nothing copies of `stay`, so the
+    # number of brain outputs changes while the task doesn't. Fixed for a
+    # world's life (they change the output size).
+    actions_off: str = ""
+    extra_stay_actions: int = 0
 
     # --- npc body ----------------------------------------------------------
     initial_npcs: int = 60

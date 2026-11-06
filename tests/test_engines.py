@@ -28,6 +28,8 @@ CASES = {
     "craving sense": dict(craving_sense=True, dims=3, size=6),
     "craving, no scent": dict(craving_sense=True, food_scent=False),
     "mate sense": dict(mate_sense=True),
+    "fewer actions": dict(actions_off="pick_up+give+pray+worship+share"),
+    "extra stay actions": dict(extra_stay_actions=5),
     "mate sense, 3d": dict(mate_sense=True, dims=3, size=6),
 }
 

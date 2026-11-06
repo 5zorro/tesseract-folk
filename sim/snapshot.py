@@ -38,6 +38,8 @@ LEGACY = {
     "topup_crossover": False,             # 2026-11-06
     "craving_sense": False,               # 2026-11-06; old brains lack its inputs
     "mate_sense": False,                  # 2026-11-06; old brains lack its inputs
+    "actions_off": "",                    # 2026-11-06
+    "extra_stay_actions": 0,              # 2026-11-06
     "precision": "float64",               # 2026-11-06; research scripts default to float32
 }
 

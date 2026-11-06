@@ -1059,7 +1059,33 @@ Why mate attempts fail (share of attempts; "partner ready" was 0% everywhere):
   `pheromone_emission` to their cell each tick; it spreads and fades like stink
   (`pheromone_diffusion`, `pheromone_decay`), and NPCs sense its level and
   relative gradient like food scent. Only callers emit, so a seeker on the move
-  doesn't follow its own trail. Untested in nurseries yet.
+  doesn't follow its own trail.
+- **4D, 120,000-tick nurseries with the new senses** (`runs/ladder-4d-*.csv`):
+
+  | 4D nursery (120k ticks) | Collapses | Food types | Seeks diet |
+  |---|---|---|---|
+  | no new senses, 16 units | 2.08 | **2.23** | 10/10 |
+  | craving only, 16 | 2.82 | 1.80 | 6/10 |
+  | mating only, 16 | 2.58 | 1.99 | 7/10 |
+  | both, 16 | 2.35 | 2.01 | 9/10 |
+  | **both, 32** | **1.89** | 2.11 | 10/10 |
+
+  - At 16 units the extra inputs make 4D worse; at 32 units with both, the
+    fewest 4D collapses so far (types still short). Fits 5zorro's "brain size
+    may need to scale up with the added inputs" (one row, 10 runs: a lead,
+    not a finding).
+  - **Zero births in every 4D nursery, mating sense or not** (all 30 NPCs are
+    top-ups at the end). The pheromone can't help while almost no one is
+    eligible (R9: too young, thin or unwell under nursery rules). A mating test
+    needs worlds where NPCs can be eligible: play rules, or a gentler nursery.
+- **Outputs vs training time (5zorro: "I want to get that relationship down and
+  tested").** `scripts/outputs_vs_time.py`: the task fixed, outputs changed by
+  switching off optional actions (`actions_off`) or adding do-nothing `stay`
+  copies (`extra_stay_actions`); nurseries saved at 2.5k-40k ticks and scored in
+  play; fit ticks-to-target ~ outputs^k. Running (2D first, then 3D).
+- **Directional movement (5zorro, 2026-11-06):** plans to test diagonal /
+  directional movement per dimension ("plenty of games allow it"). The outputs
+  curve above predicts what 3^dims - 1 move actions would cost in training.
 
 ### Slice 4: Levers, only if criterion 3 fails
 Criterion 3 isn't demonstrated (slice 3b). 5zorro picked the memory stack as the

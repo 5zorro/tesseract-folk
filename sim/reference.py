@@ -52,7 +52,8 @@ class ReferenceSimulation:
         self.deity = Deity(self.cfg)
         self.clock = SimClock()
         self.stats = Stats(log_every)
-        self.actions = build_actions(self.cfg.dims, self.cfg.two_eat_actions)
+        self.actions = build_actions(self.cfg.dims, self.cfg.two_eat_actions, self.cfg.actions_off,
+                                     self.cfg.extra_stay_actions)
         self.n_actions = len(self.actions)
         self._phase = [action_phase(a) for a in self.actions]
         self.n_inputs = self.sensor_size()

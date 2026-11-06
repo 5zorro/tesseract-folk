@@ -54,7 +54,7 @@ _PHASES = {"eat": 1, "eat_need": 1, "eat_most": 1, "pick_up": 1,
 
 # Settings that shape arrays, actions or senses: equal within a batch.
 STRUCTURAL = ("dims", "size", "n_food_types", "n_nutrients", "hidden_units", "memory_units",
-              "food_scent", "craving_sense", "mate_sense", "two_eat_actions", "food_patches_per_type", "precision")
+              "food_scent", "craving_sense", "mate_sense", "two_eat_actions", "actions_off", "extra_stay_actions", "food_patches_per_type", "precision")
 PRECISIONS = {"float64": np.float64, "float32": np.float32}
 # World arrays stacked by a batch (each World keeps a view of its row).
 WORLD_ARRAYS = ("soil", "food", "poop", "stink", "scent", "capacity", "zones", "need_distance", "profiles",
@@ -77,7 +77,8 @@ class Simulation:
         self.deity = Deity(self.cfg)
         self.clock = SimClock()
         self.stats = Stats(log_every)
-        self.actions = build_actions(self.cfg.dims, self.cfg.two_eat_actions)
+        self.actions = build_actions(self.cfg.dims, self.cfg.two_eat_actions, self.cfg.actions_off,
+                                     self.cfg.extra_stay_actions)
         self.n_actions = len(self.actions)
         self.n_inputs = self.sensor_size()
         self.n_outputs = self.n_actions + self.cfg.memory_units
@@ -1001,7 +1002,7 @@ class Batch:
     def _eat_round(self, slots: np.ndarray, actions: np.ndarray, flat: np.ndarray) -> np.ndarray:
         """One round of eats and pick-ups, at most one NPC per cell."""
         did = np.zeros(slots.size, dtype=bool)
-        pick = actions == self._act_index["pick_up"]
+        pick = actions == self._act_index.get("pick_up", -1)
         if pick.any():
             did[pick] = self._pick_up(slots[pick], flat[pick])
         if (~pick).any():
@@ -1209,7 +1210,7 @@ class Batch:
         wn = P.world[slots]
         flat = self._flat(P.pos[slots])
         did = np.zeros(slots.size, dtype=bool)
-        poop = (actions == self._act_index["poop"]) & (P.bowel[slots] > 1e-9)
+        poop = (actions == self._act_index.get("poop", -1)) & (P.bowel[slots] > 1e-9)
         if poop.any():
             s = slots[poop]
             np.add.at(self.poop.reshape(-1), wn[poop] * self.cells + flat[poop], P.bowel[s])  # priority order
@@ -1218,12 +1219,12 @@ class Batch:
             did[poop] = True
         names = {"answered": "prayers_answered", "silent": "prayers_silent",
                  "ignored": "prayers_ignored", "smitten": "smitings"}
-        for i in np.flatnonzero(actions == self._act_index["pray"]).tolist():
+        for i in np.flatnonzero(actions == self._act_index.get("pray", -1)).tolist():
             sim = self.sims[wn[i]]
             result = sim.deity.pray(NPCView(P, slots[i]), self.tick)
             sim.stats.count(names[result])
             did[i] = result == "answered"
-        worship = actions == self._act_index["worship"]
+        worship = actions == self._act_index.get("worship", -1)
         if worship.any():
             on = self._shrines()[wn, flat, self.dims] == 1.0      # standing on a shrine
             k = np.flatnonzero(worship & on)
