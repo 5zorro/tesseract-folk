@@ -340,6 +340,15 @@ A batch can't mix them (`STRUCTURAL`). Tests: `tests/test_precision.py`.
   2.49 / 2.41. Food types per life within 0.1 everywhere (3D one eat 2.32 /
   2.18 / 2.24, still short of 2.5). Births swing as before.
 
+### Next idea: a rounding plug (5zorro, 2026-11-06, not built)
+Like an accountant's suspense entry: keep the true total mass in float64; every
+N ticks compare the arrays' total with it and post the difference (rounding,
+~1e-8 of the total) to one soil cell (5zorro: the median cell, so it never
+lands on empty dirt) or spread it in proportion to the soil (what climate
+models' "mass fixers" do). Count the plug in stats, and treat a difference
+above a materiality threshold (e.g. 1e-5 of the total) as an error, not a
+plug, so a real conservation bug can't hide in it. Works the same in the C++ mod.
+
 ## Decisions (5zorro)
 Settled 2026-11-05 ("I fully agree with the approach"): D1, D3, D5, D6 as
 recommended. Open: D2 (reopened), D4, and anything touching the C++ port
