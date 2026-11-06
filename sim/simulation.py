@@ -1,4 +1,4 @@
-"""The core tick loop, as array operations over every NPC at once.
+"""The core tick loop, as array operations over every NPC of many worlds at once.
 
 The tick rules (docs/plan-gpu-backend.md, G1): every NPC senses the world as it
 was at the start of the tick and decides; then the chosen actions resolve in
@@ -7,21 +7,32 @@ everyone's metabolism, then deaths and collapses. Within a phase NPCs go in
 priority order, a fresh keyed draw each tick (lowest first). All randomness is
 keyed (sim/keyed.py).
 
-NPC state lives in a Population (struct of arrays, sim/population.py); `npcs`
-gives NPC-shaped views for scripts and tests. reference.py states the same
-rules one NPC at a time, and tests/test_engines.py checks that both engines
-produce identical worlds (G2). A rule change goes into both.
+Two classes (G3):
+- `Simulation` is one world: its config, map, deity, stats, hall of fame and
+  NPCs (as views). Everything outside this file talks to it.
+- `Batch` steps many worlds in one set of arrays: their maps are stacked on a
+  leading world axis, their NPCs share one Population (sim/population.py) with
+  a world column, and numeric settings become per-world arrays, so a sweep's
+  variants x seeds run as one. A lone `Simulation(cfg)` is a batch of one.
+  Worlds in a batch must share the settings that shape arrays (STRUCTURAL).
+  Stepping any of them steps them all.
+
+reference.py states the same rules one NPC at a time. tests/test_engines.py
+checks that a batch of one matches it exactly (G2), and that a mixed batch
+matches its worlds run alone (G3). A rule change goes into both engines.
 
 Exactness: where several NPCs add to one cell in a phase, the additions run in
 priority order (np.add.at keeps index order), as the reference does them one
 by one. Eaters sharing a cell take turns in rounds: the first of every cell,
-then the second, and so on.
+then the second, and so on. Worlds never share a cell.
 
 Invariant: total mass (soil + food + poop + secret caches + everything NPCs
 carry in body, bowel and inventory) never changes. tests/test_simulation.py
 checks this. If you add a mechanic, keep it true.
 """
 from __future__ import annotations
+
+from dataclasses import fields
 
 import numpy as np
 
@@ -41,12 +52,20 @@ SOCIAL_PHASE = 2
 _PHASES = {"eat": 1, "eat_need": 1, "eat_most": 1, "pick_up": 1,
            "give": SOCIAL_PHASE, "mate": SOCIAL_PHASE, "share": SOCIAL_PHASE}
 
+# Settings that shape arrays, actions or senses: equal within a batch.
+STRUCTURAL = ("dims", "size", "n_food_types", "n_nutrients", "hidden_units", "memory_units",
+              "food_scent", "two_eat_actions", "food_patches_per_type")
+# World arrays stacked by a batch (each World keeps a view of its row).
+WORLD_ARRAYS = ("soil", "food", "poop", "stink", "scent", "capacity", "zones", "need_distance", "profiles")
+
 
 def action_phase(name: str) -> int:
     return 0 if name.startswith("move") else _PHASES.get(name, 3)
 
 
 class Simulation:
+    """One world. Its NPC arrays and map live in `self.batch`."""
+
     def __init__(self, cfg: Config | None = None, populate: bool = True, log_every: int = 100):
         self.cfg = cfg or Config()
         # The world is built from one NumPy stream (so maps match those before
@@ -58,8 +77,6 @@ class Simulation:
         self.stats = Stats(log_every)
         self.actions = build_actions(self.cfg.dims, self.cfg.two_eat_actions)
         self.n_actions = len(self.actions)
-        self._phase = np.array([action_phase(a) for a in self.actions])
-        self._act_index = {name: i for i, name in enumerate(self.actions)}
         self.n_inputs = self.sensor_size()
         self.n_outputs = self.n_actions + self.cfg.memory_units
         c = self.cfg
@@ -75,20 +92,12 @@ class Simulation:
             raise ValueError(f"hall_of_fame_prior_lives must be a number >= 0, got {c.hall_of_fame_prior_lives!r}")
         if not (np.isfinite(c.mutation_lineage_max) and c.mutation_lineage_max >= 1):
             raise ValueError(f"mutation_lineage_max must be a number >= 1, got {c.mutation_lineage_max!r}")
-        types = c.n_food_types
-        self.pop = Population(
-            max(c.max_population, c.initial_npcs, c.min_population) + 1, c.dims,
-            {"nutrients": c.n_nutrients, "satiation": types, "inventory": types,
-             "memory": c.memory_units, "eaten": types},
-            (self.n_inputs, c.hidden_units, self.n_outputs), c.food_patches_per_type)
-        self._nbr = self.world.neighbor_table()            # (cells, 2 * dims)
-        self._shrine_table: np.ndarray | None = None
-        self._shrines_cached: list = []
-        self._present: np.ndarray | None = None            # slots alive at the tick's start
         self.hall_of_fame: list[dict] = []   # see nursery.hall_of_fame_entry for the fields
         self.overrides: dict[int, object] = {}  # npc id -> controller (see controllers.py)
-        self.tick = 0
         self.next_id = 0
+        self.batch: Batch | None = None
+        self.index = 0                       # this world's row in its batch
+        Batch([self])
         if populate:
             for _ in range(self.cfg.initial_npcs):
                 draw = self.keys.stream(0, self.next_id, keyed.INIT)
@@ -97,22 +106,36 @@ class Simulation:
 
     # ============================================================ the NPCs
     @property
+    def pop(self) -> Population:
+        return self.batch.pop
+
+    @property
+    def tick(self) -> int:
+        return self.batch.tick
+
+    @tick.setter
+    def tick(self, value: int) -> None:
+        if len(self.batch.sims) > 1:
+            raise ValueError("worlds in a batch share one clock; set the tick before batching")
+        self.batch.tick = value
+
+    @property
     def npcs(self) -> list[NPCView]:
-        """The living NPCs as views, by id (writes go into the arrays)."""
-        live = self.pop.live()
-        return [NPCView(self.pop, s) for s in self._by_id(live)]
+        """This world's living NPCs as views, by id (writes go into the arrays)."""
+        return [NPCView(self.pop, s) for s in self._by_id(self.pop.live(self.index))]
 
     @npcs.setter
     def npcs(self, npcs: list) -> None:
-        """Replace everyone with these NPC records (or views); dead ones are dropped."""
+        """Replace this world's NPCs with these records (or views); dead ones are dropped."""
         records = [n if isinstance(n, NPC) else self.pop.record(n._check()[1]) for n in npcs]
-        self.pop.clear()
+        self.pop.clear(self.index)
         for r in records:
             if r.alive:
-                self.pop.add(r)
+                self.pop.add(r, self.index)
 
     def _slot(self, npc) -> int:
-        if not isinstance(npc, NPCView) or npc._pop is not self.pop:
+        if (not isinstance(npc, NPCView) or npc._pop is not self.pop
+                or self.pop.world[npc._slot] != self.index):
             raise TypeError("expected one of this simulation's NPCs (from sim.npcs)")
         return npc._check()[1]
 
@@ -122,35 +145,20 @@ class Simulation:
     def _by_id(self, slots: np.ndarray) -> np.ndarray:
         return slots[np.argsort(self.pop.id[slots], kind="stable")]
 
+    def world_changed(self) -> None:
+        """Call after writing this world's arrays in place (snapshots do): derived
+        tables (which cells serve which nutrient, shrine senses) are rebuilt."""
+        self.world._serves_zones = None
+        self.batch.refresh(self.index)
+
     # ============================================================ public API
     def step(self) -> bool:
-        """Advance one tick. Returns False if time is frozen (player AFK)."""
-        cfg = self.cfg
-        if cfg.freeze_all_when_afk and not self.clock.aging_active:
-            return False
-        aging = self.clock.aging_active
-        self.tick += 1
-        self.world.step()
-        self.deity.step(self.tick, self.world, self.keys, self.stats)
-
-        order = self._priority_order()
-        self._present = order
-        actions = self.decide_all(order)
-        births: list[NPC] = []
-        self.resolve(order, actions, births)
-        self._metabolize(order, aging)
-        self._fall(order)
-        self._present = None
-        for child in births:
-            self.pop.add(child)
-        self._top_up()
-        self.clock.consume_tick()
-        self.stats.maybe_sample(self)
-        return True
+        """Advance one tick (of every world in this batch). Returns False if time
+        is frozen (player AFK)."""
+        return self.batch.step()
 
     def run(self, ticks: int) -> None:
-        for _ in range(ticks):
-            self.step()
+        self.batch.run(ticks)
 
     def fast_forward(self, ticks: int) -> None:
         """The player turns the clock: run with aging forced on."""
@@ -158,7 +166,7 @@ class Simulation:
         self.run(ticks)
 
     def total_mass(self) -> float:
-        P, live = self.pop, self._by_id(self.pop.live())
+        P, live = self.pop, self._by_id(self.pop.live(self.index))
         each = P.body[live] + P.bowel[live] + P.inventory[live].sum(axis=1)
         carried = sum(each.tolist())        # one by one, in id order, like the reference
         return self.world.mass() + self.deity.mass() + carried
@@ -197,7 +205,6 @@ class Simulation:
                             f"(mean {pops.mean():.1f} <= min_population {c.min_population})")
         return problems
 
-    # =============================================================== senses
     def sensor_size(self) -> int:
         c = self.cfg
         t, n, d, m = c.n_food_types, c.n_nutrients, c.dims, c.memory_units
@@ -205,560 +212,38 @@ class Simulation:
         return (n + 4 + t + t + d * t + 1 + d + 1 + t + 2
                 + 1 + d + d + 1 + 1 + m + 1 + scent)
 
+    # ================================ the reference's single-NPC helpers (tests)
     def sense(self, npc, index=None) -> np.ndarray:
         """One NPC's senses (`index` is ignored; kept for the reference's signature)."""
-        return self.sense_slots(np.array([self._slot(npc)]))[0]
+        return self.batch.sense_slots(np.array([self._slot(npc)]))[0]
 
-    def sense_slots(self, slots: np.ndarray) -> np.ndarray:
-        """Senses of these slots, one row each, from the world as it is now."""
-        cfg, w, P = self.cfg, self.world, self.pop
-        n, d = slots.size, cfg.dims
-        types = w.food.shape[0]
-        half = cfg.size / 2
-        flat = w.flat(P.pos[slots])
-        nbr = self._nbr[flat]                                   # (n, 2d): +1, -1 per axis
-        food = w.food.reshape(types, -1)
-        food_n = food[:, nbr]                                   # (types, n, 2d)
-        food_grad = ((food_n[:, :, 0::2] - food_n[:, :, 1::2]) / cfg.food_capacity
-                     ).transpose(1, 2, 0).reshape(n, d * types)    # axis by axis, every type
-        stink = w.stink.reshape(-1)
-        stink_n = stink[nbr]
-        # Others in the same cell or one step away.
-        occupied = np.bincount(w.flat(P.pos[P.live()]), minlength=stink.size)
-        crowd = occupied[flat] + occupied[nbr].sum(axis=1) - 1
-
-        secret = np.zeros((n, 1 + d))
-        for i in np.flatnonzero(P.known_secret[slots] >= 0):
-            s = self.deity.secrets.get(int(P.known_secret[slots[i]]))
-            if s is None:                                       # gone stale or claimed
-                P.known_secret[slots[i]] = -1
-            else:
-                secret[i, 0] = 1.0
-                secret[i, 1:] = wrapped_delta(P.pos[slots[i]], s.pos, cfg.size) / half
-
-        parts = [
-            P.nutrients[slots],
-            np.stack([P.health[slots], np.minimum(P.age[slots] / cfg.old_age, 1.5),
-                      P.body[slots] / cfg.npc_start_mass, P.bowel[slots] / cfg.bowel_capacity], axis=1),
-            P.satiation[slots],
-            food[:, flat].T / cfg.food_capacity,
-            food_grad,
-            stink[flat][:, None],
-            stink_n[:, 0::2] - stink_n[:, 1::2],
-            np.minimum(crowd / 4.0, 1.0)[:, None],
-            P.inventory[slots] / cfg.carry_capacity,
-            np.stack([P.piety[slots], P.smite[slots]], axis=1),
-            secret,
-            self._shrines()[flat],
-            P.moved_last[slots].astype(float)[:, None],
-            P.memory[slots],
-            np.ones((n, 1)),
-        ]
-        if cfg.food_scent:
-            scent = w.scent.reshape(types, -1)
-            here = scent[:, flat].T
-            scent_n = scent[:, nbr]
-            s_plus, s_minus = scent_n[:, :, 0::2], scent_n[:, :, 1::2]
-            # Relative difference: points uphill at any distance, like a nose.
-            parts += [here / (here + cfg.scent_half),
-                      ((s_plus - s_minus) / (s_plus + s_minus + 1e-12)).transpose(1, 2, 0).reshape(n, d * types)]
-        obs = np.concatenate(parts, axis=1, dtype=float)
-        assert obs.shape == (n, self.n_inputs), (obs.shape, self.n_inputs)
-        return obs
-
-    def _shrines(self) -> np.ndarray:
-        """Per cell: direction to the nearest shrine and whether it's on one
-        ((cells, dims + 1); rebuilt if the shrines change). Ties go to the
-        first shrine in the list, as in the reference."""
-        w, cfg = self.world, self.cfg
-        if self._shrine_table is None or self._shrines_cached != w.shrines:
-            cells = np.indices(w.shape).reshape(cfg.dims, -1).T          # (cells, dims)
-            table = np.zeros((cells.shape[0], cfg.dims + 1))
-            if w.shrines:
-                shrines = np.array(w.shrines)
-                deltas = (shrines[:, None, :] - cells[None] + cfg.size // 2) % cfg.size - cfg.size // 2
-                nearest = deltas[np.abs(deltas).sum(axis=2).argmin(axis=0), np.arange(cells.shape[0])]
-                table[:, :cfg.dims] = nearest / (cfg.size / 2)
-                table[:, cfg.dims] = (~nearest.any(axis=1)).astype(float)
-            self._shrine_table, self._shrines_cached = table, list(w.shrines)
-        return self._shrine_table
-
-    # ============================================================== thinking
-    def _priority_order(self) -> np.ndarray:
-        """The living slots, lowest priority draw first (ties, practically never,
-        by id). Every phase of the tick goes in this order."""
-        live = self.pop.live()
-        if not live.size:
-            return live
-        ids = self.pop.id[live]
-        return live[np.lexsort((ids, self.keys.uniform(self.tick, ids, keyed.ORDER)))]
-
-    def decide_all(self, order: np.ndarray) -> np.ndarray:
-        """Rule 1: everyone senses the start-of-tick world and picks an action
-        (an index into self.actions). Deciding changes only each NPC's own memory.
-        (5zorro's reaction-time queue would hand `resolve` actions decided
-        earlier instead; docs/plan-gpu-backend.md.)"""
-        if not order.size:
-            return np.zeros(0, dtype=np.int64)
-        P, A = self.pop, self.n_actions
-        obs = self.sense_slots(order)
-        u = self.keys.uniform(self.tick, P.id[order], keyed.ACTION)
-        hidden = np.tanh(np.matmul(P.w1[order], obs[:, :, None])[:, :, 0] + P.b1[order])
-        out = np.matmul(P.w2[order], hidden[:, :, None])[:, :, 0] + P.b2[order]
-        logits = out[:, :A] / self.cfg.action_temperature
-        logits -= logits.max(axis=1, keepdims=True)
-        probs = np.exp(logits)
-        probs /= probs.sum(axis=1, keepdims=True)
-        # The way NumPy's rng.choice(p=probs) samples (one uniform draw against the
-        # cumulative sum), with each NPC's keyed draw `u`.
-        cdf = probs.cumsum(axis=1)
-        cdf /= cdf[:, -1:]
-        actions = (cdf <= u[:, None]).sum(axis=1)
-        brained = np.ones(order.size, dtype=bool)
-        if self.overrides:
-            for i, slot in enumerate(order.tolist()):
-                controller = self.overrides.get(int(P.id[slot]))
-                if controller is not None:
-                    actions[i] = controller.decide(self, NPCView(P, slot), obs[i])
-                    brained[i] = False
-        P.memory[order[brained]] = np.tanh(out[brained, A:])
-        return actions
-
-    # =============================================================== actions
-    def resolve(self, order: np.ndarray, actions: np.ndarray, births: list[NPC]) -> None:
-        """Rules 2-3: actions take effect phase by phase, in priority order."""
-        cfg, P = self.cfg, self.pop
-        phase = self._phase[actions]
-        moved = phase == 0
-        did = np.zeros(order.size, dtype=bool)
-        if moved.any():
-            self._moves(order[moved], actions[moved])
-        eats = phase == 1
-        if eats.any():
-            did[eats] = self._eats(order[eats], actions[eats])
-        social = phase == SOCIAL_PHASE
-        if social.any():
-            did[social] = self._social(order[social], actions[social], births)
-        rest = phase == 3
-        if rest.any():
-            did[rest] = self._rest(order[rest], actions[rest])
-        P.moved_last[order] = moved
-        busy = moved | (did & cfg.busy_resets_idle)
-        P.idle_streak[order] = np.where(busy, 0, P.idle_streak[order] + 1)
-
-    def _moves(self, slots: np.ndarray, actions: np.ndarray) -> None:
-        cfg, w, P = self.cfg, self.world, self.pop
-        before = P.pos[slots].copy()
-        rows = np.arange(slots.size)
-        axis = actions // 2                         # moves are move+0, move-0, move+1, ...
-        after = before.copy()
-        after[rows, axis] = (after[rows, axis] + np.where(actions % 2 == 0, 1, -1)) % cfg.size
-        P.pos[slots] = after
-        self._record_approach(slots, w.flat(before), w.flat(after))
-        if self.deity.secrets:
-            claimed = self.deity.claim_cells({tuple(int(v) for v in p) for p in after}, w)
-            if claimed:
-                self.stats.count("secrets_claimed", claimed)
-
-    def _record_approach(self, slots: np.ndarray, before: np.ndarray, after: np.ndarray) -> None:
-        """M2 slice 3c: did this move head for the food the NPC needs most, more
-        than for the others? Moves only, so the eat instinct can't leak in."""
-        w, P = self.world, self.pop
-        k = w.need_distance.shape[0]
-        need = np.argmin(P.nutrients[slots], axis=1)
-        rows = np.arange(slots.size)
-        dist = w.need_distance.reshape(k, -1)
-        here = dist[:, before].T                                       # (n, nutrients)
-        others = np.isfinite(here)
-        others[rows, need] = False
-        ok = (~w.serves_table().reshape(k, -1)[need, before]          # not already at its food
-              & np.isfinite(here[rows, need]) & others.any(axis=1))
-        if not ok.any():
-            return
-        slots, need, here, others = slots[ok], need[ok], here[ok], others[ok]
-        rows = np.arange(slots.size)
-        # Score the move taken, then every possible step from the same cell. Their
-        # mean is what a random step scores. Not 0: a random walk drifts away from
-        # near food faster than from far food (gotchas.md).
-        cells = np.concatenate([after[ok][:, None], self._nbr[before[ok]]], axis=1)   # (n, steps)
-        delta = dist[:, cells].transpose(1, 0, 2) - here[:, :, None]                  # (n, nutrients, steps)
-        score = (np.where(others[:, :, None], delta, 0.0).sum(axis=1) / others.sum(axis=1)[:, None]
-                 - delta[rows, need])
-        P.approach_sum[slots] += score[:, 0]
-        P.approach_null[slots] += score[:, 1:].sum(axis=1) / (score.shape[1] - 1)
-        P.approach_moves[slots] += 1
-
-    def _eats(self, slots: np.ndarray, actions: np.ndarray) -> np.ndarray:
-        """Eaters and pick-uppers sharing a cell take turns in priority order: in
-        round r, the r-th of every cell acts (different cells don't interact)."""
-        flat = self.world.flat(self.pop.pos[slots])
-        by_cell = np.argsort(flat, kind="stable")       # stable: priority order within a cell
-        sorted_flat = flat[by_cell]
-        first = np.r_[True, sorted_flat[1:] != sorted_flat[:-1]]
-        starts = np.maximum.accumulate(np.where(first, np.arange(flat.size), 0))
-        turn = np.empty(flat.size, dtype=np.int64)
-        turn[by_cell] = np.arange(flat.size) - starts
-        did = np.zeros(slots.size, dtype=bool)
-        for r in range(int(turn.max()) + 1):
-            now = np.flatnonzero(turn == r)
-            did[now] = self._eat_round(slots[now], actions[now], flat[now])
-        return did
-
-    def _eat_round(self, slots: np.ndarray, actions: np.ndarray, flat: np.ndarray) -> np.ndarray:
-        """One round of eats and pick-ups, at most one NPC per cell."""
-        did = np.zeros(slots.size, dtype=bool)
-        pick = actions == self._act_index["pick_up"]
-        if pick.any():
-            did[pick] = self._pick_up(slots[pick], flat[pick])
-        if (~pick).any():
-            most = actions[~pick] == self._act_index.get("eat_most", -1)
-            did[~pick] = self._eat_slots(slots[~pick], flat[~pick], most)
-        return did
-
-    def _eat(self, npc, rule: str = "need") -> bool:
-        """The reference's single-NPC eat (tests use it)."""
-        slot = np.array([self._slot(npc)])
-        return bool(self._eat_slots(slot, self.world.flat(self.pop.pos[slot]), np.array([rule == "most"]))[0])
-
-    def _eat_slots(self, slots: np.ndarray, flat: np.ndarray, most: np.ndarray) -> np.ndarray:
-        """Eat a bite from the ground, else from the inventory. Per NPC, the food
-        is the one that best fixes deficits per unit (crumbs count), or with
-        `most` (eat_most) the biggest pile. One NPC per cell."""
-        cfg, w, P = self.cfg, self.world, self.pop
-        types = w.food.shape[0]
-        food = w.food.reshape(types, -1)
-        rows = np.arange(slots.size)
-        deficit = 1.0 - P.nutrients[slots]
-        value = np.matmul(w.profiles, deficit[:, :, None])[:, :, 0] * (1.0 - P.satiation[slots])
-        here = food[:, flat].T                                  # (n, types), a copy
-        inventory = P.inventory[slots]
-        ground = (here > 1e-9).any(axis=1)
-        ate = ground | (inventory > 1e-9).any(axis=1)
-        source = np.where(ground[:, None], here, inventory)
-        score = np.where(most[:, None], source, value)
-        t = np.argmax(np.where(source > 1e-9, score, -np.inf), axis=1)
-        amount = np.minimum(cfg.bite_size, source[rows, t])
-        g = np.flatnonzero(ground)
-        food[t[g], flat[g]] -= amount[g]
-        inv = np.flatnonzero(ate & ~ground)
-        P.inventory[slots[inv], t[inv]] -= amount[inv]
-        if g.size:
-            self._record_zones(slots[g], flat[g], t[g])
-        e = np.flatnonzero(ate)
-        if not e.size:
-            return ate
-        s, t, amount = slots[e], t[e], amount[e]
-        frac = amount / cfg.bite_size
-        P.body[s] += amount
-        P.nutrients[s] = np.clip(
-            P.nutrients[s] + (frac * cfg.nutrition_per_bite)[:, None] * w.profiles[t]
-            * (1.0 - P.satiation[s, t])[:, None], 0.0, 1.0)
-        P.satiation[s, t] = np.minimum(1.0, P.satiation[s, t] + cfg.satiation_gain * frac)
-        P.eaten[s, t] += amount
-        self.stats.count("eats", e.size)
-        if cfg.two_eat_actions:
-            n_most = int(most[e].sum())
-            if e.size - n_most:
-                self.stats.count("eats_need", e.size - n_most)
-            if n_most:
-                self.stats.count("eats_most", n_most)
-        return ate
-
-    def _record_zones(self, slots: np.ndarray, flat: np.ndarray, t: np.ndarray) -> None:
-        """M2 travel: a bite from the ground inside a zone (food type, patch);
-        a switch is a different zone from the last in-zone bite, after leaving
-        it (eating another food where two zones overlap isn't travel)."""
-        w, P = self.world, self.pop
-        zones = w.zones.reshape(w.zones.shape[0], -1)
-        zone = zones[t, flat]
-        inside = zone >= 0                              # carried food doesn't count: it isn't a place
-        if not inside.any():
-            return
-        slots, flat, t, zone = slots[inside], flat[inside], t[inside], zone[inside]
-        last_t, last_z = P.last_zone[slots, 0], P.last_zone[slots, 1]
-        has_last = last_t >= 0
-        still = has_last & (zones[np.maximum(last_t, 0), flat] == last_z)
-        switched = has_last & ((t != last_t) | (zone != last_z)) & ~still
-        P.zones_eaten[slots, t, zone] = True
-        P.zone_switches[slots] += switched
-        P.last_zone[slots, 0], P.last_zone[slots, 1] = t, zone
-        if switched.any():
-            self.stats.count("zone_switches", int(switched.sum()))
-            # Deficit-directed travel (M2 slice 3b): judged by where it arrived,
-            # not by what `eat` picked, since eat already chooses by deficit.
-            s, f = slots[switched], flat[switched]
-            serves = w.serves_table().reshape(w.need_distance.shape[0], -1)[:, f].T
-            need = np.argmin(P.nutrients[s], axis=1)
-            P.directed_hits[s] += serves[np.arange(s.size), need]
-            P.directed_chance[s] += serves.mean(axis=1)
-
-    def _pick_up(self, slots: np.ndarray, flat: np.ndarray) -> np.ndarray:
-        cfg, P = self.cfg, self.pop
-        types = self.world.food.shape[0]
-        food = self.world.food.reshape(types, -1)
-        room = cfg.carry_capacity - P.inventory[slots].sum(axis=1)
-        here = food[:, flat].T
-        ok = ~(room <= 1e-9) & (here > 1e-9).any(axis=1)
-        k = np.flatnonzero(ok)
-        if k.size:
-            t = np.argmax(here[k], axis=1)
-            amount = np.minimum(np.minimum(cfg.bite_size, here[k, t]), room[k])
-            food[t, flat[k]] -= amount
-            P.inventory[slots[k], t] += amount
-        return ok
-
-    # -------------------------------------------- social actions (few, in turn)
-    def _social(self, slots: np.ndarray, actions: np.ndarray, births: list[NPC]) -> np.ndarray:
-        """give, mate and share, one NPC at a time in priority order. They see
-        where everyone is after the moves."""
-        P, w = self.pop, self.world
-        live = P.live()
-        index: dict[int, list[int]] = {}
-        for slot, cell in zip(live.tolist(), w.flat(P.pos[live]).tolist()):
-            index.setdefault(cell, []).append(slot)
-        did = np.zeros(slots.size, dtype=bool)
-        handlers = {self._act_index.get("give"): self._give, self._act_index.get("mate"): self._mate,
-                    self._act_index.get("share"): self._share}
-        for i, (slot, action) in enumerate(zip(slots.tolist(), actions.tolist())):
-            did[i] = handlers[action](slot, index, births)
-        return did
-
-    def _neighbors(self, slot: int, index: dict) -> list[int]:
-        """Slots in the same cell or one step away (by the positions `index`
-        was built from), other than `slot`."""
-        cell = int(self.world.flat(self.pop.pos[slot][None])[0])
-        return [o for c in [cell, *self._nbr[cell].tolist()] for o in index.get(c, ()) if o != slot]
-
-    def _give(self, slot: int, index: dict, births: list) -> bool:
-        P, cfg = self.pop, self.cfg
-        if P.inventory[slot].sum() <= 1e-9:
-            return False
-        cap = cfg.carry_capacity
-        takers = sorted((o for o in self._neighbors(slot, index) if cap - P.inventory[o].sum() > 1e-9),
-                        key=lambda o: P.id[o])            # by id: the pick mustn't depend on list order
-        if not takers:
-            return False
-        other = takers[self.keys.stream(self.tick, int(P.id[slot]), keyed.GIVE).integers(len(takers))]
-        t = int(np.argmax(P.inventory[slot]))
-        amount = min(cfg.bite_size, float(P.inventory[slot, t]), cap - float(P.inventory[other].sum()))
-        P.inventory[slot, t] -= amount
-        P.inventory[other, t] += amount
-        P.gifts_given[slot] += 1
-        P.gifts_received[other] += 1
-        self.stats.count("gives")
-        return True
-
-    def _can_mate(self, slot: int) -> bool:
-        c, P = self.cfg, self.pop
-        return bool(P.alive[slot] and P.age[slot] >= c.adult_age and P.body[slot] >= c.reproduce_min_mass
-                    and P.health[slot] > 0.5 and self.tick >= P.mate_cooldown_until[slot])
-
-    def _rate(self, slot: int) -> float:
-        """NPC.collapse_rate for a slot."""
-        return 1000.0 * int(self.pop.collapses[slot]) / max(int(self.pop.lifetime[slot]), 1)
-
-    def _mate(self, slot: int, index: dict, births: list[NPC]) -> bool:
-        """True only when a child is born; signaling readiness alone isn't busy."""
-        cfg, P = self.cfg, self.pop
-        if not self._can_mate(slot):
-            return False
-        P.mate_ready_until[slot] = self.tick + cfg.mate_window
-        if self.pop.count() + len(births) >= cfg.max_population:
-            return False
-        partners = sorted((o for o in self._neighbors(slot, index)
-                           if P.mate_ready_until[o] >= self.tick and self._can_mate(o)),
-                          key=lambda o: P.id[o])
-        if not partners:
-            return False
-        mate = partners[self.keys.stream(self.tick, int(P.id[slot]), keyed.MATE).integers(len(partners))]
-        half = cfg.child_mass / 2
-        P.body[slot] -= half
-        P.body[mate] -= half
-        child_id = self.next_id                      # the child's draws are keyed by its id
-        brain = Brain.crossover(P.brain(slot), P.brain(mate),
-                                self.keys.stream(self.tick, child_id, keyed.CROSSOVER))
-        parent_rate = (self._rate(slot) + self._rate(mate)) / 2
-        known = [float(P.lineage[p]) for p in (slot, mate) if P.lineage[p] >= 0]
-        brain, mutations, lineage = self.mutate_child(
-            brain, parent_rate, sum(known) / len(known) if known else -1.0, key_id=child_id)
-        child = self._make_npc(brain, tuple(int(v) for v in P.pos[slot]), cfg.child_mass,
-                               max(int(P.generation[slot]), int(P.generation[mate])) + 1)
-        child.origin, child.mutations, child.parent_rate = "birth", mutations, parent_rate
-        child.lineage = lineage
-        births.append(child)
-        for parent in (slot, mate):
-            P.offspring[parent] += 1
-            P.mate_ready_until[parent] = -1
-            P.mate_cooldown_until[parent] = self.tick + cfg.mate_cooldown
-        self.stats.count("births")
-        return True
-
-    def _share(self, slot: int, index: dict, births: list) -> bool:
-        P = self.pop
-        sid = int(P.known_secret[slot])
-        if sid < 0 or sid not in self.deity.secrets:
-            return False
-        shared = 0
-        for other in self._neighbors(slot, index):
-            if P.known_secret[other] != sid:
-                P.known_secret[other] = sid
-                shared += 1
-        if shared:
-            self.stats.count("secrets_shared", shared)
-        return shared > 0
-
-    def _rest(self, slots: np.ndarray, actions: np.ndarray) -> np.ndarray:
-        """poop, pray, worship (and stay, which does nothing on purpose)."""
-        cfg, w, P = self.cfg, self.world, self.pop
-        did = np.zeros(slots.size, dtype=bool)
-        poop = (actions == self._act_index["poop"]) & (P.bowel[slots] > 1e-9)
-        if poop.any():
-            s = slots[poop]
-            np.add.at(w.poop.reshape(-1), w.flat(P.pos[s]), P.bowel[s])   # in priority order
-            P.bowel[s] = 0.0
-            self.stats.count("poops", s.size)
-            did[poop] = True
-        names = {"answered": "prayers_answered", "silent": "prayers_silent",
-                 "ignored": "prayers_ignored", "smitten": "smitings"}
-        for i in np.flatnonzero(actions == self._act_index["pray"]).tolist():
-            result = self.deity.pray(NPCView(P, slots[i]), self.tick)
-            self.stats.count(names[result])
-            did[i] = result == "answered"
-        worship = actions == self._act_index["worship"]
-        if worship.any() and w.shrines:
-            on = np.isin(w.flat(P.pos[slots]), w.flat(np.array(w.shrines)))
-            k = np.flatnonzero(worship & on)
-            if k.size:
-                P.piety[slots[k]] = np.minimum(1.0, P.piety[slots[k]] + cfg.worship_piety_gain)
-                self.stats.count("worships", k.size)
-                did[k] = True
-        return did
-
-    # ============================================================ metabolism
-    def metabolize(self, npcs: list, aging: bool) -> None:
-        """Everyone's metabolism first, then the fallen (health gone) in this order."""
-        slots = self._slots([n for n in npcs if n.alive])
-        outside_tick = self._present is None
-        if outside_tick:
-            self._present = self.pop.live()
-        try:
-            self._metabolize(slots, aging)
-            self._fall(slots)
-        finally:
-            if outside_tick:
-                self._present = None
-
-    def _metabolize(self, s: np.ndarray, aging: bool) -> None:
-        cfg, w, P = self.cfg, self.world, self.pop
-        if not s.size:
-            return
-        moved_mass = cfg.metabolism_rate * P.body[s]
-        P.body[s] -= moved_mass
-        P.bowel[s] += moved_mass
-        accident = P.bowel[s] >= cfg.bowel_capacity
-        if accident.any():
-            a = s[accident]
-            np.add.at(w.poop.reshape(-1), w.flat(P.pos[a]), P.bowel[a])     # in priority order
-            P.bowel[a] = 0.0
-            self.stats.count("accidents", a.size)
-
-        idle = P.idle_streak[s] > cfg.idle_grace_ticks
-        decay = np.where(idle, cfg.nutrient_decay * cfg.idle_hunger_multiplier, cfg.nutrient_decay * 1.0)
-        # np.minimum/maximum: the same values as np.clip.
-        P.nutrients[s] = np.minimum(np.maximum(P.nutrients[s] - decay[:, None], 0.0), 1.0)
-        P.satiation[s] = np.minimum(np.maximum(P.satiation[s] - cfg.satiation_decay, 0.0), 1.0)
-        P.smite[s] = np.maximum(0.0, P.smite[s] - cfg.smite_decay)
-
-        P.lifetime[s] += 1
-        generations, counts = np.unique(P.generation[s], return_counts=True)
-        for g, k in zip(generations.tolist(), counts.tolist()):
-            self.stats.generation_lifetime[g] += k
-        if aging:
-            P.age[s] += 1
-
-        lowest = P.nutrients[s].min(axis=1)
-        starving = lowest < cfg.starving_threshold
-        thin = P.body[s] < cfg.min_body_mass
-        stink = w.stink.reshape(-1)[w.flat(P.pos[s])]
-        stinky = stink > cfg.stink_threshold
-        elder = P.age[s] > cfg.old_age
-        # One cause at a time, in the reference's order, so health falls the same way.
-        P.add_damage(s[starving], "nutrient_starve", cfg.starvation_damage, self.tick)
-        P.add_damage(s[thin], "body_starve", cfg.starvation_damage, self.tick)
-        P.add_damage(s[stinky], "stink", cfg.stink_damage * (stink[stinky] - cfg.stink_threshold), self.tick)
-        P.add_damage(s[elder], "elder", cfg.elder_decline * (P.age[s[elder]] - cfg.old_age) / cfg.old_age,
-                     self.tick)
-        heal = s[~(starving | thin | stinky | elder) & (lowest > 0.4)]
-        P.health[heal] = np.minimum(1.0, P.health[heal] + cfg.heal_rate)
-        whole = heal[P.health[heal] >= 1.0]
-        P.damage[whole] = 0.0
-        P.damage_seq[whole] = 0
-
-    def _fall(self, slots: np.ndarray) -> None:
-        """Health ran out: elders die, the young collapse (in priority order)."""
-        P = self.pop
-        for slot in slots[P.alive[slots] & (P.health[slots] <= 0)].tolist():
-            if P.age[slot] >= self.cfg.old_age:
-                self._die_slot(slot)
-            else:
-                self._collapse_slot(slot)
-
-    def _drop_inventory(self, slot: int) -> None:
-        here = self.world.food_at(tuple(int(v) for v in self.pop.pos[slot]))
-        here += self.pop.inventory[slot]
-        self.pop.inventory[slot] = 0.0
-
-    def _collapse_slot(self, slot: int) -> None:
-        """Young NPCs can't die permanently. They collapse, drop what they
-        carry, wake up somewhere else, and age faster for the trouble."""
-        cfg, P = self.cfg, self.pop
-        self._drop_inventory(slot)
-        P.pos[slot] = self.world.random_cell(self.keys.stream(self.tick, int(P.id[slot]), keyed.COLLAPSE))
-        P.health[slot] = cfg.collapse_health
-        P.nutrients[slot] = np.maximum(P.nutrients[slot], cfg.collapse_nutrient_floor)
-        P.age[slot] += cfg.collapse_age_penalty
-        P.collapses[slot] += 1
-        P.known_secret[slot] = -1
-        P.last_zone[slot] = -1                 # waking up elsewhere isn't travel
-        self.stats.count("collapses")
-        self.stats.count(f"collapse_{P.main_damage_cause(slot)}")
-        self.stats.generation_collapses[int(P.generation[slot])] += 1
-        P.damage[slot] = 0.0
-        P.damage_seq[slot] = 0
-
-    def _die_slot(self, slot: int) -> None:
-        """Elders die for real. The body becomes poop (which stinks, then
-        fertilizes), so the mass goes back into the loop."""
-        P = self.pop
-        self._drop_inventory(slot)
-        self.world.poop[tuple(int(v) for v in P.pos[slot])] += P.body[slot] + P.bowel[slot]
-        P.body[slot] = P.bowel[slot] = 0.0
-        P.alive[slot] = False
-        npc = NPCView(P, slot)
-        self._record_hall_of_fame(npc)
-        self.stats.count("deaths")
-        self.stats.count(f"death_{P.main_damage_cause(slot)}")
-        self.stats.record_life(npc, self.tick)
-
-    # The reference's single-NPC helpers, for tests and scripts.
     def _spatial_index(self) -> None:
         return None
 
     def _act(self, npc, action: int, index=None, births: list | None = None) -> None:
-        outside_tick = self._present is None
-        if outside_tick:
-            self._present = self.pop.live()
-        try:
-            self.resolve(np.array([self._slot(npc)]), np.array([action]), [] if births is None else births)
-        finally:
-            if outside_tick:
-                self._present = None
+        lists = [[] for _ in self.batch.sims]
+        if births is not None:
+            lists[self.index] = births
+        with self.batch.outside_tick():
+            self.batch.resolve(np.array([self._slot(npc)]), np.array([action]), lists)
+
+    def _eat(self, npc, rule: str = "need") -> bool:
+        slot = np.array([self._slot(npc)])
+        flat = self.world.flat(self.pop.pos[slot])
+        return bool(self.batch._eat_slots(slot, flat, np.array([rule == "most"]))[0])
+
+    def metabolize(self, npcs: list, aging: bool) -> None:
+        """Everyone's metabolism first, then the fallen (health gone) in this order."""
+        slots = self._slots([n for n in npcs if n.alive])
+        with self.batch.outside_tick():
+            self.batch._metabolize(slots, np.full(len(self.batch.sims), aging))
+            self.batch._fall(slots)
 
     def _die(self, npc) -> None:
-        self._die_slot(self._slot(npc))
+        self.batch._die_slot(self._slot(npc))
 
     def _collapse(self, npc) -> None:
-        self._collapse_slot(self._slot(npc))
+        self.batch._collapse_slot(self._slot(npc))
 
     # ========================================================= population
     def _random_brain(self, draw) -> Brain:
@@ -779,14 +264,15 @@ class Simulation:
         return npc
 
     def _spawn(self, brain: Brain, pos, body: float, generation: int) -> NPCView:
-        return NPCView(self.pop, self.pop.add(self._make_npc(brain, pos, body, generation)))
+        return NPCView(self.pop, self.pop.add(self._make_npc(brain, pos, body, generation), self.index))
 
     def population_collapse_rate(self) -> float:
         """Collapses per 1,000 ticks lived, over everyone alive (weighted by
         time lived, so newborns' noisy rates barely count). During a tick,
         "alive" means alive when the tick began, as in the reference."""
-        P = self.pop
-        slots = self._present if self._present is not None else P.live()
+        P, present = self.pop, self.batch.present
+        slots = (present[P.world[present] == self.index] if present is not None
+                 else P.live(self.index))
         lived = int(P.lifetime[slots].sum())
         return 1000.0 * int(P.collapses[slots].sum()) / lived if lived else -1.0
 
@@ -881,12 +367,12 @@ class Simulation:
         """If the population drops too low, spawn mutated copies of the best
         brains seen so far. Mass comes out of the soil, so it's still conserved."""
         cfg, P = self.cfg, self.pop
-        while P.count() < cfg.min_population:
+        while P.count(self.index) < cfg.min_population:
             if not self.world.take_from_soil(cfg.npc_start_mass):
                 break
             track = cfg.hall_of_fame_track_record
             population = self.population_collapse_rate() if track else -1.0
-            living = self._by_id(P.live())
+            living = self._by_id(P.live(self.index))
             lifetime, collapses = P.lifetime[living], P.collapses[living]
             rate = 1000.0 * collapses / np.maximum(lifetime, 1)
             if not track:
@@ -920,3 +406,760 @@ class Simulation:
             npc.origin, npc.mutations, npc.parent_rate = origin, mutations, parent_rate
             npc.lineage, npc.source = lineage, source
             self.stats.count("spawns")
+
+
+class _OutsideTick:
+    """Lets a single-NPC helper run between ticks as if inside one."""
+
+    def __init__(self, batch: "Batch"):
+        self.batch, self.set = batch, False
+
+    def __enter__(self):
+        if self.batch.present is None:
+            self.batch.present, self.set = self.batch.pop.live(), True
+
+    def __exit__(self, *exc):
+        if self.set:
+            self.batch.present = None
+
+
+class Batch:
+    """Many worlds stepped together (G3). Build the Simulations first (seed their
+    brains, load snapshots...), then `Batch([sim, ...])`; afterwards each
+    Simulation reads and writes the batch's arrays."""
+
+    def __init__(self, sims: list[Simulation]):
+        if not sims:
+            raise ValueError("a batch needs at least one world")
+        first = sims[0]
+        for s in sims[1:]:
+            differ = [k for k in STRUCTURAL if getattr(s.cfg, k) != getattr(first.cfg, k)]
+            if differ:
+                raise ValueError(f"worlds in a batch must share {', '.join(differ)}")
+        ticks = {s.batch.tick if s.batch else 0 for s in sims}
+        if len(ticks) > 1:
+            raise ValueError(f"worlds in a batch must be at the same tick, got {sorted(ticks)}")
+        self.sims = list(sims)
+        self.tick = ticks.pop()
+        W = self.W = len(sims)
+        cfg = first.cfg
+        self.dims, self.size, self.types = cfg.dims, cfg.size, cfg.n_food_types
+        self.food_scent = cfg.food_scent
+        self.cells = cfg.size ** cfg.dims
+        records = [[s.pop.record(slot) for slot in s._by_id(s.pop.live(s.index))] if s.batch else []
+                   for s in sims]
+        # Stack the maps; each World keeps a view of its row, so its own methods
+        # (food_at, mass, take_from_soil...) write into the batch.
+        for name in WORLD_ARRAYS:
+            stacked = np.stack([getattr(s.world, name) for s in sims])
+            setattr(self, name, stacked)
+            for i, s in enumerate(sims):
+                setattr(s.world, name, stacked[i])
+        self.seeds = np.array([s.cfg.seed for s in sims], dtype=np.int64)
+        self.par = {f.name: np.array([getattr(s.cfg, f.name) for s in sims])
+                    for f in fields(Config) if not isinstance(getattr(cfg, f.name), str)}
+        capacity = sum(max(s.cfg.max_population, s.cfg.initial_npcs, s.cfg.min_population) + 1 for s in sims)
+        self.pop = Population(
+            capacity, cfg.dims,
+            {"nutrients": cfg.n_nutrients, "satiation": self.types, "inventory": self.types,
+             "memory": cfg.memory_units, "eaten": self.types},
+            (first.n_inputs, cfg.hidden_units, first.n_outputs), cfg.food_patches_per_type)
+        for i, (s, recs) in enumerate(zip(sims, records)):
+            for r in recs:
+                self.pop.add(r, i)
+            s.batch, s.index = self, i
+        self.actions = first.actions
+        self.n_actions = first.n_actions
+        self._phase = np.array([action_phase(a) for a in self.actions])
+        self._act_index = {name: i for i, name in enumerate(self.actions)}
+        self._nbr = first.world.neighbor_table()                   # (cells, 2 * dims), same for all
+        self._serves = np.stack([s.world.serves_table().reshape(cfg.n_nutrients, -1) for s in sims])
+        self._shrine = np.zeros((W, self.cells, cfg.dims + 1))
+        self._shrines_cached: list = [None] * W
+        self._aging = np.ones(W, dtype=bool)
+        self.present: np.ndarray | None = None    # slots alive at the tick's start
+
+    def refresh(self, i: int) -> None:
+        """Rebuild world i's derived tables (its arrays were written in place)."""
+        w = self.sims[i].world
+        self._serves[i] = w.serves_table().reshape(self._serves.shape[1], -1)
+        self._shrines_cached[i] = None
+
+    def outside_tick(self) -> _OutsideTick:
+        return _OutsideTick(self)
+
+    def _p(self, name: str, wn: np.ndarray) -> np.ndarray:
+        """A setting per NPC (wn: each NPC's world)."""
+        return self.par[name][wn]
+
+    def _pw(self, name: str, extra: int) -> np.ndarray:
+        """A setting per world, shaped to broadcast over (worlds, ...extra axes)."""
+        return self.par[name].reshape((self.W,) + (1,) * extra)
+
+    def _flat(self, positions: np.ndarray) -> np.ndarray:
+        return np.ravel_multi_index(tuple(positions.T), (self.size,) * self.dims)
+
+    def _count(self, name: str, wn: np.ndarray) -> None:
+        """Count one event per entry of wn into each world's stats."""
+        if wn.size:
+            for w, k in enumerate(np.bincount(wn, minlength=self.W).tolist()):
+                if k:
+                    self.sims[w].stats.count(name, k)
+
+    # ================================================================ tick
+    def run(self, ticks: int) -> None:
+        for _ in range(ticks):
+            self.step()
+
+    def step(self) -> bool:
+        """Advance every world one tick. Returns False if time is frozen (player AFK)."""
+        frozen = [s.cfg.freeze_all_when_afk and not s.clock.aging_active for s in self.sims]
+        if any(frozen):
+            if not all(frozen):
+                raise ValueError("worlds in a batch must freeze together (freeze_all_when_afk)")
+            return False
+        self._aging = np.array([s.clock.aging_active for s in self.sims])
+        self.tick += 1
+        self._world_step()
+        for s in self.sims:
+            s.deity.step(self.tick, s.world, s.keys, s.stats)
+
+        order = self._priority_order()
+        self.present = order
+        actions = self.decide_all(order)
+        births: list[list[NPC]] = [[] for _ in self.sims]
+        self.resolve(order, actions, births)
+        self._metabolize(order, self._aging)
+        self._fall(order)
+        self.present = None
+        for i, children in enumerate(births):
+            for child in children:
+                self.pop.add(child, i)
+        for s in self.sims:
+            s._top_up()
+            s.clock.consume_tick()
+            s.stats.maybe_sample(s)
+        return True
+
+    # Worlds per pass of the world step: a few 4D maps (10,000 cells) at a time stay
+    # in the CPU cache, which beats one pass over all of them (measured 2026-11-05).
+    WORLD_STEP_CELLS = 40_000
+
+    def _world_step(self) -> None:
+        """World.step for every world (same operations, per-world settings), a
+        cache-sized group of worlds at a time; worlds don't interact here."""
+        chunk = max(1, self.WORLD_STEP_CELLS // self.cells)
+        for lo in range(0, self.W, chunk):
+            self._world_step_part(slice(lo, min(lo + chunk, self.W)))
+
+    def _world_step_part(self, part: slice) -> None:
+        d = self.dims
+        n = part.stop - part.start
+        sp = lambda name: self.par[name][part].reshape((n,) + (1,) * d)          # noqa: E731
+        tp = lambda name: self.par[name][part].reshape((n,) + (1,) * (d + 1))    # noqa: E731
+        food, soil, poop, stink = self.food[part], self.soil[part], self.poop[part], self.stink[part]
+
+        # Food grows toward its capacity, pulling mass out of the soil.
+        room = np.clip(self.capacity[part] - food, 0.0, None)
+        soil_factor = soil / (soil + sp("soil_half_saturation"))
+        growth = tp("food_growth_rate") * room * soil_factor[:, None]
+        total = growth.sum(axis=1)
+        scale = np.minimum(1.0, soil / np.maximum(total, 1e-12))
+        growth *= scale[:, None]
+        food += growth
+        soil -= growth.sum(axis=1)
+
+        # Poop slowly becomes soil again (fertilizer) and emits stink.
+        decomposed = poop * sp("poop_decompose_rate")
+        poop -= decomposed
+        soil += decomposed
+        stink += poop * sp("stink_emission")
+
+        # Stink spreads to neighbors and fades.
+        stink += sp("stink_diffusion") * (self._neighbor_mean(stink, 1) - stink)
+        stink *= 1.0 - sp("stink_decay")
+
+        # Food smells beyond `scent_min_food`; the smell spreads the same way but
+        # fades slower, so it reaches farther.
+        if self.food_scent:
+            scent = self.scent[part]
+            scent += np.maximum(food - tp("scent_min_food"), 0.0) * tp("scent_emission")
+            scent += tp("scent_diffusion") * (self._neighbor_mean(scent, 2) - scent)
+            scent *= 1.0 - tp("scent_decay")
+
+    def _neighbor_mean(self, field: np.ndarray, first_axis: int) -> np.ndarray:
+        """World._neighbor_mean on stacked fields (spatial axes from first_axis on):
+        the same sum of the same rolls in the same order, added in place slice by
+        slice instead of building each rolled copy."""
+        total = np.zeros_like(field)
+        for axis in range(first_axis, first_axis + self.dims):
+            for shift in (1, -1):              # np.roll(field, shift, axis), added to total
+                head, tail = [slice(None)] * field.ndim, [slice(None)] * field.ndim
+                if shift == 1:                 # out[1:] = in[:-1]; out[0] = in[-1]
+                    head[axis], tail[axis] = slice(1, None), slice(None, -1)
+                    total[tuple(head)] += field[tuple(tail)]
+                    head[axis], tail[axis] = slice(0, 1), slice(-1, None)
+                    total[tuple(head)] += field[tuple(tail)]
+                else:                          # out[:-1] = in[1:]; out[-1] = in[0]
+                    head[axis], tail[axis] = slice(None, -1), slice(1, None)
+                    total[tuple(head)] += field[tuple(tail)]
+                    head[axis], tail[axis] = slice(-1, None), slice(0, 1)
+                    total[tuple(head)] += field[tuple(tail)]
+        return total / (2 * self.dims)
+
+    # =============================================================== senses
+    def sense_slots(self, slots: np.ndarray) -> np.ndarray:
+        """Senses of these slots, one row each, from the worlds as they are now."""
+        P, d, T, W, C = self.pop, self.dims, self.types, self.W, self.cells
+        n = slots.size
+        wn = P.world[slots]
+        flat = self._flat(P.pos[slots])
+        nbr = self._nbr[flat]                                   # (n, 2d): +1, -1 per axis
+        g, gn = wn * C + flat, wn[:, None] * C + nbr            # cells across all worlds
+        food = self.food.reshape(W, T, C)
+        food_cap = self._p("food_capacity", wn)
+        food_n = food[wn[:, None], :, nbr]                      # (n, 2d, types)
+        food_grad = ((food_n[:, 0::2] - food_n[:, 1::2]) / food_cap[:, None, None]
+                     ).reshape(n, d * T)                        # axis by axis, every type
+        stink = self.stink.reshape(-1)
+        stink_n = stink[gn]
+        # Others in the same cell or one step away.
+        live = P.live()
+        occupied = np.bincount(P.world[live] * C + self._flat(P.pos[live]), minlength=W * C)
+        crowd = occupied[g] + occupied[gn].sum(axis=1) - 1
+
+        half = self.size / 2
+        secret = np.zeros((n, 1 + d))
+        for i in np.flatnonzero(P.known_secret[slots] >= 0).tolist():
+            s = self.sims[wn[i]].deity.secrets.get(int(P.known_secret[slots[i]]))
+            if s is None:                                       # gone stale or claimed
+                P.known_secret[slots[i]] = -1
+            else:
+                secret[i, 0] = 1.0
+                secret[i, 1:] = wrapped_delta(P.pos[slots[i]], s.pos, self.size) / half
+
+        parts = [
+            P.nutrients[slots],
+            np.stack([P.health[slots], np.minimum(P.age[slots] / self._p("old_age", wn), 1.5),
+                      P.body[slots] / self._p("npc_start_mass", wn),
+                      P.bowel[slots] / self._p("bowel_capacity", wn)], axis=1),
+            P.satiation[slots],
+            food[wn, :, flat] / food_cap[:, None],
+            food_grad,
+            stink[g][:, None],
+            stink_n[:, 0::2] - stink_n[:, 1::2],
+            np.minimum(crowd / 4.0, 1.0)[:, None],
+            P.inventory[slots] / self._p("carry_capacity", wn)[:, None],
+            np.stack([P.piety[slots], P.smite[slots]], axis=1),
+            secret,
+            self._shrines()[wn, flat],
+            P.moved_last[slots].astype(float)[:, None],
+            P.memory[slots],
+            np.ones((n, 1)),
+        ]
+        if self.food_scent:
+            scent = self.scent.reshape(W, T, C)
+            here = scent[wn, :, flat]
+            scent_n = scent[wn[:, None], :, nbr]
+            s_plus, s_minus = scent_n[:, 0::2], scent_n[:, 1::2]
+            # Relative difference: points uphill at any distance, like a nose.
+            parts += [here / (here + self._p("scent_half", wn)[:, None]),
+                      ((s_plus - s_minus) / (s_plus + s_minus + 1e-12)).reshape(n, d * T)]
+        obs = np.concatenate(parts, axis=1, dtype=float)
+        assert obs.shape == (n, self.sims[0].n_inputs), obs.shape
+        return obs
+
+    def _shrines(self) -> np.ndarray:
+        """Per world and cell: direction to the nearest shrine and whether it's on
+        one ((worlds, cells, dims + 1); a world's rows are rebuilt when its shrines
+        change). Ties go to the first shrine in the list, as in the reference."""
+        d, size = self.dims, self.size
+        for i, s in enumerate(self.sims):
+            shrines = s.world.shrines
+            if self._shrines_cached[i] == shrines:
+                continue
+            cells = np.indices((size,) * d).reshape(d, -1).T          # (cells, dims)
+            table = np.zeros((cells.shape[0], d + 1))
+            if shrines:
+                deltas = (np.array(shrines)[:, None, :] - cells[None] + size // 2) % size - size // 2
+                nearest = deltas[np.abs(deltas).sum(axis=2).argmin(axis=0), np.arange(cells.shape[0])]
+                table[:, :d] = nearest / (size / 2)
+                table[:, d] = (~nearest.any(axis=1)).astype(float)
+            self._shrine[i] = table
+            self._shrines_cached[i] = list(shrines)
+        return self._shrine
+
+    # ============================================================== thinking
+    def _priority_order(self) -> np.ndarray:
+        """The living slots by world, then lowest priority draw first (ties,
+        practically never, by id). Every phase of the tick goes in this order."""
+        P = self.pop
+        live = P.live()
+        if not live.size:
+            return live
+        ids, wn = P.id[live], P.world[live]
+        prio = keyed.uniform(self.seeds[wn], self.tick, ids, keyed.ORDER)
+        return live[np.lexsort((ids, prio, wn))]
+
+    def decide_all(self, order: np.ndarray) -> np.ndarray:
+        """Rule 1: everyone senses the start-of-tick world and picks an action
+        (an index into actions). Deciding changes only each NPC's own memory.
+        (5zorro's reaction-time queue would hand `resolve` actions decided
+        earlier instead; docs/plan-gpu-backend.md.)"""
+        if not order.size:
+            return np.zeros(0, dtype=np.int64)
+        P, A = self.pop, self.n_actions
+        wn = P.world[order]
+        obs = self.sense_slots(order)
+        u = keyed.uniform(self.seeds[wn], self.tick, P.id[order], keyed.ACTION)
+        hidden = np.tanh(np.matmul(P.w1[order], obs[:, :, None])[:, :, 0] + P.b1[order])
+        out = np.matmul(P.w2[order], hidden[:, :, None])[:, :, 0] + P.b2[order]
+        logits = out[:, :A] / self._p("action_temperature", wn)[:, None]
+        logits -= logits.max(axis=1, keepdims=True)
+        probs = np.exp(logits)
+        probs /= probs.sum(axis=1, keepdims=True)
+        # The way NumPy's rng.choice(p=probs) samples (one uniform draw against the
+        # cumulative sum), with each NPC's keyed draw `u`.
+        cdf = probs.cumsum(axis=1)
+        cdf /= cdf[:, -1:]
+        actions = (cdf <= u[:, None]).sum(axis=1)
+        brained = np.ones(order.size, dtype=bool)
+        if any(s.overrides for s in self.sims):
+            for i, slot in enumerate(order.tolist()):
+                sim = self.sims[wn[i]]
+                controller = sim.overrides.get(int(P.id[slot])) if sim.overrides else None
+                if controller is not None:
+                    actions[i] = controller.decide(sim, NPCView(P, slot), obs[i])
+                    brained[i] = False
+        P.memory[order[brained]] = np.tanh(out[brained, A:])
+        return actions
+
+    # =============================================================== actions
+    def resolve(self, order: np.ndarray, actions: np.ndarray, births: list[list[NPC]]) -> None:
+        """Rules 2-3: actions take effect phase by phase, in priority order."""
+        P = self.pop
+        phase = self._phase[actions]
+        moved = phase == 0
+        did = np.zeros(order.size, dtype=bool)
+        if moved.any():
+            self._moves(order[moved], actions[moved])
+        eats = phase == 1
+        if eats.any():
+            did[eats] = self._eats(order[eats], actions[eats])
+        social = phase == SOCIAL_PHASE
+        if social.any():
+            did[social] = self._social(order[social], actions[social], births)
+        rest = phase == 3
+        if rest.any():
+            did[rest] = self._rest(order[rest], actions[rest])
+        P.moved_last[order] = moved
+        busy = moved | (did & self._p("busy_resets_idle", P.world[order]))
+        P.idle_streak[order] = np.where(busy, 0, P.idle_streak[order] + 1)
+
+    def _moves(self, slots: np.ndarray, actions: np.ndarray) -> None:
+        P = self.pop
+        before = P.pos[slots].copy()
+        rows = np.arange(slots.size)
+        axis = actions // 2                         # moves are move+0, move-0, move+1, ...
+        after = before.copy()
+        after[rows, axis] = (after[rows, axis] + np.where(actions % 2 == 0, 1, -1)) % self.size
+        P.pos[slots] = after
+        self._record_approach(slots, self._flat(before), self._flat(after))
+        wn = P.world[slots]
+        for w in np.unique(wn).tolist():
+            sim = self.sims[w]
+            if sim.deity.secrets:
+                cells = {tuple(int(v) for v in p) for p in after[wn == w]}
+                claimed = sim.deity.claim_cells(cells, sim.world)
+                if claimed:
+                    sim.stats.count("secrets_claimed", claimed)
+
+    def _record_approach(self, slots: np.ndarray, before: np.ndarray, after: np.ndarray) -> None:
+        """M2 slice 3c: did this move head for the food the NPC needs most, more
+        than for the others? Moves only, so the eat instinct can't leak in."""
+        P = self.pop
+        k = self.need_distance.shape[1]
+        wn = P.world[slots]
+        need = np.argmin(P.nutrients[slots], axis=1)
+        rows = np.arange(slots.size)
+        dist = self.need_distance.reshape(self.W, k, -1)
+        here = dist[wn, :, before]                                     # (n, nutrients)
+        others = np.isfinite(here)
+        others[rows, need] = False
+        ok = (~self._serves[wn, need, before]                         # not already at its food
+              & np.isfinite(here[rows, need]) & others.any(axis=1))
+        if not ok.any():
+            return
+        slots, wn, need, here, others = slots[ok], wn[ok], need[ok], here[ok], others[ok]
+        rows = np.arange(slots.size)
+        # Score the move taken, then every possible step from the same cell. Their
+        # mean is what a random step scores. Not 0: a random walk drifts away from
+        # near food faster than from far food (gotchas.md).
+        cells = np.concatenate([after[ok][:, None], self._nbr[before[ok]]], axis=1)   # (n, steps)
+        delta = (np.ascontiguousarray(dist[wn[:, None], :, cells].transpose(0, 2, 1))
+                 - here[:, :, None])                                                   # (n, nutrients, steps)
+        score = (np.where(others[:, :, None], delta, 0.0).sum(axis=1) / others.sum(axis=1)[:, None]
+                 - delta[rows, need])
+        P.approach_sum[slots] += score[:, 0]
+        P.approach_null[slots] += score[:, 1:].sum(axis=1) / (score.shape[1] - 1)
+        P.approach_moves[slots] += 1
+
+    def _eats(self, slots: np.ndarray, actions: np.ndarray) -> np.ndarray:
+        """Eaters and pick-uppers sharing a cell take turns in priority order: in
+        round r, the r-th of every cell acts (different cells don't interact)."""
+        P = self.pop
+        flat = self._flat(P.pos[slots])
+        cell = P.world[slots] * self.cells + flat
+        by_cell = np.argsort(cell, kind="stable")       # stable: priority order within a cell
+        sorted_cell = cell[by_cell]
+        first = np.r_[True, sorted_cell[1:] != sorted_cell[:-1]]
+        starts = np.maximum.accumulate(np.where(first, np.arange(cell.size), 0))
+        turn = np.empty(cell.size, dtype=np.int64)
+        turn[by_cell] = np.arange(cell.size) - starts
+        did = np.zeros(slots.size, dtype=bool)
+        for r in range(int(turn.max()) + 1):
+            now = np.flatnonzero(turn == r)
+            did[now] = self._eat_round(slots[now], actions[now], flat[now])
+        return did
+
+    def _eat_round(self, slots: np.ndarray, actions: np.ndarray, flat: np.ndarray) -> np.ndarray:
+        """One round of eats and pick-ups, at most one NPC per cell."""
+        did = np.zeros(slots.size, dtype=bool)
+        pick = actions == self._act_index["pick_up"]
+        if pick.any():
+            did[pick] = self._pick_up(slots[pick], flat[pick])
+        if (~pick).any():
+            most = actions[~pick] == self._act_index.get("eat_most", -1)
+            did[~pick] = self._eat_slots(slots[~pick], flat[~pick], most)
+        return did
+
+    def _eat_slots(self, slots: np.ndarray, flat: np.ndarray, most: np.ndarray) -> np.ndarray:
+        """Eat a bite from the ground, else from the inventory. Per NPC, the food
+        is the one that best fixes deficits per unit (crumbs count), or with
+        `most` (eat_most) the biggest pile. One NPC per cell."""
+        P = self.pop
+        wn = P.world[slots]
+        food = self.food.reshape(self.W, self.types, self.cells)
+        rows = np.arange(slots.size)
+        deficit = 1.0 - P.nutrients[slots]
+        value = np.matmul(self.profiles[wn], deficit[:, :, None])[:, :, 0] * (1.0 - P.satiation[slots])
+        here = food[wn, :, flat]                                # (n, types), a copy
+        inventory = P.inventory[slots]
+        ground = (here > 1e-9).any(axis=1)
+        ate = ground | (inventory > 1e-9).any(axis=1)
+        source = np.where(ground[:, None], here, inventory)
+        score = np.where(most[:, None], source, value)
+        t = np.argmax(np.where(source > 1e-9, score, -np.inf), axis=1)
+        bite = self._p("bite_size", wn)
+        amount = np.minimum(bite, source[rows, t])
+        g = np.flatnonzero(ground)
+        food[wn[g], t[g], flat[g]] -= amount[g]
+        inv = np.flatnonzero(ate & ~ground)
+        P.inventory[slots[inv], t[inv]] -= amount[inv]
+        if g.size:
+            self._record_zones(slots[g], flat[g], t[g])
+        e = np.flatnonzero(ate)
+        if not e.size:
+            return ate
+        s, t, amount, we = slots[e], t[e], amount[e], wn[e]
+        frac = amount / bite[e]
+        P.body[s] += amount
+        P.nutrients[s] = np.clip(
+            P.nutrients[s] + (frac * self._p("nutrition_per_bite", we))[:, None] * self.profiles[we, t]
+            * (1.0 - P.satiation[s, t])[:, None], 0.0, 1.0)
+        P.satiation[s, t] = np.minimum(1.0, P.satiation[s, t] + self._p("satiation_gain", we) * frac)
+        P.eaten[s, t] += amount
+        self._count("eats", we)
+        if self.sims[0].cfg.two_eat_actions:
+            self._count("eats_need", we[~most[e]])
+            self._count("eats_most", we[most[e]])
+        return ate
+
+    def _record_zones(self, slots: np.ndarray, flat: np.ndarray, t: np.ndarray) -> None:
+        """M2 travel: a bite from the ground inside a zone (food type, patch);
+        a switch is a different zone from the last in-zone bite, after leaving
+        it (eating another food where two zones overlap isn't travel)."""
+        P = self.pop
+        wn = P.world[slots]
+        zones = self.zones.reshape(self.W, self.types, self.cells)
+        zone = zones[wn, t, flat]
+        inside = zone >= 0                              # carried food doesn't count: it isn't a place
+        if not inside.any():
+            return
+        slots, wn, flat, t, zone = slots[inside], wn[inside], flat[inside], t[inside], zone[inside]
+        last_t, last_z = P.last_zone[slots, 0], P.last_zone[slots, 1]
+        has_last = last_t >= 0
+        still = has_last & (zones[wn, np.maximum(last_t, 0), flat] == last_z)
+        switched = has_last & ((t != last_t) | (zone != last_z)) & ~still
+        P.zones_eaten[slots, t, zone] = True
+        P.zone_switches[slots] += switched
+        P.last_zone[slots, 0], P.last_zone[slots, 1] = t, zone
+        if switched.any():
+            self._count("zone_switches", wn[switched])
+            # Deficit-directed travel (M2 slice 3b): judged by where it arrived,
+            # not by what `eat` picked, since eat already chooses by deficit.
+            s, f, ws = slots[switched], flat[switched], wn[switched]
+            serves = self._serves[ws, :, f]                    # (n, nutrients)
+            need = np.argmin(P.nutrients[s], axis=1)
+            P.directed_hits[s] += serves[np.arange(s.size), need]
+            P.directed_chance[s] += serves.mean(axis=1)
+
+    def _pick_up(self, slots: np.ndarray, flat: np.ndarray) -> np.ndarray:
+        P = self.pop
+        wn = P.world[slots]
+        food = self.food.reshape(self.W, self.types, self.cells)
+        room = self._p("carry_capacity", wn) - P.inventory[slots].sum(axis=1)
+        here = food[wn, :, flat]
+        ok = ~(room <= 1e-9) & (here > 1e-9).any(axis=1)
+        k = np.flatnonzero(ok)
+        if k.size:
+            t = np.argmax(here[k], axis=1)
+            amount = np.minimum(np.minimum(self._p("bite_size", wn[k]), here[k, t]), room[k])
+            food[wn[k], t, flat[k]] -= amount
+            P.inventory[slots[k], t] += amount
+        return ok
+
+    # -------------------------------------------- social actions (few, in turn)
+    def _social(self, slots: np.ndarray, actions: np.ndarray, births: list[list[NPC]]) -> np.ndarray:
+        """give, mate and share, one NPC at a time in priority order. They see
+        where everyone is after the moves."""
+        P = self.pop
+        live = P.live()
+        index: dict[int, list[int]] = {}
+        for slot, cell in zip(live.tolist(), (P.world[live] * self.cells + self._flat(P.pos[live])).tolist()):
+            index.setdefault(cell, []).append(slot)
+        did = np.zeros(slots.size, dtype=bool)
+        handlers = {self._act_index.get("give"): self._give, self._act_index.get("mate"): self._mate,
+                    self._act_index.get("share"): self._share}
+        for i, (slot, action) in enumerate(zip(slots.tolist(), actions.tolist())):
+            did[i] = handlers[action](slot, index, births)
+        return did
+
+    def _neighbors(self, slot: int, index: dict) -> list[int]:
+        """Slots in the same cell or one step away (by the positions `index`
+        was built from), other than `slot`."""
+        P = self.pop
+        cell = int(self._flat(P.pos[slot][None])[0])
+        base = int(P.world[slot]) * self.cells
+        return [o for c in [cell, *self._nbr[cell].tolist()] for o in index.get(base + c, ()) if o != slot]
+
+    def _give(self, slot: int, index: dict, births: list) -> bool:
+        P = self.pop
+        sim = self.sims[P.world[slot]]
+        cfg = sim.cfg
+        if P.inventory[slot].sum() <= 1e-9:
+            return False
+        cap = cfg.carry_capacity
+        takers = sorted((o for o in self._neighbors(slot, index) if cap - P.inventory[o].sum() > 1e-9),
+                        key=lambda o: P.id[o])            # by id: the pick mustn't depend on list order
+        if not takers:
+            return False
+        other = takers[sim.keys.stream(self.tick, int(P.id[slot]), keyed.GIVE).integers(len(takers))]
+        t = int(np.argmax(P.inventory[slot]))
+        amount = min(cfg.bite_size, float(P.inventory[slot, t]), cap - float(P.inventory[other].sum()))
+        P.inventory[slot, t] -= amount
+        P.inventory[other, t] += amount
+        P.gifts_given[slot] += 1
+        P.gifts_received[other] += 1
+        sim.stats.count("gives")
+        return True
+
+    def _can_mate(self, slot: int, cfg: Config) -> bool:
+        P = self.pop
+        return bool(P.alive[slot] and P.age[slot] >= cfg.adult_age and P.body[slot] >= cfg.reproduce_min_mass
+                    and P.health[slot] > 0.5 and self.tick >= P.mate_cooldown_until[slot])
+
+    def _rate(self, slot: int) -> float:
+        """NPC.collapse_rate for a slot."""
+        return 1000.0 * int(self.pop.collapses[slot]) / max(int(self.pop.lifetime[slot]), 1)
+
+    def _mate(self, slot: int, index: dict, births: list[list[NPC]]) -> bool:
+        """True only when a child is born; signaling readiness alone isn't busy."""
+        P = self.pop
+        w = int(P.world[slot])
+        sim = self.sims[w]
+        cfg = sim.cfg
+        if not self._can_mate(slot, cfg):
+            return False
+        P.mate_ready_until[slot] = self.tick + cfg.mate_window
+        if P.count(w) + len(births[w]) >= cfg.max_population:
+            return False
+        partners = sorted((o for o in self._neighbors(slot, index)
+                           if P.mate_ready_until[o] >= self.tick and self._can_mate(o, cfg)),
+                          key=lambda o: P.id[o])
+        if not partners:
+            return False
+        mate = partners[sim.keys.stream(self.tick, int(P.id[slot]), keyed.MATE).integers(len(partners))]
+        half = cfg.child_mass / 2
+        P.body[slot] -= half
+        P.body[mate] -= half
+        child_id = sim.next_id                       # the child's draws are keyed by its id
+        brain = Brain.crossover(P.brain(slot), P.brain(mate),
+                                sim.keys.stream(self.tick, child_id, keyed.CROSSOVER))
+        parent_rate = (self._rate(slot) + self._rate(mate)) / 2
+        known = [float(P.lineage[p]) for p in (slot, mate) if P.lineage[p] >= 0]
+        brain, mutations, lineage = sim.mutate_child(
+            brain, parent_rate, sum(known) / len(known) if known else -1.0, key_id=child_id)
+        child = sim._make_npc(brain, tuple(int(v) for v in P.pos[slot]), cfg.child_mass,
+                              max(int(P.generation[slot]), int(P.generation[mate])) + 1)
+        child.origin, child.mutations, child.parent_rate = "birth", mutations, parent_rate
+        child.lineage = lineage
+        births[w].append(child)
+        for parent in (slot, mate):
+            P.offspring[parent] += 1
+            P.mate_ready_until[parent] = -1
+            P.mate_cooldown_until[parent] = self.tick + cfg.mate_cooldown
+        sim.stats.count("births")
+        return True
+
+    def _share(self, slot: int, index: dict, births: list) -> bool:
+        P = self.pop
+        sim = self.sims[P.world[slot]]
+        sid = int(P.known_secret[slot])
+        if sid < 0 or sid not in sim.deity.secrets:
+            return False
+        shared = 0
+        for other in self._neighbors(slot, index):
+            if P.known_secret[other] != sid:
+                P.known_secret[other] = sid
+                shared += 1
+        if shared:
+            sim.stats.count("secrets_shared", shared)
+        return shared > 0
+
+    def _rest(self, slots: np.ndarray, actions: np.ndarray) -> np.ndarray:
+        """poop, pray, worship (and stay, which does nothing on purpose)."""
+        P = self.pop
+        wn = P.world[slots]
+        flat = self._flat(P.pos[slots])
+        did = np.zeros(slots.size, dtype=bool)
+        poop = (actions == self._act_index["poop"]) & (P.bowel[slots] > 1e-9)
+        if poop.any():
+            s = slots[poop]
+            np.add.at(self.poop.reshape(-1), wn[poop] * self.cells + flat[poop], P.bowel[s])  # priority order
+            P.bowel[s] = 0.0
+            self._count("poops", wn[poop])
+            did[poop] = True
+        names = {"answered": "prayers_answered", "silent": "prayers_silent",
+                 "ignored": "prayers_ignored", "smitten": "smitings"}
+        for i in np.flatnonzero(actions == self._act_index["pray"]).tolist():
+            sim = self.sims[wn[i]]
+            result = sim.deity.pray(NPCView(P, slots[i]), self.tick)
+            sim.stats.count(names[result])
+            did[i] = result == "answered"
+        worship = actions == self._act_index["worship"]
+        if worship.any():
+            on = self._shrines()[wn, flat, self.dims] == 1.0      # standing on a shrine
+            k = np.flatnonzero(worship & on)
+            if k.size:
+                P.piety[slots[k]] = np.minimum(1.0, P.piety[slots[k]] + self._p("worship_piety_gain", wn[k]))
+                self._count("worships", wn[k])
+                did[k] = True
+        return did
+
+    # ============================================================ metabolism
+    def _metabolize(self, s: np.ndarray, aging: np.ndarray) -> None:
+        """aging: per world, whether NPCs age this tick."""
+        P, C = self.pop, self.cells
+        if not s.size:
+            return
+        wn = P.world[s]
+        p = lambda name: self._p(name, wn)          # noqa: E731
+        g = wn * C + self._flat(P.pos[s])
+        moved_mass = p("metabolism_rate") * P.body[s]
+        P.body[s] -= moved_mass
+        P.bowel[s] += moved_mass
+        accident = P.bowel[s] >= p("bowel_capacity")
+        if accident.any():
+            a = s[accident]
+            np.add.at(self.poop.reshape(-1), g[accident], P.bowel[a])     # in priority order
+            P.bowel[a] = 0.0
+            self._count("accidents", wn[accident])
+
+        idle = P.idle_streak[s] > p("idle_grace_ticks")
+        decay = p("nutrient_decay")
+        decay = np.where(idle, decay * p("idle_hunger_multiplier"), decay * 1.0)
+        # np.minimum/maximum: the same values as np.clip.
+        P.nutrients[s] = np.minimum(np.maximum(P.nutrients[s] - decay[:, None], 0.0), 1.0)
+        P.satiation[s] = np.minimum(np.maximum(P.satiation[s] - p("satiation_decay")[:, None], 0.0), 1.0)
+        P.smite[s] = np.maximum(0.0, P.smite[s] - p("smite_decay"))
+
+        P.lifetime[s] += 1
+        pairs, counts = np.unique(np.stack([wn, P.generation[s]], axis=1), axis=0, return_counts=True)
+        for (w, gen), k in zip(pairs.tolist(), counts.tolist()):
+            self.sims[w].stats.generation_lifetime[gen] += k
+        ages = aging[wn]
+        P.age[s[ages]] += 1
+
+        lowest = P.nutrients[s].min(axis=1)
+        starving = lowest < p("starving_threshold")
+        thin = P.body[s] < p("min_body_mass")
+        stink = self.stink.reshape(-1)[g]
+        stink_threshold = p("stink_threshold")
+        stinky = stink > stink_threshold
+        old = p("old_age")
+        elder = P.age[s] > old
+        starve = p("starvation_damage")
+        # One cause at a time, in the reference's order, so health falls the same way.
+        P.add_damage(s[starving], "nutrient_starve", starve[starving], self.tick)
+        P.add_damage(s[thin], "body_starve", starve[thin], self.tick)
+        P.add_damage(s[stinky], "stink", p("stink_damage")[stinky] * (stink[stinky] - stink_threshold[stinky]),
+                     self.tick)
+        P.add_damage(s[elder], "elder",
+                     p("elder_decline")[elder] * (P.age[s[elder]] - old[elder]) / old[elder], self.tick)
+        heal = ~(starving | thin | stinky | elder) & (lowest > 0.4)
+        h = s[heal]
+        P.health[h] = np.minimum(1.0, P.health[h] + p("heal_rate")[heal])
+        whole = h[P.health[h] >= 1.0]
+        P.damage[whole] = 0.0
+        P.damage_seq[whole] = 0
+
+    def _fall(self, slots: np.ndarray) -> None:
+        """Health ran out: elders die, the young collapse (in priority order)."""
+        P = self.pop
+        for slot in slots[P.alive[slots] & (P.health[slots] <= 0)].tolist():
+            if P.age[slot] >= self.sims[P.world[slot]].cfg.old_age:
+                self._die_slot(slot)
+            else:
+                self._collapse_slot(slot)
+
+    def _drop_inventory(self, slot: int) -> None:
+        P = self.pop
+        here = self.sims[P.world[slot]].world.food_at(tuple(int(v) for v in P.pos[slot]))
+        here += P.inventory[slot]
+        P.inventory[slot] = 0.0
+
+    def _collapse_slot(self, slot: int) -> None:
+        """Young NPCs can't die permanently. They collapse, drop what they
+        carry, wake up somewhere else, and age faster for the trouble."""
+        P = self.pop
+        sim = self.sims[P.world[slot]]
+        cfg = sim.cfg
+        self._drop_inventory(slot)
+        P.pos[slot] = sim.world.random_cell(sim.keys.stream(self.tick, int(P.id[slot]), keyed.COLLAPSE))
+        P.health[slot] = cfg.collapse_health
+        P.nutrients[slot] = np.maximum(P.nutrients[slot], cfg.collapse_nutrient_floor)
+        P.age[slot] += cfg.collapse_age_penalty
+        P.collapses[slot] += 1
+        P.known_secret[slot] = -1
+        P.last_zone[slot] = -1                 # waking up elsewhere isn't travel
+        sim.stats.count("collapses")
+        sim.stats.count(f"collapse_{P.main_damage_cause(slot)}")
+        sim.stats.generation_collapses[int(P.generation[slot])] += 1
+        P.damage[slot] = 0.0
+        P.damage_seq[slot] = 0
+
+    def _die_slot(self, slot: int) -> None:
+        """Elders die for real. The body becomes poop (which stinks, then
+        fertilizes), so the mass goes back into the loop."""
+        P = self.pop
+        sim = self.sims[P.world[slot]]
+        self._drop_inventory(slot)
+        sim.world.poop[tuple(int(v) for v in P.pos[slot])] += P.body[slot] + P.bowel[slot]
+        P.body[slot] = P.bowel[slot] = 0.0
+        P.alive[slot] = False
+        npc = NPCView(P, slot)
+        sim._record_hall_of_fame(npc)
+        sim.stats.count("deaths")
+        sim.stats.count(f"death_{P.main_damage_cause(slot)}")
+        sim.stats.record_life(npc, self.tick)

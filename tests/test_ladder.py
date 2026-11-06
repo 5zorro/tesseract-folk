@@ -7,7 +7,9 @@ SHAPE = (2, 12, 3.0, 4, ())
 
 
 def test_a_nursery_is_reused_only_when_trained_the_same_way(tmp_path):
-    assert train((SHAPE, 100, 30, tmp_path)).startswith("trained")
+    assert train([(SHAPE, 100, 30, tmp_path)])[0].startswith("trained")
+    msgs = train([(SHAPE, 100, 30, tmp_path), (SHAPE, 101, 30, tmp_path)])   # a batch: one kept, one new
+    assert [m.split()[0] for m in msgs] == ["kept", "trained"]
     path = nursery_path(tmp_path, SHAPE, 100)
     assert reusable(path, SHAPE, 100, 30)
     with pytest.raises(ValueError, match="ticks"):
@@ -18,7 +20,7 @@ def test_a_nursery_is_reused_only_when_trained_the_same_way(tmp_path):
 
 def test_a_changed_default_blocks_reuse(tmp_path):
     import json
-    train((SHAPE, 100, 30, tmp_path))
+    train([(SHAPE, 100, 30, tmp_path)])
     path = nursery_path(tmp_path, SHAPE, 100)
     state = json.loads((path / "state.json").read_text())
     state["config"]["mutation_lineage"] = False        # trained before a default changed

@@ -1,7 +1,10 @@
 # Plan: CPU/GPU-agnostic simulation
 
-Status (2026-11-05): **G0, G1 and G2 done** (G1 passes its M2 re-check; G2's
-array engine matches the reference bit for bit, 2.5-3x faster). G3 next. 5zorro agreed with the
+Status (2026-11-05): **G0-G3 done.** G1 passes its M2 re-check; G2's array
+engine matches the reference bit for bit; G3 batches worlds (also bit for
+bit). 2D sweeps are 2.5x faster and meet the 5-minute goal; 4D sweeps aren't
+faster yet, because 4D maps now limit them through memory bandwidth (G3
+results). G4 (or float32, D2) is what helps there; talk to 5zorro first. 5zorro agreed with the
 approach (2026-11-05): D1, D3, D5, D6 as recommended; D2 (precision) reopened. D4 (PyTorch) and anything
 about the C++ port get discussed with 5zorro before they're touched; neither is
 needed before G4. Stages are ordered;
@@ -170,6 +173,39 @@ Not built here; it gets its own plan, since it changes behavior (re-measure).
   food types, brain size) must match within a batch. `sweep.py` groups runs
   by structure and runs one batch per process. Measure; if sweeps already hit
   about 5 minutes, G4 becomes optional (decide then).
+- **G3 done (2026-11-05).** What was built:
+  - `sim/simulation.py`: `Simulation` is now one world's facade, and `Batch`
+    steps many worlds in one set of arrays: maps stacked on a world axis (each
+    `World` keeps views of its row), one Population with a `world` column,
+    numeric settings as per-world arrays (`Batch.par`), keyed draws with
+    per-world seeds. `Simulation(cfg)` alone is a batch of one, so nothing
+    outside changed. Worlds in a batch must share `STRUCTURAL` settings and the
+    tick; stepping one steps all.
+  - `tests/test_engines.py`: mixed batches (5 worlds: seeds, rates, smiting,
+    track record, a controller in one world; 2D, 4D, two eat without scent)
+    equal their worlds run alone, exactly, over 300 ticks.
+  - `scripts/sweep.py`: `Run` measures one world while it steps; `run_batch`
+    runs jobs as one batch; `run_jobs` groups jobs that can share a batch
+    and makes about one batch per process. Results equal the old one-by-one
+    runner exactly (checked on 5 jobs, 1 and 3 processes). `ladder.py` trains
+    nurseries and plays worlds in batches the same way.
+  - The world step goes a cache-sized group of worlds at a time
+    (`WORLD_STEP_CELLS`), and the neighbor mean adds in place; both
+    bit-identical. Without the grouping, 32 stacked 4D maps fell out of cache
+    and a batched 4D world cost 3.5 ms per tick, more than alone (2.1 ms).
+  - **Measured** (one process, ms per world per tick): 2D 1.4 alone, 0.58 in
+    8, 0.49 in 32; 4D 2.1 alone, 1.47 in 8, 1.37 in 32. Before G1: 2D ~4, 4D ~5.
+  - **Sweeps** (40 runs = 8 variants x 5 seeds, 16 processes, wall time):
+    2D x 3,000 ticks: 55 s before G1 -> 22 s now (so ~75 s for 10,000 ticks:
+    the goal is met in 2D). Fewer, bigger batches didn't help (8 processes
+    23 s, 4 processes 25 s). 4D x 1,000 ticks: 36 s -> 34 s, barely faster.
+  - **Why 4D didn't speed up:** in 4D the world step (stink and scent
+    spreading over 10,000 cells x 4 fields) is 59% of a tick even alone, and
+    it's memory-bound: 16 processes streaming 4D maps share one memory bus and
+    L3 cache, so per-process gains vanish under full load. The relationship:
+    per-world tick cost ~ a + b x cells, where `a` (Python per NPC and per
+    call) is what G1-G3 cut and `b` (memory traffic per cell) is now what's
+    left. `b` is what a GPU (hundreds of GB/s) or float32 (half the bytes) cuts.
 - **G4. GPU backend.** First a probe in `.venv-gpu/`: run G3's batched tick
   on each candidate (PyOpenCL first, community ROCm PyTorch only if D4 allows)
   and time it against NumPy on the same sweep. Then the `xp` seam: `sim/`

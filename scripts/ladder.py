@@ -35,7 +35,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from sim import Config, Simulation  # noqa: E402
 from sim.config import parse_overrides  # noqa: E402
 from sim.snapshot import FORMAT, LEGACY, save_snapshot  # noqa: E402
-from sweep import run_one  # noqa: E402
+from sim.simulation import Batch  # noqa: E402
+from sweep import plan_batches, run_batch  # noqa: E402
 
 # dims -> (size, food_patch_radius), per way of matching worlds across dimensions:
 # "coverage" (slice 3d): ~1,000 cells, 45% bite coverage per food type.
@@ -98,35 +99,49 @@ def reusable(path: Path, shape: tuple, nseed: int, ticks: int) -> bool:
     return True
 
 
-def train(job: tuple) -> str:
-    shape, nseed, ticks, out = job
-    path = nursery_path(out, shape, nseed)
-    if reusable(path, shape, nseed, ticks):
-        return f"kept {path.name}"
-    sim = Simulation(Config(**nursery_config(shape, nseed)), log_every=1000)
-    sim.run(ticks)
-    save_snapshot(sim, path)
-    return f"trained {path.name}"
+def train(jobs: list[tuple]) -> list[str]:
+    """Train these nurseries (one shape, one tick count) as one batch of worlds."""
+    todo, msgs = [], []
+    for shape, nseed, ticks, out in jobs:
+        path = nursery_path(out, shape, nseed)
+        if reusable(path, shape, nseed, ticks):
+            msgs.append(f"kept {path.name}")
+        else:
+            todo.append((Simulation(Config(**nursery_config(shape, nseed)), log_every=1000), path))
+    if todo:
+        Batch([sim for sim, _ in todo]).run(jobs[0][2])
+        for sim, path in todo:
+            save_snapshot(sim, path)
+            msgs.append(f"trained {path.name}")
+    return msgs
 
 
-def play(job: tuple) -> dict:
-    shape, brains, seed, ticks, out = job
-    overrides = world(shape)
-    if brains != "scratch":
-        overrides["brains_from"] = str(nursery_path(out, shape, int(brains[1:])))
-    row = run_one(overrides, seed, ticks, LATE_FROM, LOG_EVERY)
-    dims, size, radius, hidden, rules = shape
-    return {"dims": dims, "size": size, "radius": radius, "hidden": hidden,
-            "rules": rules_text(rules), "brains": brains, **row}
+def play(jobs: list[tuple]) -> list[dict]:
+    """Play worlds (one shape, one tick count) as one batch."""
+    runs = []
+    for shape, brains, seed, ticks, out in jobs:
+        overrides = world(shape)
+        if brains != "scratch":
+            overrides["brains_from"] = str(nursery_path(out, shape, int(brains[1:])))
+        runs.append((overrides, seed, ticks, LATE_FROM, LOG_EVERY))
+    rows = []
+    for (shape, brains, *_), row in zip(jobs, run_batch(runs)):
+        dims, size, radius, hidden, rules = shape
+        rows.append({"dims": dims, "size": size, "radius": radius, "hidden": hidden,
+                     "rules": rules_text(rules), "brains": brains, **row})
+    return rows
 
 
 def run_pool(fn, jobs: list, workers: int, label: str) -> list:
+    """Run jobs in batches (same shape and tick count share one) over `workers`
+    processes; results come back as batches finish."""
+    plan = plan_batches(jobs, workers, key=lambda job: (job[0], job[-2]))
     results = []
-    with ProcessPoolExecutor(max_workers=workers) as pool:
-        futures = [pool.submit(fn, job) for job in jobs]
-        for i, fut in enumerate(as_completed(futures), 1):
-            results.append(fut.result())
-            print(f"  {label} {i}/{len(jobs)}", flush=True)
+    with ProcessPoolExecutor(max_workers=min(workers, len(plan))) as pool:
+        futures = [pool.submit(fn, [jobs[i] for i in idx]) for idx in plan]
+        for fut in as_completed(futures):
+            results.extend(fut.result())
+            print(f"  {label} {len(results)}/{len(jobs)}", flush=True)
     return results
 
 

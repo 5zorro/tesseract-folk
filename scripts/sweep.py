@@ -31,6 +31,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from sim import Config, Simulation  # noqa: E402
+from sim.simulation import STRUCTURAL, Batch  # noqa: E402
 from sim.config import parse_overrides as config_overrides  # noqa: E402
 from sim.controllers import ScriptedController  # noqa: E402
 from sim.nursery import load_brain_pool, seed_brains  # noqa: E402
@@ -101,80 +102,149 @@ def bucket_rates(lifetime: dict, collapses: dict) -> dict:
     return out
 
 
+class Run:
+    """One seed's run, measured while it steps (possibly inside a batch of
+    others: `run_batch`). Results are plain numbers."""
+
+    def __init__(self, overrides: dict, seed: int, ticks: int, late_from: float, log_every: int):
+        overrides = dict(overrides)
+        controller = overrides.pop("controller", "brain")
+        brains_from = overrides.pop("brains_from", None)
+        self.seed, self.ticks, self.log_every = seed, ticks, log_every
+        self.sim = Simulation(Config(**{**overrides, "seed": seed}), log_every=log_every)
+        if brains_from:
+            seed_brains(self.sim, load_brain_pool(brains_from))
+        self.scripted = ScriptedController() if controller == "scripted" else None
+        self.nutrient_from = int(ticks * NUTRIENT_WINDOW)
+        self.late_start = int(ticks * late_from)
+        self.min_nutrients: list[float] = []
+        self.moved: list[float] = []
+        self.last_seen: dict = {}
+        self.life_before: dict = {}
+        self.collapses_before: dict = {}
+
+    def before_tick(self) -> None:
+        if self.scripted is not None:
+            cover_with(self.sim, self.scripted)
+
+    def after_tick(self) -> None:
+        sim = self.sim
+        if sim.tick > self.nutrient_from and sim.tick % self.log_every == 0 and sim.npcs:
+            live = sim._by_id(sim.pop.live(sim.index))
+            self.min_nutrients.append(float(np.mean(sim.pop.nutrients[live].min(axis=1))))
+        if sim.tick >= self.late_start and sim.tick % DISTANCE_EVERY == 0:
+            self.moved.extend(distances(self.last_seen, sim))
+            self.last_seen = where_now(sim)
+        if sim.tick == self.late_start:
+            self.mark_late()
+
+    def mark_late(self) -> None:
+        self.life_before = dict(self.sim.stats.generation_lifetime)
+        self.collapses_before = dict(self.sim.stats.generation_collapses)
+
+    def result(self) -> dict:
+        sim, stats = self.sim, self.sim.stats
+        rows = stats.history + [dict(stats.window)]
+
+        def total(key: str) -> int:
+            return sum(r.get(key, 0) for r in rows)
+
+        collapses = total("collapses")
+        lifetime = sum(stats.generation_lifetime.values())
+        late_life = {g: t - self.life_before.get(g, 0) for g, t in stats.generation_lifetime.items()}
+        late_collapses = {g: c - self.collapses_before.get(g, 0) for g, c in stats.generation_collapses.items()}
+
+        out = {"seed": self.seed,
+               "collapse_rate": collapses * 1000 / lifetime if lifetime else math.nan}
+        for label, rate in bucket_rates(stats.generation_lifetime, stats.generation_collapses).items():
+            out[f"rate_{label}"] = rate
+        for label, rate in bucket_rates(late_life, late_collapses).items():
+            out[f"late_{label}"] = rate
+        for cause in CAUSES:
+            out[f"cause_{cause}"] = total(f"collapse_{cause}") / collapses if collapses else math.nan
+        out["min_nutrient"] = float(np.mean(self.min_nutrients)) if self.min_nutrients else math.nan
+        diets = [r["diet_diversity"] for r in rows
+                 if r.get("tick", 0) > self.nutrient_from and "diet_diversity" in r]
+        out["diet_diversity"] = float(np.mean(diets)) if diets else math.nan
+        travel = stats.travel_summary(since_tick=self.late_start)
+        out["lives"] = travel["lives"]
+        out["zones_per_life"] = travel["zones"]
+        out["zone_types_per_life"] = travel["zone_types"]
+        out["zone_switch_rate"] = travel["switch_rate"]
+        out["directed"] = travel["directed"]
+        out["directed_chance"] = travel["chance"]
+        out["directed_lift"] = travel["directed"] - travel["chance"]
+        out["approach"] = travel["approach"]
+        out["approach_null"] = travel["approach_null"]
+        out["approach_excess"] = travel["approach"] - travel["approach_null"]
+        out["distance"] = float(np.mean(self.moved)) if self.moved else math.nan
+        out["births"] = total("births")
+        out["spawns"] = total("spawns")
+        out["max_generation"] = max((n.generation for n in sim.npcs), default=0)
+        out["population"] = len(sim.npcs)
+        out["stable"] = float(sim.is_stable())
+        return out
+
+
+def run_batch(jobs: list) -> list[dict]:
+    """Run several jobs (overrides, seed, ticks, late_from, log_every) as one batch
+    of worlds (sim.simulation.Batch): the same results as one at a time, faster.
+    They must share ticks, late_from, log_every and the array-shaping settings."""
+    runs = [Run(*job) for job in jobs]
+    if len({(r.ticks, r.late_start, r.log_every) for r in runs}) > 1:
+        raise ValueError("a batch's runs must share ticks, late_from and log_every")
+    batch = Batch([r.sim for r in runs])
+    if runs[0].late_start == 0:
+        for r in runs:
+            r.mark_late()
+    for _ in range(runs[0].ticks):
+        for r in runs:
+            r.before_tick()
+        batch.step()
+        for r in runs:
+            r.after_tick()
+    return [r.result() for r in runs]
+
+
 def run_one(overrides: dict, seed: int, ticks: int, late_from: float, log_every: int) -> dict:
     """Run one seed and return its summary metrics (all plain numbers)."""
-    overrides = dict(overrides)
-    controller = overrides.pop("controller", "brain")
-    brains_from = overrides.pop("brains_from", None)
-    sim = Simulation(Config(**{**overrides, "seed": seed}), log_every=log_every)
-    if brains_from:
-        seed_brains(sim, load_brain_pool(brains_from))
-    scripted = ScriptedController() if controller == "scripted" else None
-    nutrient_from = int(ticks * NUTRIENT_WINDOW)
-    late_start = int(ticks * late_from)
-    min_nutrients, moved = [], []
-    last_seen: dict = {}
-
-    def advance(steps: int) -> None:
-        nonlocal last_seen
-        for _ in range(steps):
-            if scripted is not None:
-                cover_with(sim, scripted)
-            sim.step()
-            if sim.tick > nutrient_from and sim.tick % log_every == 0 and sim.npcs:
-                min_nutrients.append(float(np.mean([npc.nutrients.min() for npc in sim.npcs])))
-            if sim.tick >= late_start and sim.tick % DISTANCE_EVERY == 0:
-                moved.extend(distances(last_seen, sim))
-                last_seen = where_now(sim)
-
-    advance(late_start)
-    stats = sim.stats
-    life_before = dict(stats.generation_lifetime)
-    collapses_before = dict(stats.generation_collapses)
-    advance(ticks - late_start)
-
-    rows = stats.history + [dict(stats.window)]
-    def total(key: str) -> int:
-        return sum(r.get(key, 0) for r in rows)
-
-    collapses = total("collapses")
-    lifetime = sum(stats.generation_lifetime.values())
-    late_life = {g: t - life_before.get(g, 0) for g, t in stats.generation_lifetime.items()}
-    late_collapses = {g: c - collapses_before.get(g, 0) for g, c in stats.generation_collapses.items()}
-
-    out = {"seed": seed,
-           "collapse_rate": collapses * 1000 / lifetime if lifetime else math.nan}
-    for label, rate in bucket_rates(stats.generation_lifetime, stats.generation_collapses).items():
-        out[f"rate_{label}"] = rate
-    for label, rate in bucket_rates(late_life, late_collapses).items():
-        out[f"late_{label}"] = rate
-    for cause in CAUSES:
-        out[f"cause_{cause}"] = total(f"collapse_{cause}") / collapses if collapses else math.nan
-    out["min_nutrient"] = float(np.mean(min_nutrients)) if min_nutrients else math.nan
-    diets = [r["diet_diversity"] for r in rows if r.get("tick", 0) > nutrient_from and "diet_diversity" in r]
-    out["diet_diversity"] = float(np.mean(diets)) if diets else math.nan
-    travel = stats.travel_summary(since_tick=late_start)
-    out["lives"] = travel["lives"]
-    out["zones_per_life"] = travel["zones"]
-    out["zone_types_per_life"] = travel["zone_types"]
-    out["zone_switch_rate"] = travel["switch_rate"]
-    out["directed"] = travel["directed"]
-    out["directed_chance"] = travel["chance"]
-    out["directed_lift"] = travel["directed"] - travel["chance"]
-    out["approach"] = travel["approach"]
-    out["approach_null"] = travel["approach_null"]
-    out["approach_excess"] = travel["approach"] - travel["approach_null"]
-    out["distance"] = float(np.mean(moved)) if moved else math.nan
-    out["births"] = total("births")
-    out["spawns"] = total("spawns")
-    out["max_generation"] = max((n.generation for n in sim.npcs), default=0)
-    out["population"] = len(sim.npcs)
-    out["stable"] = float(sim.is_stable())
-    return out
+    return run_batch([(overrides, seed, ticks, late_from, log_every)])[0]
 
 
-def _run_job(job: tuple) -> dict:
-    return run_one(*job)
+def batch_key(job: tuple) -> tuple:
+    """Jobs with equal keys can share a batch."""
+    overrides, _, ticks, late_from, log_every = job
+    cfg = Config(**{k: v for k, v in overrides.items() if k not in ("controller", "brains_from")})
+    return tuple(getattr(cfg, k) for k in STRUCTURAL) + (ticks, late_from, log_every)
+
+
+def plan_batches(jobs: list, workers: int, key=batch_key) -> list[list[int]]:
+    """Split job indices into batches: jobs that can share one, and about one
+    batch per worker (bigger batches run faster per world, but each batch
+    uses one core)."""
+    groups: dict = {}
+    for i, job in enumerate(jobs):
+        groups.setdefault(key(job), []).append(i)
+    size = max(1, math.ceil(len(jobs) / max(1, workers)))
+    return [idx[k:k + size] for idx in groups.values() for k in range(0, len(idx), size)]
+
+
+def run_jobs(jobs: list, workers: int, fn=None, key=batch_key) -> list:
+    """Every job's result, in order, run in batches over `workers` processes.
+    `fn` runs one batch (a list of jobs) and returns its results in order."""
+    fn = fn or run_batch
+    plan = plan_batches(jobs, workers, key)
+    parts = [[jobs[i] for i in idx] for idx in plan]
+    if workers == 1 or len(parts) == 1:
+        done = [fn(p) for p in parts]
+    else:
+        with ProcessPoolExecutor(max_workers=min(workers, len(parts))) as pool:
+            done = list(pool.map(fn, parts))
+    flat: list = [None] * len(jobs)
+    for idx, results in zip(plan, done):
+        for i, r in zip(idx, results):
+            flat[i] = r
+    return flat
 
 
 # ================================================================ output
@@ -282,11 +352,7 @@ def main() -> None:
     print(f"Running {len(jobs)} runs ({len(variants)} variants x {len(seeds)} seeds) "
           f"on {workers} process(es). Shared config: {shared_text}.", flush=True)
 
-    if workers == 1:
-        flat = [_run_job(job) for job in jobs]
-    else:
-        with ProcessPoolExecutor(max_workers=workers) as pool:
-            flat = list(pool.map(_run_job, jobs))
+    flat = run_jobs(jobs, workers)
 
     results = {label: flat[i * len(seeds):(i + 1) * len(seeds)] for i, label in enumerate(variants)}
     summarize(results, args.ticks, args.late_from, seeds)

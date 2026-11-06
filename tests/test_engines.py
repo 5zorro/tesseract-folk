@@ -87,3 +87,39 @@ def test_slot_layout_doesnt_matter():
         b.run(30)
     assert_same(snapshot(a), snapshot(b))
     assert not np.array_equal(a.pop.id[a.pop.live()], b.pop.id[b.pop.live()])
+
+
+# ---------------------------------------------------------------- G3: batches
+from sim.simulation import Batch  # noqa: E402
+
+MIXED = [dict(seed=1), dict(seed=2), dict(seed=1, metabolism_rate=0.012, bite_size=0.3),
+         dict(seed=3, smiting=True, piety_threshold=0.1, stink_decay=0.05),
+         dict(seed=4, hall_of_fame_track_record=True, food_growth_rate=0.01, old_age=200)]
+
+
+@pytest.mark.parametrize("extra", [{}, dict(dims=4, size=5), dict(two_eat_actions=True, food_scent=False)])
+def test_a_batch_matches_its_worlds_run_alone(extra):
+    cfgs = [Config(**{**BUSY, **extra, **v}) for v in MIXED]
+    alone = [Simulation(c, log_every=50) for c in cfgs]
+    together = [Simulation(c, log_every=50) for c in cfgs]
+    batch = Batch(together)
+    ctrl = ScriptedController()
+    for _ in range(300):
+        for sims in (alone, together):          # controllers in one world too
+            sims[1].overrides = {n.id: ctrl for n in sims[1].npcs if n.id % 3 == 0}
+        for sim in alone:
+            sim.step()
+        batch.step()
+    for a, b in zip(alone, together):
+        assert_same(snapshot(a), snapshot(b))
+        assert a.total_mass() == b.total_mass()
+
+
+def test_batches_need_matching_shapes_and_ticks():
+    a, b = Simulation(Config(**BUSY)), Simulation(Config(**{**BUSY, "dims": 3, "size": 6}))
+    with pytest.raises(ValueError, match="dims"):
+        Batch([a, b])
+    c = Simulation(Config(**{**BUSY, "seed": 99}))
+    c.run(3)
+    with pytest.raises(ValueError, match="same tick"):
+        Batch([a, c])

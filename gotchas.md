@@ -158,6 +158,14 @@ Traps that already bit us, by area. Add to this when something surprises you.
   extra draw no longer shifts the others, but a changed key does (a different
   id, tick or purpose). New purposes go at the end of `sim/keyed.py`'s list;
   never renumber one.
+- **A world's arrays are views into its batch (G3).** Write them in place
+  (`sim.world.food[...] = x`), never rebind (`sim.world.food = x` detaches
+  the world from the engine), then call `sim.world_changed()`. Stepping any
+  Simulation in a batch steps all of them. Worlds in a batch must share
+  `STRUCTURAL` settings and the tick.
+- **4D speed is memory-bound now, not Python-bound** (G3). More processes don't
+  help 4D sweeps much; the world step's 4D maps share the memory bus. Measure
+  with the whole machine loaded, not one process.
 - **Don't keep `sim.npcs` entries across ticks.** They're views into array
   slots, and a dead NPC's slot is reused; a stale view raises `LookupError`
   rather than read the newcomer. Keep ids. `sim.npcs` is rebuilt (by id) on

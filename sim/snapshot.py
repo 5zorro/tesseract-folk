@@ -86,8 +86,10 @@ def load_snapshot(path: str | Path, log_every: int = 100) -> Simulation:
     with np.load(path / "world.npz") as arrays:
         for k in ARRAYS:
             if k in arrays:   # older formats lack scent (stays zeros) or zones (World rebuilt them from the seed)
-                setattr(sim.world, k, _checked(k, arrays[k], getattr(sim.world, k), sim.cfg))
+                # In place: the world's arrays are views into its batch's (simulation.py).
+                getattr(sim.world, k)[...] = _checked(k, arrays[k], getattr(sim.world, k), sim.cfg)
     sim.world.shrines = [tuple(s) for s in state["shrines"]]
+    sim.world_changed()
     sim.tick = state["tick"]
     sim.next_id = state["next_id"]
     sim.clock = SimClock.from_dict(state["clock"])

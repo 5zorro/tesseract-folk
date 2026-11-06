@@ -73,6 +73,12 @@ def to_unit(b: np.ndarray) -> np.ndarray:
     return (b >> _S11).astype(np.float64) * _UNIT
 
 
+def uniform(seeds, tick: int, ids, purpose: int) -> np.ndarray:
+    """Keys(seed).uniform for many NPCs whose worlds have different seeds
+    (seeds and ids broadcast together): the same numbers, all at once."""
+    return to_unit(bits(key(seeds, tick, ids, purpose), 0, 1))[..., 0]
+
+
 class Keys:
     """Every random number a simulation with this seed uses after building its world."""
 

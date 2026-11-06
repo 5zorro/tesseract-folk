@@ -55,6 +55,7 @@ class Population:
                       damage=((len(DAMAGE_CAUSES),), np.float64),
                       damage_seq=((len(DAMAGE_CAUSES),), np.int64),   # 0 = cause absent
                       zones_eaten=((types, self.patches), np.bool_),
+                      world=((), np.int64),          # which world of a batch (not an NPC field)
                       w1=((hidden, n_in), np.float64), b1=((hidden,), np.float64),
                       w2=((n_out, hidden), np.float64), b2=((n_out,), np.float64))
         return shapes
@@ -68,17 +69,21 @@ class Population:
             setattr(self, name, arr)
         self.capacity = capacity
 
-    def live(self) -> np.ndarray:
-        return np.flatnonzero(self.alive)
+    def live(self, world: int | None = None) -> np.ndarray:
+        """Used slots (of one world, if given)."""
+        return np.flatnonzero(self.alive if world is None else self.alive & (self.world == world))
 
-    def count(self) -> int:
-        return int(self.alive.sum())
+    def count(self, world: int | None = None) -> int:
+        return int(np.count_nonzero(self.alive if world is None else self.alive & (self.world == world)))
 
-    def clear(self) -> None:
-        self.alive[:] = False
+    def clear(self, world: int | None = None) -> None:
+        if world is None:
+            self.alive[:] = False
+        else:
+            self.alive[self.world == world] = False
 
     # ---------------------------------------------------- records in and out
-    def add(self, npc: NPC) -> int:
+    def add(self, npc: NPC, world: int = 0) -> int:
         """Store a record in the lowest free slot (growing if full); returns the slot."""
         free = np.flatnonzero(~self.alive)
         if free.size == 0:
@@ -98,6 +103,7 @@ class Population:
         for t, z in npc.zones_eaten:
             self.zones_eaten[slot, t, z] = True
         self.set_brain(slot, npc.brain)
+        self.world[slot] = world
         self.alive[slot] = npc.alive
         return slot
 

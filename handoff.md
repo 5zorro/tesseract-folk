@@ -127,7 +127,10 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
    done** (new tick rules + keyed randomness, one re-baseline; the M2 re-check
    gives the same verdicts within seed noise). **G2 done:** array engine
    (`sim/simulation.py` + `sim/population.py`) bit-identical to the per-NPC
-   reference (`sim/reference.py`), 2.5-3x faster. Next: G3 (many worlds per array). Post-G1 nurseries:
+   reference (`sim/reference.py`), 2.5-3x faster. **G3 done:** `Batch` runs many
+   worlds in one set of arrays; sweeps and the ladder use it. 2D sweeps 2.5x
+   faster (goal met); 4D sweeps are memory-bound now and barely faster. Next:
+   discuss G4 / float32 (D2, D4) with 5zorro before building. Post-G1 nurseries:
    `snapshots/ladder-g1`, `snapshots/ladder-g1-twoeat` (older folders are pre-G1). Talk to 5zorro before PyTorch
    (D4) or anything C++.
 2. Known gaps carried from M1: body starvation is ~35% of collapses; births
