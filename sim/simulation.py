@@ -149,6 +149,17 @@ class Simulation:
     def _by_id(self, slots: np.ndarray) -> np.ndarray:
         return slots[np.argsort(self.pop.id[slots], kind="stable")]
 
+    def set_rule(self, name: str, value) -> None:
+        """Change a numeric rule of this world mid-run (e.g. a nursery that raises
+        hunger as it goes). Rules that shape the arrays (STRUCTURAL) or aren't
+        numbers can't change once a world exists."""
+        current = getattr(self.cfg, name)            # AttributeError for unknown names
+        if name in STRUCTURAL or isinstance(current, str) or name not in self.batch.par:
+            raise ValueError(f"{name} can't change mid-run")
+        value = type(current)(value)
+        setattr(self.cfg, name, value)
+        self.batch.par[name][self.index] = value
+
     def world_changed(self) -> None:
         """Call after writing this world's arrays in place (snapshots do): derived
         tables (which cells serve which nutrient, shrine senses) are rebuilt."""
@@ -769,7 +780,8 @@ class Batch:
         wn = P.world[order]
         obs = self.sense_slots(order)
         u = keyed.uniform(self.seeds[wn], self.tick, P.id[order], keyed.ACTION)
-        hidden = np.tanh(np.matmul(P.w1[order], obs[:, :, None])[:, :, 0] + P.b1[order])
+        hidden = (np.tanh(np.matmul(P.w1[order], obs[:, :, None])[:, :, 0] + P.b1[order])
+                  if P.w1.shape[1] else obs)                 # 0 hidden units: linear brain
         out = np.matmul(P.w2[order], hidden[:, :, None])[:, :, 0] + P.b2[order]
         logits = out[:, :A] / self._p("action_temperature", wn)[:, None]
         logits -= logits.max(axis=1, keepdims=True)

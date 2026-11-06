@@ -23,6 +23,7 @@ CASES = {
     "harsh, no scent": dict(food_scent=False, collapse_age_penalty=100, food_growth_rate=0.005),
     "one eat, lineage off": dict(mutation_lineage=False, mutations_per_birth=0.0, two_eat_actions=False),
     "fitness-ranked hall of fame": dict(hall_of_fame_track_record=False),
+    "linear brains": dict(hidden_units=0),
 }
 
 
@@ -136,3 +137,28 @@ def test_a_stale_view_cant_read_another_worlds_npc():
     assert batch.pop.add(record, 1) == gone._slot      # it takes the freed slot
     with pytest.raises(LookupError, match="gone"):
         gone.body
+
+
+def test_set_rule_changes_one_world_mid_run():
+    """A rule changed mid-run (Simulation.set_rule) acts like a world built with it."""
+    base = dict(BUSY, seed=5)
+    a, b = Simulation(Config(**base), log_every=50), Simulation(Config(**base), log_every=50)
+    ref = ReferenceSimulation(Config(**base), log_every=50)
+    batch_mates = [Simulation(Config(**dict(base, seed=s)), log_every=50) for s in (6, 7)]
+    from sim.simulation import Batch
+    Batch([a, *batch_mates])
+    for sim in (a, b, ref):
+        sim.run(40)
+    for sim in (a, b):
+        sim.set_rule("nutrient_decay", 0.02)
+        sim.set_rule("old_age", 120)
+    ref.cfg.nutrient_decay, ref.cfg.old_age = 0.02, 120
+    assert batch_mates[0].batch.par["nutrient_decay"][1] == batch_mates[0].cfg.nutrient_decay != 0.02
+    for sim in (a, b, ref):
+        sim.run(80)
+    assert_same(snapshot(ref), snapshot(b))
+    assert_same(snapshot(b), snapshot(a))
+    with pytest.raises(ValueError):
+        a.set_rule("hidden_units", 4)
+    with pytest.raises(ValueError):
+        a.set_rule("precision", "float32")

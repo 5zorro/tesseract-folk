@@ -9,6 +9,10 @@ import numpy as np
 
 
 class Brain:
+    """inputs -> hidden (tanh) -> outputs. With 0 hidden units the net is linear:
+    w1 and b1 are empty and w2 maps the inputs straight to the outputs (a
+    baseline for "how much brain does this task need?", research 2026-11-06)."""
+
     def __init__(self, w1: np.ndarray, b1: np.ndarray, w2: np.ndarray, b2: np.ndarray):
         self.w1, self.b1, self.w2, self.b2 = w1, b1, w2, b2
 
@@ -24,6 +28,11 @@ class Brain:
     def n_out(self) -> int:
         return self.w2.shape[0]
 
+    @staticmethod
+    def w2_width(n_in: int, n_hidden: int) -> int:
+        """Columns of w2: the hidden units, or the inputs when there are none."""
+        return n_hidden if n_hidden > 0 else n_in
+
     @property
     def n_params(self) -> int:
         return sum(a.size for a in self._arrays())
@@ -36,7 +45,7 @@ class Brain:
         only finite weights. Brains can come from shared files, and JSON happily
         loads NaN and Infinity (docs/SAFETY.md §4)."""
         expected = {"w1": (n_hidden, n_in), "b1": (n_hidden,),
-                    "w2": (n_out, n_hidden), "b2": (n_out,)}
+                    "w2": (n_out, self.w2_width(n_in, n_hidden)), "b2": (n_out,)}
         for (name, shape), a in zip(expected.items(), self._arrays()):
             if a.shape != shape:
                 raise ValueError(f"brain {name} has shape {a.shape}, expected {shape}")
@@ -45,15 +54,16 @@ class Brain:
 
     @classmethod
     def random(cls, n_in: int, n_hidden: int, n_out: int, rng: np.random.Generator) -> "Brain":
+        width = cls.w2_width(n_in, n_hidden)
         return cls(
             rng.normal(0.0, 1.0 / np.sqrt(n_in), (n_hidden, n_in)),
             np.zeros(n_hidden),
-            rng.normal(0.0, 1.0 / np.sqrt(n_hidden), (n_out, n_hidden)),
+            rng.normal(0.0, 1.0 / np.sqrt(width), (n_out, width)),
             np.zeros(n_out),
         )
 
     def forward(self, x: np.ndarray) -> np.ndarray:
-        hidden = np.tanh(self.w1 @ x + self.b1)
+        hidden = np.tanh(self.w1 @ x + self.b1) if self.w1.shape[0] else x
         return self.w2 @ hidden + self.b2
 
     def mutation_rate(self, rate: float, per_birth: float) -> float:
@@ -91,4 +101,7 @@ class Brain:
 
     @classmethod
     def from_dict(cls, data: dict) -> "Brain":
-        return cls(*(np.asarray(data[k], dtype=float) for k in ("w1", "b1", "w2", "b2")))
+        w1, b1, w2, b2 = (np.asarray(data[k], dtype=float) for k in ("w1", "b1", "w2", "b2"))
+        if w1.size == 0:                    # no hidden layer: JSON's [] loses the shape
+            w1 = w1.reshape(0, int(data.get("n_in", w2.shape[1] if w2.ndim == 2 else 0)))
+        return cls(w1, b1, w2, b2)

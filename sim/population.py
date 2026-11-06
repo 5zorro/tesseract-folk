@@ -62,7 +62,7 @@ class Population:
                       zones_eaten=((types, self.patches), np.bool_),
                       world=((), np.int64),          # which world of a batch (not an NPC field)
                       w1=((hidden, n_in), f), b1=((hidden,), f),
-                      w2=((n_out, hidden), f), b2=((n_out,), f))
+                      w2=((n_out, Brain.w2_width(n_in, hidden)), f), b2=((n_out,), f))
         return shapes
 
     def _alloc(self, capacity: int) -> None:
