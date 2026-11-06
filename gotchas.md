@@ -165,6 +165,12 @@ Traps that already bit us, by area. Add to this when something surprises you.
   makes a sweep match. Old nursery folders (float64) aren't reused by the
   ladder now; retrain into a new `--out`. Mass in float32 is good to ~1e-6
   (tests use `rel=1e-5`), not 1e-13.
+- **The rounding plug can hide nothing big, but it does move mass.** With
+  `mass_plug_every` on (sweeps), soil gets ~1e-9 of the mass posted now and
+  then; a difference above `mass_plug_max` raises "conservation bug". Changing
+  mass by hand between ticks (`sim.npcs = ...`, writing world arrays plus
+  `world_changed()`) restarts the ledger; writing arrays without
+  `world_changed()` and then stepping is exactly the bug it reports.
 - **A world's arrays are views into its batch (G3).** Write them in place
   (`sim.world.food[...] = x`), never rebind (`sim.world.food = x` detaches
   the world from the engine), then call `sim.world_changed()`. Stepping any

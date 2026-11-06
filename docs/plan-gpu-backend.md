@@ -1,7 +1,12 @@
 # Plan: CPU/GPU-agnostic simulation
 
 Status (2026-11-06): **G0-G3 done; float32 is the research default** (with
-exact transfers; same M2 verdicts). Next: G4, after the D4 talk.
+exact transfers and the rounding plug; same M2 verdicts). **G4 parked by
+5zorro (2026-11-06):** sweeps already meet the 5-minute goal (40 runs x
+10,000 ticks: ~75 s in 2D, ~3 min in 4D), and the mod's sim will likely run on
+the CPU (the game uses the GPU). Revisit for much bigger experiments; the D4
+options (PyOpenCL, PyTorch via DirectML or community ROCm, CuPy no, Taichi
+unverified) are under G4 and D4.
 Earlier status (2026-11-05): **G0-G3 done.** G1 passes its M2 re-check; G2's array
 engine matches the reference bit for bit; G3 batches worlds (also bit for
 bit). 2D sweeps are 2.5x faster and meet the 5-minute goal; 4D sweeps aren't
@@ -340,7 +345,22 @@ A batch can't mix them (`STRUCTURAL`). Tests: `tests/test_precision.py`.
   2.49 / 2.41. Food types per life within 0.1 everywhere (3D one eat 2.32 /
   2.18 / 2.24, still short of 2.5). Births swing as before.
 
-### Next idea: a rounding plug (5zorro, 2026-11-06, not built)
+### The rounding plug (5zorro, 2026-11-06): built
+`Config.mass_plug_every` (0 = off, the default; sweeps and the ladder use 100
+via `RESEARCH_DEFAULTS`) and `mass_plug_max` (1e-5). Each world keeps its true
+total in `Batch.mass_target` (float64); every N ticks `Simulation.plug_mass`
+posts the difference to the median soil cell, counts it in
+`stats.mass_plugged`/`mass_plugs` (and the sweep CSV's `mass_plugged`), and
+raises above `mass_plug_max`. Mass changed from outside a tick (`sim.npcs = ...`,
+a snapshot load, a spawn by hand) restarts the ledger; top-ups inside a tick
+don't (a bug that let drift through, caught by measuring, now tested).
+Measured (`scripts/mass_drift.py`, float32, plug every 100): drift at plug
+ticks ~1e-12 after 3,000 ticks, vs ~1e-6 without; plugged -3.7e-7 (2D) and
+-1.0e-6 (4D) of the total. The array engine only (the reference engine is
+float64 and needs none). Not re-checked on the M2 ladder: it moves ~1e-9 of
+the mass per post.
+
+Original note:
 Like an accountant's suspense entry: keep the true total mass in float64; every
 N ticks compare the arrays' total with it and post the difference (rounding,
 ~1e-8 of the total) to one soil cell (5zorro: the median cell, so it never

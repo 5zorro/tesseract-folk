@@ -36,3 +36,40 @@ def test_float32_snapshots_resume(tmp_path):
     a.run(40)
     b.run(40)
     assert [n.pos for n in a.npcs] == [n.pos for n in b.npcs]
+
+
+def test_the_plug_holds_float32_mass_to_its_ledger():
+    sim = Simulation(Config(**SMALL, precision="float32", mass_plug_every=10), log_every=50)
+    start = sim.total_mass()
+    sim.run(1000)                                     # ends on a plug tick
+    assert sim.total_mass() == pytest.approx(start, rel=1e-8)   # one float32 rounding of a soil cell
+    assert sim.stats.mass_plugs > 0
+    assert abs(sim.stats.mass_plugged) < 1e-5 * start
+
+
+def test_a_real_leak_is_an_error_not_a_plug():
+    sim = Simulation(Config(**SMALL, precision="float32", mass_plug_every=10), log_every=50)
+    sim.run(10)
+    sim.world.food[...] *= 0.5                         # a "bug" that destroys mass
+    with pytest.raises(RuntimeError, match="conservation bug"):
+        sim.run(10)
+
+
+def test_moving_mass_in_from_outside_resets_the_ledger(tmp_path):
+    sim = Simulation(Config(**SMALL, precision="float32", mass_plug_every=10), log_every=50)
+    sim.run(10)
+    sim.npcs = sim.npcs[:5]                            # a test or script removes NPCs on purpose
+    sim.run(30)                                        # no error: the ledger re-reads the total
+    b = load_snapshot(save_snapshot(sim, tmp_path / "s"))
+    b.run(30)
+
+
+def test_top_ups_keep_the_ledger():
+    """Top-ups move mass from soil to a newcomer inside a tick; the ledger must
+    not restart (it did once, letting drift through)."""
+    sim = Simulation(Config(**{**SMALL, "min_population": 40}, precision="float32", mass_plug_every=10),
+                     log_every=50)
+    start = sim.total_mass()
+    sim.run(500)
+    assert sim.stats.window.get("spawns", 0) + sum(h["spawns"] for h in sim.stats.history) > 0
+    assert sim.total_mass() == pytest.approx(start, rel=1e-8)

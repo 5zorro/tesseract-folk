@@ -22,6 +22,10 @@ class Stats:
     def __init__(self, log_every: int = 100):
         self.log_every = log_every
         self.window: dict[str, int] = defaultdict(int)
+        # The rounding plug (Config.mass_plug_every): mass posted to the soil in
+        # total (signed) and how many times. Cumulative, not saved in snapshots.
+        self.mass_plugged = 0.0
+        self.mass_plugs = 0
         self.history: list[dict] = []
         # Cumulative over the whole run (not per window), for M1's
         # "collapses per NPC fall over generations". Not saved in snapshots.

@@ -135,6 +135,7 @@ class Simulation:
         for r in records:
             if r.alive:
                 self.pop.add(r, self.index)
+        self.batch.mass_target[self.index] = np.nan     # mass may have changed: re-read it
 
     def _slot(self, npc) -> int:
         if (not isinstance(npc, NPCView) or npc._pop is not self.pop
@@ -153,6 +154,7 @@ class Simulation:
         tables (which cells serve which nutrient, shrine senses) are rebuilt."""
         self.world._serves_zones = None
         self.batch.refresh(self.index)
+        self.batch.mass_target[self.index] = np.nan
 
     # ============================================================ public API
     def step(self) -> bool:
@@ -170,7 +172,8 @@ class Simulation:
 
     def total_mass(self) -> float:
         P, live = self.pop, self._by_id(self.pop.live(self.index))
-        each = P.body[live] + P.bowel[live] + P.inventory[live].sum(axis=1)
+        f = np.float64                      # float32 arrays are summed in float64 too
+        each = P.body[live].astype(f) + P.bowel[live].astype(f) + P.inventory[live].astype(f).sum(axis=1)
         carried = sum(each.tolist())        # one by one, in id order, like the reference
         return self.world.mass() + self.deity.mass() + carried
 
@@ -267,7 +270,31 @@ class Simulation:
         return npc
 
     def _spawn(self, brain: Brain, pos, body: float, generation: int) -> NPCView:
+        if not self.batch.stepping:                       # added from outside a tick (not a top-up)
+            self.batch.mass_target[self.index] = np.nan
         return NPCView(self.pop, self.pop.add(self._make_npc(brain, pos, body, generation), self.index))
+
+    def plug_mass(self) -> None:
+        """The rounding plug (Config.mass_plug_every): post the difference between
+        the true total and today's to the median soil cell, or raise if it's too
+        big to be rounding."""
+        target = self.batch.mass_target[self.index]
+        now = self.total_mass()
+        if np.isnan(target):
+            self.batch.mass_target[self.index] = now
+            return
+        diff = target - now
+        if abs(diff) > self.cfg.mass_plug_max * abs(target):
+            raise RuntimeError(
+                f"world {self.index} (seed {self.cfg.seed}), tick {self.tick}: mass is off by "
+                f"{diff:+.3g} ({diff / target:+.2e} of {target:.6g}); that's not rounding but a "
+                f"conservation bug (mass_plug_max {self.cfg.mass_plug_max:g})")
+        if diff:
+            soil = self.world.soil.reshape(-1)
+            cell = int(np.argpartition(soil, soil.size // 2)[soil.size // 2])   # the median cell
+            soil[cell] += diff
+            self.stats.mass_plugged += diff
+            self.stats.mass_plugs += 1
 
     def population_collapse_rate(self) -> float:
         """Collapses per 1,000 ticks lived, over everyone alive (weighted by
@@ -487,6 +514,8 @@ class Batch:
         self._shrine = np.zeros((W, self.cells, cfg.dims + 1), dtype=self.float)
         self._shrines_cached: list = [None] * W
         self._aging = np.ones(W, dtype=bool)
+        self.mass_target = np.full(W, np.nan)     # true total mass per world (the plug's ledger)
+        self.stepping = False                     # inside step(): mass moves are the rules' own
         self.present: np.ndarray | None = None    # slots alive at the tick's start
 
     def refresh(self, i: int) -> None:
@@ -529,6 +558,17 @@ class Batch:
                 raise ValueError("worlds in a batch must freeze together (freeze_all_when_afk)")
             return False
         self._aging = np.array([s.clock.aging_active for s in self.sims])
+        self.stepping = True
+        try:
+            self._step()
+        finally:
+            self.stepping = False
+        return True
+
+    def _step(self) -> None:
+        for s in self.sims:                       # the plug's starting totals
+            if s.cfg.mass_plug_every > 0 and np.isnan(self.mass_target[s.index]):
+                s.plug_mass()
         self.tick += 1
         self._world_step()
         for s in self.sims:
@@ -547,9 +587,10 @@ class Batch:
                 self.pop.add(child, i)
         for s in self.sims:
             s._top_up()
+            if s.cfg.mass_plug_every > 0 and self.tick % s.cfg.mass_plug_every == 0:
+                s.plug_mass()
             s.clock.consume_tick()
             s.stats.maybe_sample(s)
-        return True
 
     # Cells per pass of the world step: about one 4D map (10,000 cells) at a time
     # stays in the CPU's cache even with 16 processes sharing it. Measured

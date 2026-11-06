@@ -237,7 +237,9 @@ class World:
         return self.scent[(slice(None),) + pos]
 
     def mass(self) -> float:
-        return float(self.soil.sum() + self.food.sum() + self.poop.sum())
+        """Summed in float64 whatever the arrays' width (float32 sums lose digits)."""
+        return float(self.soil.sum(dtype=np.float64) + self.food.sum(dtype=np.float64)
+                     + self.poop.sum(dtype=np.float64))
 
     def take_from_soil(self, amount: float) -> float:
         """Pull about `amount` evenly out of the soil (used to spawn new NPCs).

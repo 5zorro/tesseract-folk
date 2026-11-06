@@ -42,7 +42,8 @@ from sim.world import wrapped_delta  # noqa: E402
 # Settings research runs use unless overridden (both here and in ladder.py):
 # float32, since it ran the M2 ladder to the same verdicts 1.5x faster in 4D
 # (docs/plan-gpu-backend.md, D2). `--set precision=float64` for the old width.
-RESEARCH_DEFAULTS = {"precision": "float32"}
+# With the rounding plug every 100 ticks, so float32 runs keep their mass.
+RESEARCH_DEFAULTS = {"precision": "float32", "mass_plug_every": 100}
 
 # Generation buckets for collapse rates: (label, first generation, last generation).
 BUCKETS = [("g0", 0, 0), ("g1-2", 1, 2), ("g3-5", 3, 5), ("g6-10", 6, 10), ("g11+", 11, 10**9)]
@@ -189,6 +190,7 @@ class Run:
         out["max_generation"] = max((n.generation for n in sim.npcs), default=0)
         out["population"] = len(sim.npcs)
         out["stable"] = float(sim.is_stable())
+        out["mass_plugged"] = stats.mass_plugged / sim.total_mass()   # rounding posted to soil, net
         return out
 
 

@@ -171,6 +171,13 @@ class Config:
     # engine's, and every result so far) or "float32" (half the memory traffic;
     # being measured, docs/plan-gpu-backend.md D2). Only the array engine reads it.
     precision: str = "float64"
+    # The rounding plug (5zorro's idea, 2026-11-06): every `mass_plug_every` ticks
+    # (0 = off), the array engine compares total mass with the true total (kept
+    # in float64) and posts the tiny difference to the median soil cell, like an
+    # accountant's suspense entry. A difference above `mass_plug_max` of the
+    # total isn't rounding: it raises, so a real conservation bug can't hide.
+    mass_plug_every: int = 0
+    mass_plug_max: float = 1e-5
 
     def to_dict(self) -> dict:
         return asdict(self)
