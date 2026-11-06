@@ -54,10 +54,11 @@ _PHASES = {"eat": 1, "eat_need": 1, "eat_most": 1, "pick_up": 1,
 
 # Settings that shape arrays, actions or senses: equal within a batch.
 STRUCTURAL = ("dims", "size", "n_food_types", "n_nutrients", "hidden_units", "memory_units",
-              "food_scent", "craving_sense", "two_eat_actions", "food_patches_per_type", "precision")
+              "food_scent", "craving_sense", "mate_sense", "two_eat_actions", "food_patches_per_type", "precision")
 PRECISIONS = {"float64": np.float64, "float32": np.float32}
 # World arrays stacked by a batch (each World keeps a view of its row).
-WORLD_ARRAYS = ("soil", "food", "poop", "stink", "scent", "capacity", "zones", "need_distance", "profiles")
+WORLD_ARRAYS = ("soil", "food", "poop", "stink", "scent", "capacity", "zones", "need_distance", "profiles",
+                "pheromone")
 
 
 def action_phase(name: str) -> int:
@@ -227,8 +228,9 @@ class Simulation:
         t, n, d, m = c.n_food_types, c.n_nutrients, c.dims, c.memory_units
         scent = t + d * t if c.food_scent else 0
         craving = d if c.craving_sense else 0
+        mate = 3 + d if c.mate_sense else 0
         return (n + 4 + t + t + d * t + 1 + d + 1 + t + 2
-                + 1 + d + d + 1 + 1 + m + 1 + scent + craving)
+                + 1 + d + d + 1 + 1 + m + 1 + scent + craving + mate)
 
     def sense_layout(self) -> dict[str, slice]:
         """Where each part of the sense vector sits (the order of reference.sense).
@@ -243,6 +245,8 @@ class Simulation:
             parts += [("scent_here", t), ("scent_grad", d * t)]
         if c.craving_sense:
             parts += [("craving", d)]
+        if c.mate_sense:
+            parts += [("can_mate", 1), ("partner_ready", 1), ("pheromone_here", 1), ("pheromone_grad", d)]
         out, at = {}, 0
         for name, size in parts:
             out[name] = slice(at, at + size)
@@ -536,6 +540,7 @@ class Batch:
         self.dims, self.size, self.types = cfg.dims, cfg.size, cfg.n_food_types
         self.food_scent = cfg.food_scent
         self.craving = cfg.craving_sense
+        self.mate_sense = cfg.mate_sense
         self.cells = cfg.size ** cfg.dims
         self.float = PRECISIONS[cfg.precision]
         records = [[s.pop.record(slot) for slot in s._by_id(s.pop.live(s.index))] if s.batch else []
@@ -633,6 +638,8 @@ class Batch:
             if s.cfg.mass_plug_every > 0 and np.isnan(self.mass_target[s.index]):
                 s.plug_mass()
         self.tick += 1
+        if self.mate_sense:
+            self._call()
         self._world_step()
         for s in self.sims:
             s.deity.step(self.tick, s.world, s.keys, s.stats)
@@ -705,6 +712,11 @@ class Batch:
             scent += np.maximum(food - tp("scent_min_food"), 0.0) * tp("scent_emission")
             scent += tp("scent_diffusion") * (self._neighbor_mean(scent, 2) - scent)
             scent *= 1.0 - tp("scent_decay")
+
+        if self.mate_sense:                    # mating calls spread and fade like stink
+            pher = self.pheromone[part]
+            pher += sp("pheromone_diffusion") * (self._neighbor_mean(pher, 1) - pher)
+            pher *= 1.0 - sp("pheromone_decay")
 
     def _neighbor_mean(self, field: np.ndarray, first_axis: int) -> np.ndarray:
         """World._neighbor_mean on stacked fields (spatial axes from first_axis on):
@@ -789,9 +801,48 @@ class Batch:
             need = np.argmin(P.nutrients[slots], axis=1)
             wanted = self._rich[wn] == need[:, None]                             # (n, types)
             parts.append(np.where(wanted[:, None, :], grad, 0.0).sum(axis=2))
+        if self.mate_sense:
+            parts.append(self._mate_senses(slots, live, g, gn))
         obs = np.concatenate(parts, axis=1, dtype=self.float)
         assert obs.shape == (n, self.sims[0].n_inputs), obs.shape
         return obs
+
+    def _able(self, live: np.ndarray) -> np.ndarray:
+        """Which slots can mate now (_can_mate for many; False outside `live`)."""
+        P = self.pop
+        wl = P.world[live]
+        can = ((P.age[live] >= self._p("adult_age", wl)) & (P.body[live] >= self._p("reproduce_min_mass", wl))
+               & (P.health[live] > 0.5) & (self.tick >= P.mate_cooldown_until[live]))
+        able = np.zeros(P.capacity, dtype=bool)
+        able[live[can]] = True
+        return able
+
+    def _call(self) -> None:
+        """Config.mate_sense: NPCs that signaled `mate` and can mate add their
+        call to the pheromone field (in id order, like the reference)."""
+        P = self.pop
+        live = P.live()
+        callers = live[(self._able(live) & (P.mate_ready_until >= self.tick))[live]]
+        if callers.size:
+            callers = callers[np.lexsort((P.id[callers], P.world[callers]))]
+            np.add.at(self.pheromone.reshape(-1), P.world[callers] * self.cells + self._flat(P.pos[callers]),
+                      self.par["pheromone_emission"][P.world[callers]])
+
+    def _mate_senses(self, slots: np.ndarray, live: np.ndarray, g: np.ndarray, gn: np.ndarray) -> np.ndarray:
+        """Config.mate_sense for these slots: [I can mate, a ready partner within
+        reach, the pheromone here, its relative gradient per axis]."""
+        P, C, W = self.pop, self.cells, self.W
+        able = self._able(live)
+        ready = able & (P.mate_ready_until >= self.tick)
+        rl = live[ready[live]]
+        ready_at = np.bincount(P.world[rl] * C + self._flat(P.pos[rl]), minlength=W * C)
+        near = ready_at[g] + ready_at[gn].sum(axis=1) - ready[slots]        # not counting oneself
+        pher = self.pheromone.reshape(-1)
+        here, nb = pher[g], pher[gn]
+        s_plus, s_minus = nb[:, 0::2], nb[:, 1::2]
+        half = self._p("pheromone_half", P.world[slots])
+        return np.concatenate([able[slots][:, None], (near > 0)[:, None], (here / (here + half))[:, None],
+                               (s_plus - s_minus) / (s_plus + s_minus + 1e-12)], axis=1)
 
     def _shrines(self) -> np.ndarray:
         """Per world and cell: direction to the nearest shrine and whether it's on

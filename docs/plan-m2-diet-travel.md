@@ -988,8 +988,24 @@ lowest nutrient, eats when it's on that food, and poops when full.
   - **5zorro's reading (2026-11-06):** 14 actions with 8 under direct
     selection pressure make the search harder, and time to equilibrium may
     grow per dimension (2D ~10,000 ticks, 3D ~30,000, so 4D ~90,000-120,000);
-    the 4D anneal results were then mostly noise. Being tested: 4D nurseries
-    at 40,000, 80,000 and 120,000 ticks.
+    the 4D anneal results were then mostly noise. Tested: 4D fixed-rules
+    nurseries at 20,000-120,000 ticks (`runs/ladder-4d-t*.csv`):
+
+    | 4D nursery ticks | Collapses, 16 units | Food types, 16 | Collapses, 4 units | Food types, 4 |
+    |---|---|---|---|---|
+    | 20,000 | 2.50 | 1.96 | 2.11 | 1.98 |
+    | 40,000 | 2.36 | 1.99 | 2.10 | 2.02 |
+    | 80,000 | 2.24 | 2.16 | 2.62 | 1.82 |
+    | 120,000 | 2.08 | 2.23 | 2.61 | 1.80 |
+
+    **5zorro was right that 20,000 ticks isn't 4D's equilibrium**, at 16 units:
+    collapses and food types improve steadily to 120,000 ticks (still short of
+    every 4D goal: nutrient 0.33, diet 0.86, types 2.23 of 2.5). **4 units
+    plateau, then get worse** (and lose diet seeking in 1-2 of 10 runs). So the
+    "best width is 4" of the 20,000-tick sweep was a short-budget result: small
+    brains learn fast and stop; bigger ones keep going. (3D: R6 found 40,000 =
+    20,000 ticks, so 3D's equilibrium is shorter.) Rough extrapolation, food
+    types +0.15 per e-fold of ticks: 2.5 would take ~6x more (~700,000 ticks).
 - **Movement is axis steps only** (5zorro asked): `move+k` / `move-k` per axis,
   2 x dims moves, no diagonals; distances are wrapped axis steps. Diagonals would
   mean 3^dims - 1 moves (80 in 4D), or a multi-axis step per tick from the same
@@ -1035,6 +1051,15 @@ Why mate attempts fail (share of attempts; "partner ready" was 0% everywhere):
 - Levers, not tested: more NPCs in 4D (`max_population`, density matched by the
   formula), a longer `mate_window`, a mate-ready sense, and a scent NPCs give off
   (like food scent) so they can find each other at a distance.
+
+- **Mating sense (built, `mate_sense`, off; 5zorro, 2026-11-06).** 3 + dims
+  inputs: I can mate now; a ready partner within reach; and a pheromone
+  (5zorro's idea, replacing a first draft that pointed at the nearest partner
+  anywhere, which was omniscient). Callers (signaled `mate` and can mate) add
+  `pheromone_emission` to their cell each tick; it spreads and fades like stink
+  (`pheromone_diffusion`, `pheromone_decay`), and NPCs sense its level and
+  relative gradient like food scent. Only callers emit, so a seeker on the move
+  doesn't follow its own trail. Untested in nurseries yet.
 
 ### Slice 4: Levers, only if criterion 3 fails
 Criterion 3 isn't demonstrated (slice 3b). 5zorro picked the memory stack as the

@@ -122,7 +122,12 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
      (someone within reach 3% vs 17% in 2D), but most mate attempts come from
      NPCs too young/thin/unwell to mate; births are rare in every dimension.
      **Next:** a hand-built craving-following brain through the normal action
-     draw: does a working 4D brain exist?
+     draw: does a working 4D brain exist? **Answered:** the action draw isn't
+     the limit (a forager right 30% of the time passes 4D); the search is.
+     **4D nursery length (5zorro):** at 16 units 4D improves steadily from
+     20,000 to 120,000 ticks (types 1.96 -> 2.23, still failing); at 4 units it
+     plateaus and worsens. **Mating sense with a pheromone call** built
+     (`mate_sense`, off), untested. Open with 5zorro: a second hidden layer.
    - **4D Miner targets (5zorro, 2026-11-04):** land walkers on 3D surfaces, 4D fish
      and birds in full 4D. Both 3D and 4D must pass.
    - Speed: ticks 27-39% faster (bit-identical); `scripts/fingerprint.py` checks

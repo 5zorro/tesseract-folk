@@ -35,6 +35,7 @@ class World:
         self.poop = np.zeros(self.shape)
         self.stink = np.zeros(self.shape)
         self.scent = np.zeros_like(self.food)              # (types, *shape)
+        self.pheromone = np.zeros(self.soil.shape)         # mating calls (Config.mate_sense)
         self.profiles = self._make_profiles()              # (types, nutrients)
         self.rich = np.argmax(self.profiles, axis=1)       # each food type's rich nutrient
         self.need_distance = self._make_need_distance()    # (nutrients, *shape)
@@ -59,7 +60,7 @@ class World:
         cfg = self.cfg
         if not (np.isfinite(cfg.scent_min_food) and cfg.scent_min_food >= 0):
             raise ValueError(f"scent_min_food must be a number >= 0, got {cfg.scent_min_food!r}")
-        for name in ("scent_diffusion", "stink_diffusion"):
+        for name in ("scent_diffusion", "stink_diffusion", "pheromone_diffusion"):
             value = getattr(cfg, name)
             if not (np.isfinite(value) and 0 <= value <= 1):   # a mix with the neighbor mean
                 raise ValueError(f"{name} must be within 0-1, got {value!r}")
@@ -157,6 +158,12 @@ class World:
             self.scent += cfg.scent_diffusion * (self._neighbor_mean(self.scent, first_axis=1)
                                                  - self.scent)
             self.scent *= 1.0 - cfg.scent_decay
+
+        # Mating calls spread and fade like stink (callers add them before this).
+        if cfg.mate_sense:
+            self.pheromone += cfg.pheromone_diffusion * (self._neighbor_mean(self.pheromone)
+                                                         - self.pheromone)
+            self.pheromone *= 1.0 - cfg.pheromone_decay
 
     def _neighbor_mean(self, field: np.ndarray, first_axis: int = 0) -> np.ndarray:
         """Mean of each cell's 2 * dims neighbors (fields may have leading non-space axes)."""

@@ -91,6 +91,11 @@ class ReferenceSimulation:
             return False
         aging = self.clock.aging_active
         self.tick += 1
+        if self.cfg.mate_sense:
+            # Mating calls: whoever signaled `mate` and can mate, in id order.
+            for npc in sorted((n for n in self.npcs if n.alive), key=lambda n: n.id):
+                if npc.mate_ready_until >= self.tick and self._can_mate(npc):
+                    self.world.pheromone[npc.pos] += self.cfg.pheromone_emission
         self.world.step()
         self.deity.step(self.tick, self.world, self.keys, self.stats)
 
@@ -159,8 +164,9 @@ class ReferenceSimulation:
         t, n, d, m = c.n_food_types, c.n_nutrients, c.dims, c.memory_units
         scent = t + d * t if c.food_scent else 0
         craving = d if c.craving_sense else 0
+        mate = 3 + d if c.mate_sense else 0
         return (n + 4 + t + t + d * t + 1 + d + 1 + t + 2
-                + 1 + d + d + 1 + 1 + m + 1 + scent + craving)
+                + 1 + d + d + 1 + 1 + m + 1 + scent + craving + mate)
 
     def sense(self, npc: NPC, index: dict) -> np.ndarray:
         cfg, w, p = self.cfg, self.world, npc.pos
@@ -211,6 +217,16 @@ class ReferenceSimulation:
             grad = scent_grad if cfg.food_scent else (food_n[:, 0::2] - food_n[:, 1::2]) / cfg.food_capacity
             wanted = w.rich == int(np.argmin(npc.nutrients))
             parts.append(np.where(wanted[:, None], grad, 0.0).sum(axis=0))
+        if cfg.mate_sense:
+            # I can mate; a ready partner within reach; the mating-call pheromone.
+            ready = any(o.mate_ready_until >= self.tick and self._can_mate(o)
+                        for o in self._neighbors(npc, index))
+            here = w.pheromone[p]
+            pher_n = w.pheromone.reshape(-1)[nbr]
+            s_plus, s_minus = pher_n[0::2], pher_n[1::2]
+            parts += [[1.0 if self._can_mate(npc) else 0.0, 1.0 if ready else 0.0,
+                       here / (here + cfg.pheromone_half)],
+                      (s_plus - s_minus) / (s_plus + s_minus + 1e-12)]
         obs = np.concatenate(parts, dtype=float)
         assert obs.size == self.n_inputs, (obs.size, self.n_inputs)
         return obs

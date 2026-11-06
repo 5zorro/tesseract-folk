@@ -44,3 +44,30 @@ def test_craving_is_the_needed_foods_gradient(scent):
         needed = sim.world.rich == int(np.argmin(npc.nutrients))
         grad = obs[L["scent_grad" if scent else "food_grad"]].reshape(cfg.dims, cfg.n_food_types)
         assert np.allclose(obs[L["craving"]], grad[:, needed].sum(axis=1))
+
+
+def test_mate_sense_reads_eligibility_readiness_and_direction():
+    cfg = Config(dims=3, size=8, seed=4, mate_sense=True, initial_npcs=3, min_population=0)
+    sim = Simulation(cfg, log_every=10**9)
+    a, b, c = sim.npcs
+    for n in (a, b, c):
+        n.age, n.body, n.health = cfg.adult_age, 1.5, 1.0
+    a.pos, b.pos, c.pos = (0, 0, 0), (0, 0, 1), (0, 6, 0)       # b next to a; c 2 steps (wrapped) away
+    c.body = 0.5                                                  # c can't mate
+    L = sim.sense_layout()
+    obs = sim.sense(a)
+    assert obs[L["can_mate"]][0] == 1.0
+    assert obs[L["partner_ready"]][0] == 0.0                      # b hasn't signaled yet
+    assert obs[L["pheromone_here"]][0] == 0.0 and not obs[L["pheromone_grad"]].any()
+    b.mate_ready_until = sim.tick + 3
+    assert sim.sense(a)[L["partner_ready"]][0] == 1.0
+    assert sim.sense(c)[L["can_mate"]][0] == 0.0
+    b.mate_ready_until, b.pos = sim.tick + 10, (0, 0, 3)         # b calls from 3 steps up axis 2
+    for _ in range(5):
+        sim.batch._call()
+        sim.batch._world_step()
+    obs = sim.sense(a)
+    assert obs[L["pheromone_here"]][0] > 0
+    assert obs[L["pheromone_grad"]][2] > 0 and abs(obs[L["pheromone_grad"]][0]) < 1e-9
+    b.mate_cooldown_until = sim.tick + 50                         # b can't mate now: no call, not ready
+    assert sim.sense(a)[L["partner_ready"]][0] == 0.0

@@ -59,6 +59,20 @@ class Config:
     # gradient product; this hands them the product. Perception, not behavior:
     # the brain still decides whether to follow it. Changes the input size.
     craving_sense: bool = False
+    # Mating sense (5zorro, 2026-11-06: "ideally they figure out how to mate in 4D
+    # where it is harder to find population"; slice R9). 3 + dims inputs: I can
+    # mate now (adult, body, health, off cooldown: cooldown isn't sensed
+    # otherwise); a partner within reach is ready (signaled `mate`) and can mate;
+    # and a pheromone (5zorro's idea): an NPC that signaled `mate` and can mate
+    # calls, adding `pheromone_emission` to its cell each tick; the call spreads
+    # and fades like stink, and NPCs sense its level here (s / (s + half)) and
+    # its relative gradient per axis, like food scent. Only callers emit, so a
+    # seeker on the move doesn't follow its own trail. Changes the input size.
+    mate_sense: bool = False
+    pheromone_emission: float = 0.1
+    pheromone_diffusion: float = 0.3
+    pheromone_decay: float = 0.02
+    pheromone_half: float = 0.1
     scent_emission: float = 0.05          # per unit of food per tick
     scent_diffusion: float = 0.3          # 0-1; reach shrinks with dims, harmlessly (research §4)
     scent_decay: float = 0.01             # slower than stink, so it reaches farther

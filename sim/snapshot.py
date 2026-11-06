@@ -20,7 +20,7 @@ from .npc import NPC
 from .nursery import entry_to_dict, hall_of_fame_entry
 from .simulation import Simulation
 
-ARRAYS = ("soil", "food", "poop", "stink", "scent", "capacity", "profiles", "zones")
+ARRAYS = ("soil", "food", "poop", "stink", "scent", "capacity", "profiles", "zones", "pheromone")
 FORMAT = 4   # 2 added food scent (M1 slice 6); 3 added the zone map (M2);
              # 4: the G1 tick rules and keyed randomness (no rng state to save)
 
@@ -37,6 +37,7 @@ LEGACY = {
     "two_eat_actions": False,             # 2026-11-05; old brains have one eat output
     "topup_crossover": False,             # 2026-11-06
     "craving_sense": False,               # 2026-11-06; old brains lack its inputs
+    "mate_sense": False,                  # 2026-11-06; old brains lack its inputs
     "precision": "float64",               # 2026-11-06; research scripts default to float32
 }
 
