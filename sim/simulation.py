@@ -500,7 +500,8 @@ class Batch:
             capacity, cfg.dims,
             {"nutrients": cfg.n_nutrients, "satiation": self.types, "inventory": self.types,
              "memory": cfg.memory_units, "eaten": self.types},
-            (first.n_inputs, cfg.hidden_units, first.n_outputs), cfg.food_patches_per_type, self.float)
+            (first.n_inputs, cfg.hidden_units, first.n_outputs), cfg.food_patches_per_type, self.float,
+            world_size=cfg.size)
         for i, (s, recs) in enumerate(zip(sims, records)):
             for r in recs:
                 self.pop.add(r, i)

@@ -60,3 +60,18 @@ def test_npc_numbers_must_be_finite(tmp_path, field, bad):
 def test_bad_settings_are_refused_at_start(kw):
     with pytest.raises(ValueError, match=next(iter(kw))):
         Simulation(Config(size=8, **kw), log_every=10**9)
+
+
+@pytest.mark.parametrize("field, value, message", [
+    ("pos", [99, 3], "position"), ("pos", [-1, 2], "position"), ("pos", [1, 2, 3], "position"),
+    ("zones_eaten", [[0, -1]], "zone"), ("last_zone", [7, 0], "zone"),
+    ("damage", {"lava": 0.1}, "damage"), ("origin", "alien", "origin"), ("nutrients", [0.5], "nutrients"),
+])
+def test_crafted_npcs_fail_clearly_at_load(snap, field, value, message):
+    """A negative index would otherwise wrap silently into the arrays."""
+    import json
+    state = json.loads((snap / "state.json").read_text())
+    state["npcs"][0][field] = value
+    (snap / "state.json").write_text(json.dumps(state))
+    with pytest.raises(ValueError, match=message):
+        load_snapshot(snap)

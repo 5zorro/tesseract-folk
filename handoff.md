@@ -141,7 +141,10 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
    `snapshots/ladder-exact{,-twoeat}`. **Then (5zorro, 2026-11-06): G4 parked**
    (goal met without it), and his **rounding plug** built: float32 research runs
    post rounding to the median soil cell every 100 ticks and raise on a real
-   leak (`Config.mass_plug_every`, `scripts/mass_drift.py`). Post-G1 nurseries:
+   leak (`Config.mass_plug_every`, `scripts/mass_drift.py`). Pre-compaction review
+   (2026-11-06): snapshot NPC records validated at load; stale views check their
+   world; known gaps listed in the plan ("Known gaps"). Next real work is back
+   on M2 (its open decisions above), not speed. Post-G1 nurseries:
    `snapshots/ladder-g1`, `snapshots/ladder-g1-twoeat` (older folders are pre-G1). Talk to 5zorro before PyTorch
    (D4) or anything C++.
 2. Known gaps carried from M1: body starvation is ~35% of collapses; births

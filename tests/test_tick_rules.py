@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 from sim import Config, Simulation, keyed
+from sim.reference import ReferenceSimulation
 
 SMALL = dict(size=12, initial_npcs=12, min_population=10, seed=4)
 
@@ -54,10 +55,12 @@ def state(sim):
 
 
 def test_results_dont_depend_on_list_order():
-    """Arrays (G2) won't keep Python's list order, so nothing may depend on it."""
+    """Arrays (G2) won't keep Python's list order, so nothing may depend on it.
+    Run on the reference engine, whose `npcs` is a real list (the array engine's
+    is rebuilt by id on each access; test_engines.py reshuffles its slots instead)."""
     # min_population above the start forces top-ups (their candidate picks) at once.
     cfg = Config(**{**SMALL, "initial_npcs": 30, "min_population": 34}, collapse_age_penalty=600)
-    a, b = Simulation(cfg, log_every=10**9), Simulation(cfg, log_every=10**9)
+    a, b = ReferenceSimulation(cfg, log_every=10**9), ReferenceSimulation(cfg, log_every=10**9)
     for _ in range(200):
         b.npcs.reverse()
         a.step()

@@ -123,3 +123,16 @@ def test_batches_need_matching_shapes_and_ticks():
     c.run(3)
     with pytest.raises(ValueError, match="same tick"):
         Batch([a, c])
+
+
+def test_a_stale_view_cant_read_another_worlds_npc():
+    """Ids repeat across a batch's worlds, so a view checks its world too."""
+    a, b = Simulation(Config(**BUSY)), Simulation(Config(**{**BUSY, "seed": 12}))
+    batch = Batch([a, b])
+    gone = a.npcs[-1]
+    record = b.pop.record(b.npcs[0]._slot)
+    record.id = gone.id                               # same id, other world
+    batch.pop.alive[gone._slot] = False
+    assert batch.pop.add(record, 1) == gone._slot      # it takes the freed slot
+    with pytest.raises(LookupError, match="gone"):
+        gone.body

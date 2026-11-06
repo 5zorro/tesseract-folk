@@ -39,11 +39,12 @@ _CAUSE_RANK = {"smite": 0, "nutrient_starve": 1, "body_starve": 2, "stink": 3, "
 
 class Population:
     def __init__(self, capacity: int, dims: int, sizes: dict, brain_shape: tuple, patches: int,
-                 dtype=np.float64):
+                 dtype=np.float64, world_size: int | None = None):
         """sizes: row length of each VECTORS column; brain_shape: (n_in, hidden, n_out);
         dtype: the width of every float column."""
         self.dims, self.sizes, self.brain_shape, self.patches = dims, dict(sizes), brain_shape, patches
         self.float = np.dtype(dtype).type
+        self.world_size = world_size            # cells per axis, to check records (None: unchecked)
         self.capacity = 0
         self._alloc(max(int(capacity), 1))
 
@@ -87,8 +88,32 @@ class Population:
             self.alive[self.world == world] = False
 
     # ---------------------------------------------------- records in and out
+    def check_record(self, npc: NPC) -> None:
+        """Raise ValueError unless the record fits these arrays and this world.
+        Records can come from shared snapshots (docs/SAFETY.md section 4), and a
+        bad index would otherwise fail mid-run or, if negative, silently wrap."""
+        def bad(what):
+            raise ValueError(f"NPC {npc.id}: {what}")
+        pos = tuple(npc.pos)
+        if len(pos) != self.dims or (self.world_size is not None
+                                     and not all(0 <= int(c) < self.world_size for c in pos)):
+            bad(f"position {pos} isn't a cell of this {self.dims}D world")
+        for name in VECTORS:
+            if np.shape(getattr(npc, name)) != (self.sizes[name],):
+                bad(f"{name} has shape {np.shape(getattr(npc, name))}, expected ({self.sizes[name]},)")
+        types = self.sizes["inventory"]
+        zones = list(npc.zones_eaten) + ([npc.last_zone] if npc.last_zone is not None else [])
+        if not all(0 <= int(t) < types and 0 <= int(z) < self.patches for t, z in zones):
+            bad(f"a zone (food type, patch) is out of range ({types} types, {self.patches} patches)")
+        unknown = set(npc.damage) - set(CAUSE)
+        if unknown:
+            bad(f"unknown damage causes {sorted(unknown)}")
+        if npc.origin not in ORIGINS:
+            bad(f"unknown origin {npc.origin!r}")
+
     def add(self, npc: NPC, world: int = 0) -> int:
         """Store a record in the lowest free slot (growing if full); returns the slot."""
+        self.check_record(npc)
         free = np.flatnonzero(~self.alive)
         if free.size == 0:
             self._alloc(self.capacity * 2)
@@ -164,17 +189,20 @@ class NPCView:
     newcomer took the slot), using the view raises instead of quietly reading
     the newcomer. Keep ids, not views, across ticks."""
 
-    __slots__ = ("_pop", "_slot", "_id")
+    __slots__ = ("_pop", "_slot", "_id", "_world")
 
     def __init__(self, pop: Population, slot: int):
         object.__setattr__(self, "_pop", pop)
         object.__setattr__(self, "_slot", int(slot))
         object.__setattr__(self, "_id", int(pop.id[slot]))
+        object.__setattr__(self, "_world", int(pop.world[slot]))   # ids repeat across a batch's worlds
 
     def _check(self):
-        if self._pop.id[self._slot] != self._id:
-            raise LookupError(f"NPC {self._id} is gone (its slot now holds NPC {int(self._pop.id[self._slot])})")
-        return self._pop, self._slot
+        pop, s = self._pop, self._slot
+        if pop.id[s] != self._id or pop.world[s] != self._world:
+            raise LookupError(f"NPC {self._id} of world {self._world} is gone (its slot now holds "
+                              f"NPC {int(pop.id[s])} of world {int(pop.world[s])})")
+        return pop, s
 
     def __getattr__(self, name):
         pop, s = self._check()
@@ -222,10 +250,11 @@ class NPCView:
             raise AttributeError(f"NPC has no field {name!r}")
 
     def __eq__(self, other):
-        return isinstance(other, NPCView) and other._pop is self._pop and other._id == self._id
+        return (isinstance(other, NPCView) and other._pop is self._pop
+                and (other._world, other._id) == (self._world, self._id))
 
     def __hash__(self):
-        return hash((id(self._pop), self._id))
+        return hash((id(self._pop), self._world, self._id))
 
     def __repr__(self):
         return f"NPCView(id={self._id}, slot={self._slot})"

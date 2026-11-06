@@ -245,6 +245,30 @@ means over 6 nurseries x 5 seeds, +- standard error:
   stage seems to change behavior.
 - Files: `runs/2026-11-05-g1{,-twoeat}.csv`, logs `runs/g1{,-twoeat}.log`.
 
+## Known gaps (review, 2026-11-06)
+Fixed in the review: crafted snapshot NPCs (out-of-world positions, zone or
+patch indices out of range, unknown damage causes or origins, wrong vector
+lengths) now fail clearly at load (`Population.check_record`); before, some
+failed mid-run and a negative index would have wrapped silently. A stale NPC
+view now also checks its world (ids repeat across a batch's worlds). The
+list-order test runs on the reference engine (on the array engine `npcs` is
+rebuilt by id, so reversing it tested nothing; `test_engines.py` reshuffles
+slots instead). Left as is:
+- **Rules live twice** (reference.py and simulation.py, plus `World.step` vs
+  `Batch._world_step_part`). `tests/test_engines.py` catches any drift, but a
+  rule change costs two edits.
+- **`sim/simulation.py` is ~1,150 lines** (Simulation and Batch); splitting
+  Batch into `sim/batch.py` would read better. No behavior change needed.
+- **Social actions rebuild a cell index of every living NPC** each tick
+  anyone gives, mates or shares: O(NPCs) Python per tick in big batches.
+  Fine at today's sizes; first thing to vectorize if 2D batches grow.
+- **The plug raises mid-sweep** on a real leak, which ends the whole sweep
+  (ProcessPool). Deliberate (loud beats wrong), but a long run is lost.
+- **Probe scripts on the reference engine** are ~3x slower than they'd be on
+  the array engine; they're rarely run.
+- **Per-NPC record checks** run on every add (births, top-ups, batch merges):
+  a little Python per birth; not measurable in the fingerprint runs.
+
 ## Guards and risks
 - **Backends won't agree bit for bit.** Summation order and math libraries
   differ, and the sim amplifies a last-bit difference into a different run
