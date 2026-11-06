@@ -964,6 +964,32 @@ lowest nutrient, eats when it's on that food, and poops when full.
     luck). **Next diagnostic:** hand-build a linear brain that follows the
     craving and eats on food, and run it through the normal action draw. If it
     passes 4D, the brain exists and evolution misses it; if not, it's the draw.
+- **The diagnostic (2026-11-06, 5zorro: "yes, run it").**
+  - *Hand-built linear brain* (`scripts/probe_handbrain.py`: follow the craving,
+    eat on food, poop when full; mutation off) fails even in 2D (food types 1.7
+    in 2D, 0.2 in 4D), at every sharpness. A linear brain can't say "eat only
+    the food I need": it eats whatever is underfoot and parks on the first
+    patch. So the forager's *eating* rule is a product too (need x what's
+    here), like its movement rule; a working brain needs a hidden layer.
+  - *Noisy forager* (`probe_senses.py --follow`): the sense-only forager does its
+    own choice with chance p, else a random action.
+
+    | Dims | p = 1 | 0.9 | 0.7 | 0.5 | 0.3 |
+    |---|---|---|---|---|---|
+    | 2 food types | 3.00 | 3.00 | 3.00 | 3.00 | 2.97 |
+    | 4 food types | 2.97 | 2.99 | 3.00 | 2.98 | 2.95 |
+    | 4 lowest nutrient | 0.64 | 0.69 | 0.73 | 0.73 | 0.65 |
+
+    All diet goals hold in 2D-4D down to p = 0.3. **The action draw isn't the
+    limit:** a policy that's right 30% of the time still passes 4D. So the 4D
+    gap is the search: evolution doesn't find the policy. (The forager's
+    collapse rate swings oddly with p, e.g. 4D 3.7 at p = 1, 0.01 at p = 0.3;
+    not explained, and not what this probe measures.)
+  - **5zorro's reading (2026-11-06):** 14 actions with 8 under direct
+    selection pressure make the search harder, and time to equilibrium may
+    grow per dimension (2D ~10,000 ticks, 3D ~30,000, so 4D ~90,000-120,000);
+    the 4D anneal results were then mostly noise. Being tested: 4D nurseries
+    at 40,000, 80,000 and 120,000 ticks.
 - **Movement is axis steps only** (5zorro asked): `move+k` / `move-k` per axis,
   2 x dims moves, no diagonals; distances are wrapped axis steps. Diagonals would
   mean 3^dims - 1 moves (80 in 4D), or a multi-axis step per tick from the same

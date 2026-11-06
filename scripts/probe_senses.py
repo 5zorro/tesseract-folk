@@ -9,6 +9,10 @@ brain; `scripted` reads the world directly (food in the neighbor cells). If
 is learning; if it fails too, it's the senses or the world. Also prints how
 often the needed food's scent gave the oracle no direction ("blind").
 
+`--follow p ...` adds noisy oracles (`sense@p`): each tick the oracle does its
+own choice with chance p, otherwise a random action (keyed draws). That's the
+cost of an imperfect action draw, separate from what a brain can represent.
+
     python scripts/probe_senses.py
     python scripts/probe_senses.py --dims 4 --set scent_decay=0.005
 """
@@ -24,17 +28,39 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from sim import keyed  # noqa: E402
 from sim.config import parse_overrides  # noqa: E402
+from sim.controllers import SenseController  # noqa: E402
 from sim.simulation import Batch  # noqa: E402
 from ladder import MIN_DIET, MIN_NUTRIENT, MIN_TYPES, WORLD_SETS  # noqa: E402
 from sweep import Run  # noqa: E402
 
 
+class NoisyOracle(SenseController):
+    """The oracle's choice with chance `follow`, else a random action."""
+
+    def __init__(self, follow: float):
+        super().__init__()
+        self.follow = follow
+
+    def decide(self, sim, npc, obs):
+        choice = super().decide(sim, npc, obs)
+        ids = np.array([npc.id])
+        if sim.keys.uniform(sim.tick, ids, keyed.SCRIPT)[0] < self.follow:
+            return choice
+        return int(sim.keys.uniform(sim.tick, ids, keyed.SCRIPT + 1)[0] * sim.n_actions)
+
+
 def job(args: tuple) -> tuple:
     dims, controller, seeds, ticks, overrides = args
     size, radius = WORLD_SETS["time"][dims]
+    follow = float(controller.split("@")[1]) if "@" in controller else None
     runs = [Run({"dims": dims, "size": size, "food_patch_radius": radius, **overrides,
-                 "controller": controller}, seed, ticks, 0.5, 250) for seed in seeds]
+                 "controller": "sense" if follow is not None else controller}, seed, ticks, 0.5, 250)
+            for seed in seeds]
+    if follow is not None:
+        for r in runs:
+            r.scripted = NoisyOracle(follow)
     batch = Batch([r.sim for r in runs])
     for _ in range(ticks):
         for r in runs:
@@ -54,6 +80,8 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--dims", type=int, nargs="+", default=[2, 3, 4])
     ap.add_argument("--controllers", nargs="+", default=["sense", "scripted"])
+    ap.add_argument("--follow", type=float, nargs="*", default=[],
+                    help="also run noisy oracles that follow their own choice with these chances")
     ap.add_argument("--seeds", type=int, default=5)
     ap.add_argument("--ticks", type=int, default=10_000)
     ap.add_argument("--set", action="append", default=[], metavar="KEY=VALUE[,...]")
@@ -61,8 +89,9 @@ def main() -> None:
     overrides: dict = {}
     for spec in args.set:
         overrides.update(parse_overrides(spec))
-    jobs = [(d, c, range(args.seeds), args.ticks, overrides) for d in args.dims for c in args.controllers]
-    print(f"{'dims':>4} {'forager':>8} {'clpse':>6} {'nutr':>5} {'diet':>5} {'types':>5} {'blind':>6} "
+    controllers = args.controllers + [f"sense@{p:g}" for p in args.follow]
+    jobs = [(d, c, range(args.seeds), args.ticks, overrides) for d in args.dims for c in controllers]
+    print(f"{'dims':>4} {'forager':>9} {'clpse':>6} {'nutr':>5} {'diet':>5} {'types':>5} {'blind':>6} "
           f"{'no scent':>8}  goals (nutrient {MIN_NUTRIENT}, diet {MIN_DIET}, types {MIN_TYPES})")
     with ProcessPoolExecutor(len(jobs)) as pool:
         for dims, controller, rows, blind, zero in pool.map(job, jobs):
@@ -70,7 +99,7 @@ def main() -> None:
                  for k in ("collapse_rate", "min_nutrient", "diet_diversity", "zone_types_per_life")}
             marks = " ".join("Y" if ok else "." for ok in (m["min_nutrient"] >= MIN_NUTRIENT,
                              m["diet_diversity"] >= MIN_DIET, m["zone_types_per_life"] >= MIN_TYPES))
-            print(f"{dims:>4} {controller:>8} {m['collapse_rate']:6.2f} {m['min_nutrient']:5.2f} "
+            print(f"{dims:>4} {controller:>9} {m['collapse_rate']:6.2f} {m['min_nutrient']:5.2f} "
                   f"{m['diet_diversity']:5.2f} {m['zone_types_per_life']:5.2f} {blind:6.1%} {zero:8.1%}  {marks}")
 
 
