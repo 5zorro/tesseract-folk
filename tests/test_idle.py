@@ -4,7 +4,7 @@ import json
 from sim import Config, Simulation
 from sim.snapshot import load_snapshot, save_snapshot
 
-SMALL = dict(size=16, initial_npcs=20, min_population=10)
+SMALL = dict(size=16, initial_npcs=20, min_population=10, two_eat_actions=False)   # uses `eat`
 
 
 def act(sim, npc, name):

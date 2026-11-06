@@ -18,11 +18,11 @@ CASES = {
     "2d": {},
     "4d": dict(dims=4, size=5),
     "1d": dict(dims=1, size=60),
-    "two eat": dict(two_eat_actions=True),
-    "track record": dict(hall_of_fame_track_record=True, hall_of_fame_min_copies=2),
-    "smiting": dict(smiting=True, smite_damage=0.3, piety_threshold=0.1),
+        "track record": dict(hall_of_fame_track_record=True, hall_of_fame_min_copies=2),
+    "smiting": dict(smiting=True, smite_damage=0.2, piety_threshold=0.1),
     "harsh, no scent": dict(food_scent=False, collapse_age_penalty=100, food_growth_rate=0.005),
-    "one eat, lineage off": dict(mutation_lineage=False, mutations_per_birth=0.0),
+    "one eat, lineage off": dict(mutation_lineage=False, mutations_per_birth=0.0, two_eat_actions=False),
+    "fitness-ranked hall of fame": dict(hall_of_fame_track_record=False),
 }
 
 

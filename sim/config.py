@@ -66,7 +66,7 @@ class Config:
     # (the old `eat` rule, crumbs included). The brain chooses, instead of an
     # instinct that takes a crumb of the needed food beside a full meal. Adds one
     # brain output, so it's fixed for a world's life and pools must match.
-    two_eat_actions: bool = False
+    two_eat_actions: bool = True          # default since 2026-11-06 (5zorro)
 
     # --- npc body ----------------------------------------------------------
     initial_npcs: int = 60
@@ -134,7 +134,7 @@ class Config:
     # can't outrank an entry proven over many. Copies are picked by that score too.
     # Floor: after `hall_of_fame_min_copies` copies (0 = never), an entry whose
     # copies average worse than the population is dropped. Off = rank by fitness.
-    hall_of_fame_track_record: bool = False
+    hall_of_fame_track_record: bool = True   # default since 2026-11-06 (5zorro)
     hall_of_fame_prior_lives: float = 3.0
     hall_of_fame_min_copies: int = 5
 

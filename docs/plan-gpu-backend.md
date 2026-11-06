@@ -343,6 +343,10 @@ A batch can't mix them (`STRUCTURAL`). Tests: `tests/test_precision.py`.
   -> `2b31b06269db5ebd`, 4D `c5f8ec78c59fc41b` -> `996422ed88b12562`; float32
   (new line in `scripts/fingerprint.py`): 2D `f50dff43ea5efde0`, 3D
   `cd20cfb81a81bca9`, 4D `17e8299a93b51ef8`.
+- **Later re-baseline (2026-11-06, not an engine change):** two eat actions and
+  the hall-of-fame track record became defaults. Fingerprints, float64: 2D
+  `3426bd65dc54b903`, 3D `dcde46a3c61d5393`, 4D `1447aa17ab5ffa6c`; float32: 2D
+  `c25bebb90a9a550a`, 3D `c5977561ea6614b6`, 4D `82286d860933f3b2`.
 - **float32 is the research default** (`RESEARCH_DEFAULTS` in `scripts/sweep.py`,
   used by `ladder.py`); `Config()` stays float64 (tests, reference engine,
   snapshots; `LEGACY` loads old snapshots as float64).

@@ -89,7 +89,7 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
      lost. **Now the defaults** (5zorro, 2026-11-04): `mutations_per_birth = 30`,
      `mutation_lineage = true`. Earlier runs and ladder nurseries used the old
      rule: rerun baselines before comparing, and retrain nurseries (`ladder.py`
-     refuses stale ones). **Hall-of-fame track record (R5, 5zorro, off by default):**
+     refuses stale ones). **Hall-of-fame track record (R5, 5zorro, on by default since 2026-11-06):**
      2D collapses 0.95 -> 0.60 (best yet); 3D same mean, steadier. Proposed as the
      default. 1D/2D regression check: nothing broke. New nurseries live in
      `snapshots/ladder2`. Next idea: gentle-to-harsh nursery ramp (`openitems.md`).
@@ -100,7 +100,8 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
      goal** (food types 2.36 -> 2.69; lowest nutrient 0.41, on the line). Body
      starvation nearly gone everywhere; 4D collapses 6.3 -> 2.6 but 4D still
      fails. Brains use a fixed eat_most/eat_need habit per dimension, not
-     situational choice. Pending 5zorro: two eat and track record as defaults.
+     situational choice. **Both two eat and the track record are on by default
+     since 2026-11-06 (5zorro).**
    - **4D Miner targets (5zorro, 2026-11-04):** land walkers on 3D surfaces, 4D fish
      and birds in full 4D. Both 3D and 4D must pass.
    - Speed: ticks 27-39% faster (bit-identical); `scripts/fingerprint.py` checks

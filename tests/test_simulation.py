@@ -22,7 +22,7 @@ def test_runs_in_4d():
     sim = Simulation(small(dims=4, size=6), log_every=10)
     start = sim.total_mass()
     sim.run(50)
-    assert sim.n_actions == 8 + 9
+    assert sim.n_actions == 8 + 9 + 1        # two eat actions (the default)
     assert sim.total_mass() == pytest.approx(start, rel=1e-9)
 
 

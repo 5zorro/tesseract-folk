@@ -878,3 +878,4 @@ nursery after a rule change:
 ## Tuning log
 | Date | Change | Why | Effect (seeds × ticks) |
 |---|---|---|---|
+| 2026-11-06 | `two_eat_actions` and `hall_of_fame_track_record` on by default | 5zorro: two eat actions get 3D past every goal (slice 3g); the track record keeps clones of lucky one-life entries from crowding the hall of fame, which the anneal nursery needs | Slices 3g and R5. Old snapshots stay off (`LEGACY`); nurseries trained without them must be retrained |

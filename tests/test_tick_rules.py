@@ -23,7 +23,7 @@ class Fixed:
 def test_everyone_decides_from_the_same_world():
     sim = Simulation(Config(**SMALL), log_every=10**9)
     seen: list = []
-    eat = sim.actions.index("eat")
+    eat = sim.actions.index("eat_need")
     for npc in sim.npcs:
         sim.overrides[npc.id] = Fixed(eat, seen)
     sim.run(5)
@@ -39,7 +39,7 @@ def test_eaters_on_one_cell_go_in_priority_order():
     b.pos = a.pos
     for npc in (a, b):
         npc.inventory[:] = 0.0
-        sim.overrides[npc.id] = Fixed(sim.actions.index("eat"), [])
+        sim.overrides[npc.id] = Fixed(sim.actions.index("eat_need"), [])
     here = sim.world.food_at(a.pos)
     here[:] = 0.0
     here[0] = sim.cfg.bite_size                    # one bite for two eaters

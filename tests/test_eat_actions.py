@@ -97,7 +97,7 @@ def test_mass_is_conserved_with_two_eat_actions():
 
 
 def test_one_eat_brains_dont_fit_a_two_eat_world(tmp_path):
-    old = Simulation(Config(**SMALL), log_every=10**9)
+    old = Simulation(Config(two_eat_actions=False, **SMALL), log_every=10**9)
     save_snapshot(old, tmp_path / "s")
     new = Simulation(Config(two_eat_actions=True, **SMALL), log_every=10**9)
     with pytest.raises(ValueError, match="two_eat_actions"):
