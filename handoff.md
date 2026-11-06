@@ -111,6 +111,12 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
      fixed nursery either: more ticks at full pressure = better so far. Next
      proposed: crossover top-ups (a top-up is the child of two tournament
      winners), spawn-near-food as a separate switch.
+   - **Slice R8 (2026-11-06): the 4D senses are fine.** A sense-only forager
+     (`SenseController`, `scripts/probe_senses.py`) meets the diet goals in 2D-4D;
+     brains fail to learn the need x gradient product. Proposed lever: a craving
+     sense (needed food's scent gradient per axis). Crossover top-ups built
+     (`topup_crossover`, off): no consistent effect. Nurseries end with 28-30 of
+     30 NPCs being top-ups: selection there is already the hall of fame.
    - **4D Miner targets (5zorro, 2026-11-04):** land walkers on 3D surfaces, 4D fish
      and birds in full 4D. Both 3D and 4D must pass.
    - Speed: ticks 27-39% faster (bit-identical); `scripts/fingerprint.py` checks

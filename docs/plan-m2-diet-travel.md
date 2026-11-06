@@ -885,6 +885,55 @@ thousands of ticks and "only raise" overshot into a crash to the top-up floor.
   the median of the cells that can absorb the entry). The first run of this
   slice was redone on the fix.
 
+### Slice R8: Are the 4D senses the problem? No (2026-11-06)
+5zorro: "can we look at the 4D senses? I think those may be giving bad results."
+Test: a hand-written forager that sees only the sense vector, like a brain
+(`sim.controllers.SenseController`; it also knows which nutrient each food is
+rich in, as an instinct would). It climbs the scent gradient of the food for its
+lowest nutrient, eats when it's on that food, and poops when full.
+`scripts/probe_senses.py`, worlds matched on travel time, 5 seeds x 10,000 ticks.
+
+| Dims | Forager | Collapses | Lowest nutrient | Diet | Food types | Goals (nutr, diet, types) |
+|---|---|---|---|---|---|---|
+| 2 | sense-only | 7.74 | 0.73 | 0.97 | 3.00 | all 3 |
+| 3 | sense-only | 6.43 | 0.70 | 0.97 | 2.98 | all 3 |
+| 4 | sense-only | 3.70 | 0.64 | 0.96 | 2.97 | all 3 |
+| 4 | best evolved brains (R7) | 2.11 | 0.32 | 0.86 | 1.98 | none |
+| 4 | `scripted` (reads the world) | 9.05 | 0.39 | 0.53 | 1.37 | none |
+
+- **The senses carry enough information in 4D.** The oracle never once lacked a
+  scent direction for its needed food (0% "blind" in every dimension), and its
+  diet goals barely slip from 2D to 4D. So 4D's failure is learning, not the
+  senses or the world.
+- **What the brain has to learn** is a product: for each move, sum over food
+  types of (my need for its nutrient) x (its scent gradient on that axis). A
+  product isn't linear in the inputs; the number of terms grows with dims x
+  food types (2D: 2 axes x 3 types; 4D: 4 x 3), and so does the number of
+  move outputs to tune. That fits 3D passing and 4D failing at every width.
+- The oracle collapses a lot (it never mates or avoids stink, and only eats
+  when a nutrient is under 0.7), so it isn't a collapse benchmark; only its
+  diet numbers matter here.
+- **Crossover top-ups (5zorro; `topup_crossover`, built, off).** Fixed
+  nursery, `--set topup_crossover=true` (so play worlds' top-ups cross too, and
+  scratch rises with it). `runs/ladder-cross.csv`.
+
+  | Dims | Hidden | Collapses, clones | Collapses, crossover | Food types, clones | Food types, crossover |
+  |---|---|---|---|---|---|
+  | 3 | 4 | 0.37 | 0.45 | 2.83 | 2.78 |
+  | 3 | 16 | 0.68 | 0.49 | 2.83 | 2.74 |
+  | 4 | 4 | 2.11 | 2.41 | 1.98 | 1.95 |
+  | 4 | 16 | 2.50 | 2.51 | 1.96 | 1.93 |
+
+  No consistent effect (two better, two worse, within ~0.3), and 4D's food
+  types don't move. **Found on the way:** at the end of a 20,000-tick nursery,
+  28-30 of the 30 NPCs are top-ups and only 0-3 were born. The fixed nursery
+  sits on its top-up floor, so its selection is almost entirely the ranked hall
+  of fame already; local breeding barely happens.
+- **Lever this suggests (not built; 5zorro's call):** a "craving" sense that
+  hands the brain that product directly: the scent gradient of the food it
+  needs most, one number per axis (d inputs). Perception, not a scripted
+  behavior (rule 6): the brain still decides whether to follow it.
+
 ### Slice 4: Levers, only if criterion 3 fails
 Criterion 3 isn't demonstrated (slice 3b). 5zorro picked the memory stack as the
 first lever (2026-11-03).
