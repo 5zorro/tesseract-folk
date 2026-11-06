@@ -43,11 +43,13 @@ def test_scripted_cover_includes_new_npcs_and_drops_dead_ones():
     sim = Simulation(Config(**SMALL), log_every=1000)
     ctrl = ScriptedController()
     cover_with(sim, ctrl)
-    gone = sim.npcs.pop()                             # as if it died
+    gone = sim.npcs[-1]
+    gone.alive = False                                # as if it died
+    gone_id = gone.id
     newcomer = sim._spawn(sim._random_brain(np.random.default_rng(0)), sim.world.random_cell(np.random.default_rng(1)), 1.0, 0)
     cover_with(sim, ctrl)
     assert sim.overrides[newcomer.id] is ctrl
-    assert gone.id not in sim.overrides
+    assert gone_id not in sim.overrides
     assert set(sim.overrides) == {n.id for n in sim.npcs}
 
 

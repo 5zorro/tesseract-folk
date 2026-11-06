@@ -158,6 +158,18 @@ Traps that already bit us, by area. Add to this when something surprises you.
   extra draw no longer shifts the others, but a changed key does (a different
   id, tick or purpose). New purposes go at the end of `sim/keyed.py`'s list;
   never renumber one.
+- **Don't keep `sim.npcs` entries across ticks.** They're views into array
+  slots, and a dead NPC's slot is reused; a stale view raises `LookupError`
+  rather than read the newcomer. Keep ids. `sim.npcs` is rebuilt (by id) on
+  every access, so `sim.npcs.pop()` or `.reverse()` changes nothing: set
+  `npc.alive = False`, or assign `sim.npcs = [...]`.
+- **Hooks on per-NPC methods only fire in the reference engine.** The array
+  engine never calls `_decide`/`_act` per NPC; a probe that wraps them must
+  build `sim.reference.ReferenceSimulation` (same results, slower).
+- **The engines test is bit-exact, and that depends on the math library.**
+  Batched `np.matmul` equals per-NPC `@` with this machine's NumPy/OpenBLAS.
+  If `tests/test_engines.py` fails on another machine with only last-bit
+  differences, that's why; check with a tolerance before suspecting the rules.
 - **Nothing may depend on the order of `sim.npcs`.** Arrays (G2 of the GPU
   plan) won't keep it. Choices among neighbors sort by id; every phase of a
   tick goes in the keyed priority order. `tests/test_tick_rules.py` reverses

@@ -189,6 +189,23 @@ class World:
                 tuple(np.array(self.adjacent(pos)).T), self.shape)
         return flat
 
+    def neighbor_table(self) -> np.ndarray:
+        """flat_neighbors for every cell at once: (cells, 2 * dims), in the order
+        of adjacent() (+1 then -1 along each axis). For the array engine."""
+        dims, size = self.cfg.dims, self.cfg.size
+        idx = np.indices(self.shape).reshape(dims, -1)
+        cols = []
+        for axis in range(dims):
+            for sign in (1, -1):
+                moved = idx.copy()
+                moved[axis] = (moved[axis] + sign) % size
+                cols.append(np.ravel_multi_index(tuple(moved), self.shape))
+        return np.stack(cols, axis=1)
+
+    def flat(self, positions: np.ndarray) -> np.ndarray:
+        """Flat cell indices of an (n, dims) array of positions."""
+        return np.ravel_multi_index(tuple(positions.T), self.shape)
+
     def food_at(self, pos: Pos) -> np.ndarray:
         """A view of every food type at one cell (writes go through)."""
         return self.food[(slice(None),) + pos]
@@ -199,12 +216,17 @@ class World:
 
     def serves(self, pos: Pos) -> np.ndarray:
         """Per nutrient: is `pos` inside the zone of a food type rich in it?"""
-        if self._serves_zones is not self.zones:      # built once; rebuilt if zones are replaced
+        return self.serves_table()[(slice(None),) + pos].copy()
+
+    def serves_table(self) -> np.ndarray:
+        """serves() for every cell: (nutrients, *shape). Built once; rebuilt if
+        the zones are replaced (snapshots do that)."""
+        if self._serves_zones is not self.zones:
             in_zone = self.zones >= 0
             self._serves = np.stack([in_zone[self.rich == k].any(axis=0)
                                      for k in range(self.cfg.n_nutrients)])
             self._serves_zones = self.zones
-        return self._serves[(slice(None),) + pos].copy()
+        return self._serves
 
     def scent_at(self, pos: Pos) -> np.ndarray:
         """The scent of every food type at one cell."""

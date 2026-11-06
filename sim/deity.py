@@ -65,6 +65,17 @@ class Deity:
                 claimed += 1
         return claimed
 
+    def claim_cells(self, cells: set, world: World) -> int:
+        """claim_at for every cell in `cells` at once (the array engine's moves).
+        Same additions in the same order per cell: secrets in creation order."""
+        claimed = 0
+        for s in list(self.secrets.values()):
+            if s.pos in cells:
+                world.food[(s.food_type,) + s.pos] += s.amount
+                del self.secrets[s.id]
+                claimed += 1
+        return claimed
+
     def nearest(self, pos: Pos) -> Secret | None:
         best, best_d = None, None
         for s in self.secrets.values():

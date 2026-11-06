@@ -92,8 +92,9 @@ def load_snapshot(path: str | Path, log_every: int = 100) -> Simulation:
     sim.next_id = state["next_id"]
     sim.clock = SimClock.from_dict(state["clock"])
     sim.deity.load_dict(state["deity"])
-    sim.npcs = [NPC.from_dict(n) for n in state["npcs"]]
-    sim.hall_of_fame = [hall_of_fame_entry(e) for e in state["hall_of_fame"]]
-    for brain in [n.brain for n in sim.npcs] + [e["brain"] for e in sim.hall_of_fame]:
-        brain.check(sim.n_inputs, sim.cfg.hidden_units, sim.n_outputs)
+    npcs = [NPC.from_dict(n) for n in state["npcs"]]
+    hall_of_fame = [hall_of_fame_entry(e) for e in state["hall_of_fame"]]
+    for brain in [n.brain for n in npcs] + [e["brain"] for e in hall_of_fame]:
+        brain.check(sim.n_inputs, sim.cfg.hidden_units, sim.n_outputs)   # before they're stored
+    sim.npcs, sim.hall_of_fame = npcs, hall_of_fame
     return sim

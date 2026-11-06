@@ -48,6 +48,10 @@ for the full design and `docs/ROADMAP.md` for milestones.
    depend on the order of `sim.npcs` (`tests/test_tick_rules.py`). A speed change
    must leave `scripts/fingerprint.py`'s hashes unchanged, except a re-baseline
    5zorro approved, recorded in the plan with the old and new hashes.
+   **Two engines:** `sim/simulation.py` (arrays, what everything runs) and
+   `sim/reference.py` (the same rules one NPC at a time: the spec and the test
+   oracle). A rule change goes into both; `tests/test_engines.py` compares them
+   exactly.
 8. **Safety:** `sim/` has no outside I/O (no network, processes, pickle, eval);
    `tests/test_safety.py` enforces it. Integrations (e.g. the AI-model pawn) live
    outside `sim/`. Read `docs/SAFETY.md` before adding I/O, an AI-model

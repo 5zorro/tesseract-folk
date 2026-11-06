@@ -1,6 +1,7 @@
 # Plan: CPU/GPU-agnostic simulation
 
-Status (2026-11-05): **G0 and G1 done (G1 passes its M2 re-check); G2 next.** 5zorro agreed with the
+Status (2026-11-05): **G0, G1 and G2 done** (G1 passes its M2 re-check; G2's
+array engine matches the reference bit for bit, 2.5-3x faster). G3 next. 5zorro agreed with the
 approach (2026-11-05): D1, D3, D5, D6 as recommended; D2 (precision) reopened. D4 (PyTorch) and anything
 about the C++ port get discussed with 5zorro before they're touched; neither is
 needed before G4. Stages are ordered;
@@ -138,6 +139,32 @@ Not built here; it gets its own plan, since it changes behavior (re-measure).
   to G1, and a test that steps both engines on small worlds and compares
   every field. If batched matmul changes the last bit (BLAS summation order),
   compare within 1e-12 instead and say so here. Then measure.
+- **G2 done (2026-11-05).** What was built:
+  - `sim/population.py`: every NPC field as a column (fixed capacity, grows if
+    needed; `alive` marks used slots; brains stacked as `w1` (N, hidden,
+    inputs) etc.). `NPCView` gives one slot NPC's attribute names, so
+    scripts, controllers, snapshots and most tests didn't change. A view
+    checks its NPC's id on every use and raises once the slot is reused.
+  - `sim/simulation.py` is the array engine; `sim/reference.py` is G1's
+    per-NPC engine, unchanged apart from the name (D3).
+    `tests/test_engines.py` runs both on 8 busy configs (1D-4D, two eat, track
+    record, smiting, harsh, controllers) for 300 ticks and compares every NPC
+    field, the world, deity, hall of fame and stats exactly; it catches an
+    injected change in eating order or healing within 50 ticks.
+  - Exactness tricks: shared-cell additions go through `np.add.at` in priority
+    order; eaters on one cell take turns in rounds; batched `np.matmul` on
+    stacked brains equals the per-NPC `@` on this machine (checked; batched
+    `einsum` doesn't); every reduction keeps the reference's order.
+  - Before G2, two rule details changed in both engines, hash-neutral under
+    the defaults: deaths and collapses happen after everyone's metabolism,
+    and the fingerprint sorts NPCs by id.
+  - Probes that hook per-NPC methods (`probe_crumbs`, `probe_eat_choice`,
+    `probe_nutrients`, `probe_supply`) now run on the reference engine.
+  - **Speed** (fingerprint runs, 600 ticks, same hashes): 2D 2.4 -> 0.8 s,
+    3D 2.4 -> 0.8 s, 4D 3.0 -> 1.2 s; tests 31 -> 21 s. What's left per tick
+    is NumPy call overhead (about 100 small calls), and in 4D `world.step`'s
+    `np.roll`s (40%). A bit-identical slicing version of the neighbor mean is
+    only 25% faster, so it waits for G3, where one call covers every world.
 - **G3. Many worlds in one array.** A leading world axis on every array;
   numeric tunables become per-world arrays, structural ones (dims, size,
   food types, brain size) must match within a batch. `sweep.py` groups runs

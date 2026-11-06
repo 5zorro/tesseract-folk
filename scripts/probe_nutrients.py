@@ -17,7 +17,10 @@ import numpy as np
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from sim import Config, Simulation                      # noqa: E402
+from sim import Config  # noqa: E402
+# This probe hooks per-NPC methods (_decide, _act, _eat...), which only the
+# reference engine calls; it gives the same results as the array engine.
+from sim.reference import ReferenceSimulation as Simulation  # noqa: E402
 from sim.controllers import ScriptedController           # noqa: E402
 from sim.nursery import load_brain_pool, seed_brains     # noqa: E402
 

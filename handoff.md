@@ -125,7 +125,9 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
    compatibility list before planning on it). Windows-native options don't
    depend on that. Plan: `docs/plan-gpu-backend.md`. **2026-11-05: G0 and G1
    done** (new tick rules + keyed randomness, one re-baseline; the M2 re-check
-   gives the same verdicts within seed noise). Next: G2. Post-G1 nurseries:
+   gives the same verdicts within seed noise). **G2 done:** array engine
+   (`sim/simulation.py` + `sim/population.py`) bit-identical to the per-NPC
+   reference (`sim/reference.py`), 2.5-3x faster. Next: G3 (many worlds per array). Post-G1 nurseries:
    `snapshots/ladder-g1`, `snapshots/ladder-g1-twoeat` (older folders are pre-G1). Talk to 5zorro before PyTorch
    (D4) or anything C++.
 2. Known gaps carried from M1: body starvation is ~35% of collapses; births
