@@ -5,7 +5,7 @@ Working rules for anyone changing this repo, human or coding agent.
 Read `handoff.md` first instead of searching around, and `gotchas.md` before
 measuring anything. Stray ideas go in a private notes file, not into the current
 plan. Feature plans live in `docs/plan-*.md` (current:
-`docs/plan-m2-diet-travel.md`).
+`docs/plan-m2-diet-travel.md`, and `docs/plan-gpu-backend.md` for speed).
 
 - The maintainer (5zorro) does all git pushes. Agents may commit locally.
 - No Co-Authored-By or other AI attribution lines in commits or PRs.

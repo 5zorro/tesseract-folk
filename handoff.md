@@ -123,7 +123,8 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
    has `/dev/dxg` (GPU paravirtualization) but no `/dev/kfd`; whether ROCm on
    WSL supports this RDNA2 card is unverified (check AMD's ROCm-on-WSL
    compatibility list before planning on it). Windows-native options don't
-   depend on that. Write `docs/plan-gpu-backend.md` before coding.
+   depend on that. Plan: `docs/plan-gpu-backend.md` (written 2026-11-05;
+   decisions D1-D6 open, G1 waits on D1-D3).
 2. Known gaps carried from M1: body starvation is ~35% of collapses; births
    still trail top-ups in 2D (M3's job).
 3. Other levers: a harsher scarcity nursery (half food gave a mild win); **seasons** as a config schedule (famine winters, mostly for
