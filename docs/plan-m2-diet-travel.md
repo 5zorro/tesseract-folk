@@ -934,6 +934,47 @@ lowest nutrient, eats when it's on that food, and poops when full.
   needs most, one number per axis (d inputs). Perception, not a scripted
   behavior (rule 6): the brain still decides whether to follow it.
 
+### Slice R9: Finding a mate per dimension (2026-11-06)
+5zorro: "there is probably a lot of distance between every 4D creature and
+other creatures... is there a different measure for mating? ... a lot more
+population density needed for the breeding?" `scripts/probe_mating.py`: play
+worlds matched on travel time, ladder nursery brains (2D: scratch, no 2D
+nursery yet), 4 seeds x 5,000 ticks. A mate must be in the same cell or one
+step away (1 + 2 x dims cells), both must pick "mate" within 5 ticks, and each
+must be an adult (300) with body >= 1.2, health > 0.5, off cooldown. There's no
+"that neighbor is ready to mate" sense, only a count of neighbors.
+
+| Dims | NPCs | NPCs per cell | Someone within reach | (if scattered at random) | Nearest NPC (steps) | Births per 1,000 NPC-ticks |
+|---|---|---|---|---|---|---|
+| 2 | 37 | 0.037 | 17.1% | 16.2% | 3.3 | 0.22 |
+| 3 | 39 | 0.014 | 9.6% | 9.1% | 3.3 | 0.04 |
+| 4 | 35 | 0.0035 | 3.3% | 3.0% | 3.9 | 0.00 |
+
+Why mate attempts fail (share of attempts; "partner ready" was 0% everywhere):
+
+| Dims | Too young | Too thin (< 1.2) | Health <= 0.5 | No one within reach | Neighbor not ready |
+|---|---|---|---|---|---|
+| 2 | 28% | 20% | 21% | 24% | 4% |
+| 3 | 24% | 17% | 12% | 41% | 5% |
+| 4 | 30% | 39% | 17% | 13% | 0% |
+
+- **5zorro is right about density:** the same ~35 NPCs are 10x sparser in 4D,
+  and the chance anyone is within reach falls 17% -> 3%. NPCs sit about where
+  random scatter would put them (they don't seek each other).
+- **Formula:** chance someone is within reach ~ 1 - (1 - (1 + 2d) / cells)^(N - 1),
+  about N (1 + 2d) / cells when small. Matching 2D's 17% in the 4D world (10,000
+  cells, 9 within reach) takes ~210 NPCs; in general N grows as cells / (1 + 2d).
+- **But density isn't the first wall:** most attempts come from NPCs that
+  couldn't mate anyway (too young, thin or unwell: 69% in 2D, 86% in 4D), and
+  no attempt in any dimension found a ready, eligible partner. Births are rare
+  everywhere (0.22 per 1,000 NPC-ticks in 2D), not only in 4D. That matches
+  slice R8's finding that nurseries are almost all top-ups.
+- **A "ready to mate" sense** would help with the 5-tick timing, but timing is
+  the smallest failure today (0-5%). It matters once eligible NPCs meet often.
+- Levers, not tested: more NPCs in 4D (`max_population`, density matched by the
+  formula), a longer `mate_window`, a mate-ready sense, and a scent NPCs give off
+  (like food scent) so they can find each other at a distance.
+
 ### Slice 4: Levers, only if criterion 3 fails
 Criterion 3 isn't demonstrated (slice 3b). 5zorro picked the memory stack as the
 first lever (2026-11-03).
