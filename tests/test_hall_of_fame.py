@@ -112,3 +112,18 @@ def test_a_harsh_run_builds_track_records():
                             hall_of_fame_track_record=True, seed=4), log_every=10**9)
     sim.run(6000)
     assert any(e["copies"] > 0 for e in sim.hall_of_fame)
+
+
+def test_crossover_top_ups_have_two_parents_and_credit_both():
+    sim = Simulation(Config(size=16, initial_npcs=20, min_population=18, collapse_age_penalty=600,
+                            topup_crossover=True, seed=4), log_every=10**9)
+    credited = []
+    original = sim._credit_source
+    sim._credit_source = lambda source, excess: (credited.append(source), original(source, excess))
+    sim.run(6000)
+    crosses = [n for n in sim.npcs if n.origin == "cross"]
+    assert crosses, "top-ups should be crossovers"
+    assert not [n for n in sim.npcs if n.origin == "copy"]
+    two = [n for n in crosses if n.source >= 0 and n.source2 >= 0]
+    assert two and all(n.source != n.source2 for n in two)
+    assert len(set(credited)) > 1

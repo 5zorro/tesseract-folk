@@ -137,6 +137,11 @@ class Config:
     hall_of_fame_track_record: bool = True   # default since 2026-11-06 (5zorro)
     hall_of_fame_prior_lives: float = 3.0
     hall_of_fame_min_copies: int = 5
+    # Crossover top-ups (5zorro, 2026-11-06): a top-up is the child of two
+    # tournament winners (crossover, then mutation, as a birth), not a mutated
+    # copy of one, so top-ups can combine good brains instead of only exploring
+    # near one. Both parents' track records get its life. Off = copies.
+    topup_crossover: bool = False
 
     # --- deity, prayer, secrets --------------------------------------------
     n_shrines: int = 2

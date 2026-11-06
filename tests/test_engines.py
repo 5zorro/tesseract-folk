@@ -24,6 +24,7 @@ CASES = {
     "one eat, lineage off": dict(mutation_lineage=False, mutations_per_birth=0.0, two_eat_actions=False),
     "fitness-ranked hall of fame": dict(hall_of_fame_track_record=False),
     "linear brains": dict(hidden_units=0),
+    "crossover top-ups": dict(topup_crossover=True, hall_of_fame_min_copies=2),
 }
 
 

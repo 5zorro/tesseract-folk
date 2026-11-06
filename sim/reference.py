@@ -635,8 +635,10 @@ class ReferenceSimulation:
         cfg = self.cfg
         population = self.population_collapse_rate()
         excess = npc.collapse_rate() - population if population >= 0 else 0.0
-        if cfg.hall_of_fame_track_record and npc.source >= 0:
-            self._credit_source(npc.source, excess)
+        if cfg.hall_of_fame_track_record:
+            for source in (npc.source, npc.source2):
+                if source >= 0:
+                    self._credit_source(source, excess)
         self.hall_of_fame.append({"fitness": npc.fitness(), "generation": npc.generation,
                                   "brain": npc.brain, "rate": npc.collapse_rate(),
                                   "lineage": npc.lineage, "id": npc.id, "lives": 1.0,
@@ -698,18 +700,31 @@ class ReferenceSimulation:
             candidates += [(self._living_merit(n, population) if track else n.fitness(),
                             n.generation, n.brain, n.collapse_rate(), n.lineage, -1)
                            for n in sorted(self.npcs, key=lambda n: n.id)]   # by id, not list order
-            origin, mutations, parent_rate, lineage, source = "", -1.0, -1.0, -1.0, -1
+            origin, mutations, parent_rate, lineage, source, source2 = "", -1.0, -1.0, -1.0, -1, -1
             draw = self.keys.stream(self.tick, self.next_id, keyed.SPAWN)
             if candidates:
-                picks = [candidates[draw.integers(len(candidates))] for _ in range(3)]
-                _, gen, brain, parent_rate, parent_lineage, source = max(picks, key=lambda c: c[0])
+                picks = [int(draw.integers(len(candidates))) for _ in range(3)]
+                best = max(picks, key=lambda i: candidates[i][0])   # the first best
+                _, gen, brain, parent_rate, parent_lineage, source = candidates[best]
+                if cfg.topup_crossover and len(candidates) > 1:
+                    # A second tournament among the others, then a birth's recipe.
+                    picks = [int(draw.integers(len(candidates) - 1)) for _ in range(3)]
+                    picks = [i + (i >= best) for i in picks]
+                    _, gen2, brain2, rate2, lineage2, source2 = max((candidates[i] for i in picks), key=lambda c: c[0])
+                    brain = Brain.crossover(brain, brain2, self.keys.stream(self.tick, self.next_id,
+                                                                            keyed.CROSSOVER))
+                    rates = [r for r in (parent_rate, rate2) if r >= 0]
+                    known = [x for x in (parent_lineage, lineage2) if x >= 0]
+                    parent_rate = sum(rates) / len(rates) if rates else -1.0
+                    parent_lineage = sum(known) / len(known) if known else -1.0
+                    gen, origin = max(gen, gen2), "cross"
                 brain, mutations, lineage = self.mutate_child(brain, parent_rate, parent_lineage)
-                origin, gen = "copy", gen + 1
+                origin, gen = origin or "copy", gen + 1
             else:
                 brain, gen = self._random_brain(draw), 0
             npc = self._spawn(brain, self.world.random_cell(draw), body, gen)
             npc.origin, npc.mutations, npc.parent_rate = origin, mutations, parent_rate
-            npc.lineage, npc.source = lineage, source
+            npc.lineage, npc.source, npc.source2 = lineage, source, source2
             self.stats.count("spawns")
 
     # ============================================================== helpers

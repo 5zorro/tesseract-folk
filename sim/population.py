@@ -25,11 +25,11 @@ SCALARS = {
     "gifts_received": np.int64, "alive": np.bool_, "zone_switches": np.int64,
     "directed_hits": np.float64, "directed_chance": np.float64, "approach_sum": np.float64,
     "approach_null": np.float64, "approach_moves": np.int64, "mutations": np.float64,
-    "parent_rate": np.float64, "lineage": np.float64, "source": np.int64,
+    "parent_rate": np.float64, "lineage": np.float64, "source": np.int64, "source2": np.int64,
 }
 VECTORS = ("nutrients", "satiation", "inventory", "memory", "eaten")   # float rows
 BRAIN = ("w1", "b1", "w2", "b2")
-ORIGINS = ["", "birth", "copy"]
+ORIGINS = ["", "birth", "copy", "cross"]
 CAUSE = {c: i for i, c in enumerate(DAMAGE_CAUSES)}
 # Within one tick, damage is taken in this order (smiting comes from praying,
 # before metabolism; then metabolism's causes in its order). Used to rebuild a

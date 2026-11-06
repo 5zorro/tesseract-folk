@@ -83,6 +83,7 @@ class NPC:
     # The hall-of-fame entry this copy was made from (-1 = none), so its finished
     # life can be added to that entry's track record.
     source: int = -1
+    source2: int = -1         # a crossover top-up's second parent entry (Config.topup_crossover)
 
     def __post_init__(self):
         if self.eaten is None:

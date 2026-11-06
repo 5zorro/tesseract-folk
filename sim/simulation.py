@@ -384,8 +384,10 @@ class Simulation:
         cfg = self.cfg
         population = self.population_collapse_rate()
         excess = npc.collapse_rate() - population if population >= 0 else 0.0
-        if cfg.hall_of_fame_track_record and npc.source >= 0:
-            self._credit_source(npc.source, excess)
+        if cfg.hall_of_fame_track_record:
+            for source in (npc.source, npc.source2):
+                if source >= 0:
+                    self._credit_source(source, excess)
         self.hall_of_fame.append({"fitness": npc.fitness(), "generation": npc.generation,
                                   "brain": npc.brain, "rate": npc.collapse_rate(),
                                   "lineage": npc.lineage, "id": npc.id, "lives": 1.0,
@@ -454,26 +456,42 @@ class Simulation:
             n_hall = len(self.hall_of_fame)
             scores = [self._merit(e) if track else e["fitness"] for e in self.hall_of_fame]
             scores += living_score.tolist()
-            origin, mutations, parent_rate, lineage, source = "", -1.0, -1.0, -1.0, -1
+            origin, mutations, parent_rate, lineage, source, source2 = "", -1.0, -1.0, -1.0, -1, -1
             draw = self.keys.stream(self.tick, self.next_id, keyed.SPAWN)
+
+            def parent(i: int) -> tuple:
+                """(generation, brain, collapse rate, lineage, entry id) of candidate i."""
+                if i < n_hall:
+                    e = self.hall_of_fame[i]
+                    return (e["generation"], e["brain"], e.get("rate", -1.0),
+                            e.get("lineage", -1.0), e.get("id", -1))
+                slot = living[i - n_hall]
+                return (int(P.generation[slot]), P.brain(slot), float(rate[i - n_hall]),
+                        float(P.lineage[slot]), -1)
+
             if scores:
                 picks = [draw.integers(len(scores)) for _ in range(3)]
                 best = max(picks, key=lambda i: scores[i])         # the first best, like max()
-                if best < n_hall:
-                    e = self.hall_of_fame[best]
-                    gen, brain, parent_rate = e["generation"], e["brain"], e.get("rate", -1.0)
-                    parent_lineage, source = e.get("lineage", -1.0), e.get("id", -1)
-                else:
-                    slot = living[best - n_hall]
-                    gen, brain, parent_rate = int(P.generation[slot]), P.brain(slot), float(rate[best - n_hall])
-                    parent_lineage, source = float(P.lineage[slot]), -1
+                gen, brain, parent_rate, parent_lineage, source = parent(best)
+                if cfg.topup_crossover and len(scores) > 1:
+                    # A second tournament among the others, then a birth's recipe.
+                    picks = [int(draw.integers(len(scores) - 1)) for _ in range(3)]
+                    picks = [i + (i >= best) for i in picks]
+                    gen2, brain2, rate2, lineage2, source2 = parent(max(picks, key=lambda i: scores[i]))
+                    brain = Brain.crossover(brain, brain2, self.keys.stream(self.tick, self.next_id,
+                                                                            keyed.CROSSOVER))
+                    rates = [r for r in (parent_rate, rate2) if r >= 0]
+                    known = [x for x in (parent_lineage, lineage2) if x >= 0]
+                    parent_rate = sum(rates) / len(rates) if rates else -1.0
+                    parent_lineage = sum(known) / len(known) if known else -1.0
+                    gen, origin = max(gen, gen2), "cross"
                 brain, mutations, lineage = self.mutate_child(brain, parent_rate, parent_lineage)
-                origin, gen = "copy", gen + 1
+                origin, gen = origin or "copy", gen + 1
             else:
                 brain, gen = self._random_brain(draw), 0
             npc = self._spawn(brain, self.world.random_cell(draw), body, gen)
             npc.origin, npc.mutations, npc.parent_rate = origin, mutations, parent_rate
-            npc.lineage, npc.source = lineage, source
+            npc.lineage, npc.source, npc.source2 = lineage, source, source2
             self.stats.count("spawns")
 
 
