@@ -1082,7 +1082,29 @@ Why mate attempts fail (share of attempts; "partner ready" was 0% everywhere):
   tested").** `scripts/outputs_vs_time.py`: the task fixed, outputs changed by
   switching off optional actions (`actions_off`) or adding do-nothing `stay`
   copies (`extra_stay_actions`); nurseries saved at 2.5k-40k ticks and scored in
-  play; fit ticks-to-target ~ outputs^k. Running (2D first, then 3D).
+  play; fit ticks-to-target ~ outputs^k.
+
+  First 2D run (`runs/outputs-vs-time-2d-first.csv`; 2 nurseries x 5 seeds):
+
+  | Arm | Outputs | Scratch | 2.5k | 5k | 10k | 20k | 40k |
+  |---|---|---|---|---|---|---|---|
+  | 5 actions off | 11 | 1.88 | 1.82 | 1.54 | 1.42 | 1.68 | 1.66 |
+  | today | 16 | 1.60 | 1.14 | 0.88 | 0.72 | 0.47 | 0.44 |
+  | +8 stay copies | 24 | 2.43 | 1.85 | 1.53 | 1.30 | 1.08 | 0.70 |
+  | +16 | 32 | 3.16 | 2.04 | 1.46 | 1.17 | 0.93 | 0.75 |
+  | +32 | 48 | 4.92 | 3.51 | 3.23 | 2.24 | 1.67 | 0.56 |
+
+  - **Confound 1: extra stay copies aren't neutral at the start.** Random brains
+    idle more and starve more (scratch 1.6 -> 4.9), so "ticks to a fixed
+    score" (fit k = 2.2) mostly measured a worse start. Ticks to close each
+    arm's *own* gap (its scratch -> 0.44): **k ~ 0.5 at both 50% and 70% of the
+    gap, i.e. training time ~ sqrt(outputs)**, with noisy points (+16 faster
+    than +8).
+  - **Confound 2: "5 actions off" dropped `pick_up`,** and carried food is eaten
+    when the ground is bare, so that arm changed the task (it never learned).
+    Rerun with only give, pray, worship and share off, 8 seeds, then 3D.
+  - Every arm ends near the same place given time (0.44-0.75 at 40k): more
+    outputs cost time, not the final score, over this range.
 - **Directional movement (5zorro, 2026-11-06):** plans to test diagonal /
   directional movement per dimension ("plenty of games allow it"). The outputs
   curve above predicts what 3^dims - 1 move actions would cost in training.
