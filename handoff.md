@@ -129,8 +129,12 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
    (`sim/simulation.py` + `sim/population.py`) bit-identical to the per-NPC
    reference (`sim/reference.py`), 2.5-3x faster. **G3 done:** `Batch` runs many
    worlds in one set of arrays; sweeps and the ladder use it. 2D sweeps 2.5x
-   faster (goal met); 4D sweeps are memory-bound now and barely faster. Next:
-   discuss G4 / float32 (D2, D4) with 5zorro before building. Post-G1 nurseries:
+   faster (goal met); 4D sweeps memory-bound (one map per pass got them 34 -> 24 s).
+   **float32 measured** (`Config.precision`, default float64): 4D sweeps 1.5x
+   faster, M2 verdicts unchanged in all 6 rows, mass drifts ~2e-4 per 100k
+   ticks; a "move what the receiver gained" fix cuts the map leak ~10,000x
+   (scratch-tested, not applied: it re-baselines float64). Open for 5zorro: apply
+   that fix, float32 default or not, then G4 (D4: PyTorch or not). Post-G1 nurseries:
    `snapshots/ladder-g1`, `snapshots/ladder-g1-twoeat` (older folders are pre-G1). Talk to 5zorro before PyTorch
    (D4) or anything C++.
 2. Known gaps carried from M1: body starvation is ~35% of collapses; births
