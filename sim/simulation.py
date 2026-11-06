@@ -541,9 +541,11 @@ class Batch:
             s.stats.maybe_sample(s)
         return True
 
-    # Worlds per pass of the world step: a few 4D maps (10,000 cells) at a time stay
-    # in the CPU cache, which beats one pass over all of them (measured 2026-11-05).
-    WORLD_STEP_CELLS = 40_000
+    # Cells per pass of the world step: about one 4D map (10,000 cells) at a time
+    # stays in the CPU's cache even with 16 processes sharing it. Measured
+    # 2026-11-05, 4D world step per world with 16 processes: 3.05 ms at 40,000
+    # cells per pass, 1.39 ms at 10,000 (1.08-1.22 ms alone either way).
+    WORLD_STEP_CELLS = 10_000
 
     def _world_step(self) -> None:
         """World.step for every world (same operations, per-world settings), a

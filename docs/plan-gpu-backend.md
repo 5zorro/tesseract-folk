@@ -189,7 +189,7 @@ Not built here; it gets its own plan, since it changes behavior (re-measure).
     and makes about one batch per process. Results equal the old one-by-one
     runner exactly (checked on 5 jobs, 1 and 3 processes). `ladder.py` trains
     nurseries and plays worlds in batches the same way.
-  - The world step goes a cache-sized group of worlds at a time
+  - The world step goes about one 4D map (10,000 cells) at a time
     (`WORLD_STEP_CELLS`), and the neighbor mean adds in place; both
     bit-identical. Without the grouping, 32 stacked 4D maps fell out of cache
     and a batched 4D world cost 3.5 ms per tick, more than alone (2.1 ms).
@@ -199,6 +199,9 @@ Not built here; it gets its own plan, since it changes behavior (re-measure).
     2D x 3,000 ticks: 55 s before G1 -> 22 s now (so ~75 s for 10,000 ticks:
     the goal is met in 2D). Fewer, bigger batches didn't help (8 processes
     23 s, 4 processes 25 s). 4D x 1,000 ticks: 36 s -> 34 s, barely faster.
+    **Then one 4D map per world-step pass instead of four** (the shared L3
+    cache is ~1 MB per process under full load): 4D 34 s -> 24 s, 2D unchanged,
+    bit-identical. The loaded 4D world step per world: 3.05 -> 1.39 ms.
   - **Why 4D didn't speed up:** in 4D the world step (stink and scent
     spreading over 10,000 cells x 4 fields) is 59% of a tick even alone, and
     it's memory-bound: 16 processes streaming 4D maps share one memory bus and
