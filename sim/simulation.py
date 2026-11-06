@@ -54,7 +54,7 @@ _PHASES = {"eat": 1, "eat_need": 1, "eat_most": 1, "pick_up": 1,
 
 # Settings that shape arrays, actions or senses: equal within a batch.
 STRUCTURAL = ("dims", "size", "n_food_types", "n_nutrients", "hidden_units", "memory_units",
-              "food_scent", "two_eat_actions", "food_patches_per_type", "precision")
+              "food_scent", "craving_sense", "two_eat_actions", "food_patches_per_type", "precision")
 PRECISIONS = {"float64": np.float64, "float32": np.float32}
 # World arrays stacked by a batch (each World keeps a view of its row).
 WORLD_ARRAYS = ("soil", "food", "poop", "stink", "scent", "capacity", "zones", "need_distance", "profiles")
@@ -226,8 +226,9 @@ class Simulation:
         c = self.cfg
         t, n, d, m = c.n_food_types, c.n_nutrients, c.dims, c.memory_units
         scent = t + d * t if c.food_scent else 0
+        craving = d if c.craving_sense else 0
         return (n + 4 + t + t + d * t + 1 + d + 1 + t + 2
-                + 1 + d + d + 1 + 1 + m + 1 + scent)
+                + 1 + d + d + 1 + 1 + m + 1 + scent + craving)
 
     def sense_layout(self) -> dict[str, slice]:
         """Where each part of the sense vector sits (the order of reference.sense).
@@ -240,6 +241,8 @@ class Simulation:
                  ("secret", 1 + d), ("shrine", d + 1), ("moved", 1), ("memory", m), ("bias", 1)]
         if c.food_scent:
             parts += [("scent_here", t), ("scent_grad", d * t)]
+        if c.craving_sense:
+            parts += [("craving", d)]
         out, at = {}, 0
         for name, size in parts:
             out[name] = slice(at, at + size)
@@ -532,6 +535,7 @@ class Batch:
         cfg = first.cfg
         self.dims, self.size, self.types = cfg.dims, cfg.size, cfg.n_food_types
         self.food_scent = cfg.food_scent
+        self.craving = cfg.craving_sense
         self.cells = cfg.size ** cfg.dims
         self.float = PRECISIONS[cfg.precision]
         records = [[s.pop.record(slot) for slot in s._by_id(s.pop.live(s.index))] if s.batch else []
@@ -568,6 +572,7 @@ class Batch:
         self._act_index = {name: i for i, name in enumerate(self.actions)}
         self._nbr = first.world.neighbor_table()                   # (cells, 2 * dims), same for all
         self._serves = np.stack([s.world.serves_table().reshape(cfg.n_nutrients, -1) for s in sims])
+        self._rich = np.stack([s.world.rich for s in sims])        # (worlds, types): rich nutrient
         self._shrine = np.zeros((W, self.cells, cfg.dims + 1), dtype=self.float)
         self._shrines_cached: list = [None] * W
         self._aging = np.ones(W, dtype=bool)
@@ -579,6 +584,7 @@ class Batch:
         """Rebuild world i's derived tables (its arrays were written in place)."""
         w = self.sims[i].world
         self._serves[i] = w.serves_table().reshape(self._serves.shape[1], -1)
+        self._rich[i] = w.rich
         self._shrines_cached[i] = None
 
     def outside_tick(self) -> _OutsideTick:
@@ -776,8 +782,13 @@ class Batch:
             scent_n = scent[wn[:, None], :, nbr]
             s_plus, s_minus = scent_n[:, 0::2], scent_n[:, 1::2]
             # Relative difference: points uphill at any distance, like a nose.
-            parts += [here / (here + self._p("scent_half", wn)[:, None]),
-                      ((s_plus - s_minus) / (s_plus + s_minus + 1e-12)).reshape(n, d * T)]
+            scent_grad = (s_plus - s_minus) / (s_plus + s_minus + 1e-12)         # (n, d, types)
+            parts += [here / (here + self._p("scent_half", wn)[:, None]), scent_grad.reshape(n, d * T)]
+        if self.craving:
+            grad = scent_grad if self.food_scent else food_grad.reshape(n, d, T)
+            need = np.argmin(P.nutrients[slots], axis=1)
+            wanted = self._rich[wn] == need[:, None]                             # (n, types)
+            parts.append(np.where(wanted[:, None, :], grad, 0.0).sum(axis=2))
         obs = np.concatenate(parts, axis=1, dtype=self.float)
         assert obs.shape == (n, self.sims[0].n_inputs), obs.shape
         return obs

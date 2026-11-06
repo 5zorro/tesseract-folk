@@ -25,6 +25,8 @@ CASES = {
     "fitness-ranked hall of fame": dict(hall_of_fame_track_record=False),
     "linear brains": dict(hidden_units=0),
     "crossover top-ups": dict(topup_crossover=True, hall_of_fame_min_copies=2),
+    "craving sense": dict(craving_sense=True, dims=3, size=6),
+    "craving, no scent": dict(craving_sense=True, food_scent=False),
 }
 
 

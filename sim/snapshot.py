@@ -36,6 +36,7 @@ LEGACY = {
     "hall_of_fame_track_record": False,   # 2026-11-04
     "two_eat_actions": False,             # 2026-11-05; old brains have one eat output
     "topup_crossover": False,             # 2026-11-06
+    "craving_sense": False,               # 2026-11-06; old brains lack its inputs
     "precision": "float64",               # 2026-11-06; research scripts default to float32
 }
 

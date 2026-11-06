@@ -52,6 +52,13 @@ class Config:
     # find patches they can't see. Fixed for a world's life: it changes the
     # brain's input size. Snapshots saved before it existed load with it off.
     food_scent: bool = True
+    # Craving sense (M2 slice R8, 2026-11-06, 5zorro: "probably good"): one input
+    # per axis, the scent gradient (the food gradient without food_scent) of the
+    # food types rich in the NPC's lowest nutrient. A sense-only forager meets the
+    # diet goals in 4D from today's senses, but brains don't learn the need x
+    # gradient product; this hands them the product. Perception, not behavior:
+    # the brain still decides whether to follow it. Changes the input size.
+    craving_sense: bool = False
     scent_emission: float = 0.05          # per unit of food per tick
     scent_diffusion: float = 0.3          # 0-1; reach shrinks with dims, harmlessly (research §4)
     scent_decay: float = 0.01             # slower than stink, so it reaches farther

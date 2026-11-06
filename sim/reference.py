@@ -158,8 +158,9 @@ class ReferenceSimulation:
         c = self.cfg
         t, n, d, m = c.n_food_types, c.n_nutrients, c.dims, c.memory_units
         scent = t + d * t if c.food_scent else 0
+        craving = d if c.craving_sense else 0
         return (n + 4 + t + t + d * t + 1 + d + 1 + t + 2
-                + 1 + d + d + 1 + 1 + m + 1 + scent)
+                + 1 + d + d + 1 + 1 + m + 1 + scent + craving)
 
     def sense(self, npc: NPC, index: dict) -> np.ndarray:
         cfg, w, p = self.cfg, self.world, npc.pos
@@ -203,8 +204,13 @@ class ReferenceSimulation:
             scent_n = w.scent.reshape(types, -1)[:, nbr]
             s_plus, s_minus = scent_n[:, 0::2], scent_n[:, 1::2]
             # Relative difference: points uphill at any distance, like a nose.
-            parts += [here / (here + cfg.scent_half),
-                      ((s_plus - s_minus) / (s_plus + s_minus + 1e-12)).T.ravel()]
+            scent_grad = (s_plus - s_minus) / (s_plus + s_minus + 1e-12)     # (types, d)
+            parts += [here / (here + cfg.scent_half), scent_grad.T.ravel()]
+        if cfg.craving_sense:
+            # The gradient of the foods rich in the lowest nutrient, per axis.
+            grad = scent_grad if cfg.food_scent else (food_n[:, 0::2] - food_n[:, 1::2]) / cfg.food_capacity
+            wanted = w.rich == int(np.argmin(npc.nutrients))
+            parts.append(np.where(wanted[:, None], grad, 0.0).sum(axis=0))
         obs = np.concatenate(parts, dtype=float)
         assert obs.size == self.n_inputs, (obs.size, self.n_inputs)
         return obs

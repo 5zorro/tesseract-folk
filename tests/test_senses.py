@@ -30,3 +30,17 @@ def test_sense_oracle_forages_and_conserves_mass():
         sim.step()
     assert oracle.decisions > 0 and sim.stats.history is not None
     assert sim.total_mass() == pytest.approx(start, rel=1e-9)
+
+
+@pytest.mark.parametrize("scent", [True, False])
+def test_craving_is_the_needed_foods_gradient(scent):
+    cfg = Config(dims=4, size=6, seed=3, craving_sense=True, food_scent=scent)
+    sim = Simulation(cfg, log_every=10**9)
+    sim.run(30)
+    L = sim.sense_layout()
+    assert L["craving"].stop == sim.n_inputs
+    for npc in sim.npcs[:10]:
+        obs = sim.sense(npc)
+        needed = sim.world.rich == int(np.argmin(npc.nutrients))
+        grad = obs[L["scent_grad" if scent else "food_grad"]].reshape(cfg.dims, cfg.n_food_types)
+        assert np.allclose(obs[L["craving"]], grad[:, needed].sum(axis=1))
