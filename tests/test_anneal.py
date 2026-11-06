@@ -24,3 +24,15 @@ def test_anneal_runs_both_phases_and_restores_the_rules():
     for k in HUNGER:                                              # hunger held where it settled
         assert sim.cfg.__dict__[k] == normal[k] * a.settled
     assert {"tick", "population", "hunger", "diversity"} <= set(a.trace[0])
+
+
+def test_ramp_only_raises_hunger_to_its_end():
+    sim = Simulation(Config(size=10, initial_npcs=20, min_population=10, seed=3), log_every=50)
+    p = dict(DEFAULTS, mode="ramp", check=50, ramp_end=1.5, phase1_max=0.5)
+    a = Anneal(sim, 2000, p)
+    for _ in range(40):
+        sim.run(50)
+        a.check()
+    hunger = [r["hunger"] for r in a.trace]
+    assert all(x <= y for x, y in zip(hunger, hunger[1:]))      # never falls
+    assert a.phase2_start == 1000 and a.settled == 1.5

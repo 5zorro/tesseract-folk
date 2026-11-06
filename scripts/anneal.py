@@ -25,6 +25,13 @@ population between the two lines: a carrying capacity. Phase 1 ends once
 hunger hasn't changed for `--hold` checks, the step is under 3%, or at
 `--phase1-max` of the ticks. The scale stays within `--start-scale` and 2x play.
 
+`--mode ramp` (5zorro, 2026-11-06, after the thermostat lost because hunger
+settled at 0.2-0.6x play): no thermostat; hunger only rises, geometrically from
+`--start-scale` to `--ramp-end` x play over phase 1 (`--phase1-max` of the
+ticks), and selection leans on the ranked hall of fame: `--min-population` sets
+the nursery's top-up floor, so deaths are refilled with track-record-ranked
+clones instead of waiting for local births.
+
 Phase 2, age. Aging and adulthood come back. Hunger stays where it settled, and
 old age falls from `--old-age-start` times the normal lifespan down to it
 (geometrically, finishing at 80% of the remaining ticks).
@@ -59,8 +66,8 @@ from ladder import NURSERY_RULES, NURSERY_SEEDS, WORLD_SETS, read_csv, report, w
 from sweep import run_batch  # noqa: E402
 
 HUNGER = ("nutrient_decay", "metabolism_rate")
-DEFAULTS = dict(start_scale=0.15, factor=1.5, threshold=150, low=0.5, check=250, settle=3,
-                hold=8, phase1_max=0.6, old_age_start=8.0)
+DEFAULTS = dict(mode="thermostat", start_scale=0.15, factor=1.5, threshold=150, low=0.5, check=250,
+                settle=3, hold=8, phase1_max=0.6, old_age_start=8.0, ramp_end=1.0, min_population=30)
 
 
 def diversity(sim: Simulation) -> float:
@@ -88,7 +95,7 @@ class Anneal:
         self.set_hunger(p["start_scale"])
 
     def set_hunger(self, scale: float) -> None:
-        self.scale = min(max(scale, self.p["start_scale"]), 2.0)
+        self.scale = min(max(scale, self.p["start_scale"]), max(2.0, self.p["ramp_end"]))
         for k in HUNGER:
             self.sim.set_rule(k, self.normal[k] * self.scale)
 
@@ -100,7 +107,13 @@ class Anneal:
                            "hunger": self.scale, "old_age": sim.cfg.old_age,
                            "births": h.get("births", 0), "deaths": h.get("deaths", 0),
                            "collapses": h.get("collapses", 0), "diversity": diversity(sim)})
-        if self.phase == 1:
+        if self.phase == 1 and p["mode"] == "ramp":
+            span = p["phase1_max"] * self.ticks
+            done = min(1.0, sim.tick / span)
+            self.set_hunger(p["start_scale"] * (p["ramp_end"] / p["start_scale"]) ** done)
+            if sim.tick >= span:
+                self.start_phase2()
+        elif self.phase == 1:
             want = 1 if pop >= p["threshold"] else -1 if pop < p["low"] * p["threshold"] else 0
             before = self.scale
             if self.wait:
@@ -145,7 +158,8 @@ def train(jobs: list[tuple]) -> list[str]:
         if trace.exists() and json.loads(trace.read_text())["settings"] == p:
             msgs.append(f"kept {path.name}")
             continue
-        sim = Simulation(Config(**{**world(shape), **NURSERY_RULES, "seed": nseed}),
+        sim = Simulation(Config(**{**world(shape), **NURSERY_RULES, "seed": nseed,
+                                   "min_population": p["min_population"]}),
                          log_every=p["check"])
         todo.append((Anneal(sim, ticks, p), path))
     if todo:
@@ -162,7 +176,7 @@ def train(jobs: list[tuple]) -> list[str]:
             (path / "anneal.json").write_text(json.dumps(
                 {"settings": a.p, "settled_hunger": a.settled, "phase2_start": a.phase2_start,
                  "trace": a.trace}, indent=1))
-            msgs.append(f"annealed {path.name}: hunger settled at {a.settled:.3f}x play, "
+            msgs.append(f"annealed {path.name} ({a.p['mode']}): hunger ended at {a.settled:.3f}x play, "
                         f"phase 2 from tick {a.phase2_start}")
     return msgs
 
