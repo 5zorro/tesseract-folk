@@ -802,6 +802,69 @@ get less reward to learn from; train exponentially longer per dimension (base
   (slice 3f, B) or a sharper signal may be what makes context matter.
 - **4D still fails** nutrient, diet and food types.
 
+### Slice R7: Brain width and the anneal nursery (2026-11-06)
+Today's defaults (two eat actions and track record on, float32 + plug), worlds
+matched on travel time (3D size 14, 4D size 10), 2 nurseries x 5 play seeds x
+10,000 ticks per row. `runs/ladder-width.csv`, `runs/anneal-20k.csv`,
+`runs/anneal-40k.csv`; nurseries in `snapshots/ladder3`, `snapshots/anneal`.
+
+**Width sweep** (5zorro's "1 layer vs 2-3 vs a manager?"; width 0 = no hidden
+layer, inputs straight to outputs, new; fixed-rules nursery, 20,000 ticks):
+
+| Hidden units | 3D collapses | 3D food types | 4D collapses | 4D food types |
+|---|---|---|---|---|
+| 0 (linear) | 0.71 | 2.77 | 2.50 | 1.89 |
+| 4 | **0.37** | 2.83 | **2.11** | 1.98 |
+| 8 | 0.46 | 2.89 | 2.73 | 1.74 |
+| 16 (today) | 0.68 | 2.83 | 2.50 | 1.96 |
+| 32 | 0.94 | 2.76 | 3.44 | 1.43 |
+| scratch (16) | 1.19-1.37 | | 3.56-4.10 | |
+
+- **3D passes every goal at every width, even linear.** 4D fails nutrient, diet
+  and food types at every width, by about the same margin.
+- **Relationship:** collapses are U-shaped in width with the bottom at 4 in both
+  dimensions, and 32 is worst. Past ~4 units, extra weights cost more (more to
+  tune with the same 30 mutations per child and the same nursery) than they
+  give. So depth wouldn't help today: the task is close to linear, and 4D's
+  limit isn't brain capacity. Revisit when a second behavior arrives.
+
+**Anneal nursery** (5zorro's population explosion then anneal,
+`scripts/anneal.py`; 16 hidden units). Three changes from the brainstorm, all
+found by probes: (1) "infinite age" = no aging with time (only collapses age, so
+the third collapse kills) and adults from birth, because only elders die and
+mating needs age 300; (2) hunger = nutrient decay *and* body burn on one dial,
+because with low nutrient decay alone 4D scratch bodies still starved; (3) a
+searching thermostat (up above 150 NPCs, down below 75, step halves on each
+reversal, waits 750 ticks after a change), because deaths lag hunger by
+thousands of ticks and "only raise" overshot into a crash to the top-up floor.
+
+| Nursery | 3D collapses | 3D nutrient | 3D types | 3D goals | 4D collapses | 4D types | Hunger settled (x play) |
+|---|---|---|---|---|---|---|---|
+| Fixed rules, 20k | **0.68** | 0.44 | 2.83 | all 5 | **2.50** | 1.96 | 1.0 (fixed) |
+| Anneal, 20k | 1.23 | 0.40 | 2.69 | 4 of 5 | 3.48 | 1.55 | 3D 0.56, 4D 0.37 |
+| Anneal, 40k | 1.53 | 0.38 | 2.78 | 2 of 5 | 3.10 | 1.56 | 3D 0.51-0.62, 4D 0.20-0.25 |
+| Scratch | 1.19 | | | | 3.82 | | |
+
+- **The anneal loses to the fixed nursery, and a longer anneal loses more** (3D
+  40k is worse than scratch on collapses).
+- **Why (reading, not yet tested):** with a population line of 150, hunger
+  settles at 0.2-0.6x play, so the anneal trains brains in a gentler world than
+  they'll play in, and spends its boom with no selection at all (no deaths).
+  The fixed nursery is harsher than play (collapse penalty 600). This fits R3
+  (a parent's score is mostly luck): gentle worlds make luck matter more.
+- **Relationship to measure next:** settled hunger is a carrying capacity, set
+  by the population line. Lower lines force higher hunger. A sweep of the line
+  (e.g. 40, 75, 150) gives hunger vs. population per dimension, and play score
+  vs. settled hunger is 5zorro's "how much survival intensity crowds out good
+  behavior" curve.
+- Brain diversity (mean distance from the mean brain) barely moves in any
+  anneal (6.0 -> 5.5), so a "brains have converged" stopping rule wouldn't fire.
+- **Found on the way:** the rounding plug posted to the median soil cell, which
+  is empty after a boom; a negative entry made it negative and leaked 2.5e-5 of
+  all mass in a tick. The plug's own check caught it; fixed (it now posts to
+  the median of the cells that can absorb the entry). The first run of this
+  slice was redone on the fix.
+
 ### Slice 4: Levers, only if criterion 3 fails
 Criterion 3 isn't demonstrated (slice 3b). 5zorro picked the memory stack as the
 first lever (2026-11-03).

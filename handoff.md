@@ -102,6 +102,12 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
      fails. Brains use a fixed eat_most/eat_need habit per dimension, not
      situational choice. **Both two eat and the track record are on by default
      since 2026-11-06 (5zorro).**
+   - **Slice R7 (2026-11-06): width and the anneal nursery.** 3D passes at every
+     brain width, even linear (`hidden_units=0`, new); collapses are U-shaped in
+     width with the best at 4 in 3D and 4D; 4D fails at every width (not brain
+     capacity). 5zorro's anneal nursery (`scripts/anneal.py`) loses to the fixed
+     nursery, because hunger settles at 0.2-0.6x play under a 150-NPC line.
+     Next: sweep the line (hunger vs. population, then score vs. hunger).
    - **4D Miner targets (5zorro, 2026-11-04):** land walkers on 3D surfaces, 4D fish
      and birds in full 4D. Both 3D and 4D must pass.
    - Speed: ticks 27-39% faster (bit-identical); `scripts/fingerprint.py` checks
