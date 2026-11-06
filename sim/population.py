@@ -38,9 +38,12 @@ _CAUSE_RANK = {"smite": 0, "nutrient_starve": 1, "body_starve": 2, "stink": 3, "
 
 
 class Population:
-    def __init__(self, capacity: int, dims: int, sizes: dict, brain_shape: tuple, patches: int):
-        """sizes: row length of each VECTORS column; brain_shape: (n_in, hidden, n_out)."""
+    def __init__(self, capacity: int, dims: int, sizes: dict, brain_shape: tuple, patches: int,
+                 dtype=np.float64):
+        """sizes: row length of each VECTORS column; brain_shape: (n_in, hidden, n_out);
+        dtype: the width of every float column."""
         self.dims, self.sizes, self.brain_shape, self.patches = dims, dict(sizes), brain_shape, patches
+        self.float = np.dtype(dtype).type
         self.capacity = 0
         self._alloc(max(int(capacity), 1))
 
@@ -48,16 +51,17 @@ class Population:
     def _shapes(self) -> dict:
         n_in, hidden, n_out = self.brain_shape
         types = self.sizes["inventory"]
-        shapes = {name: ((), dtype) for name, dtype in SCALARS.items()}
-        shapes.update({name: ((self.sizes[name],), np.float64) for name in VECTORS})
+        f = self.float
+        shapes = {name: ((), f if dtype is np.float64 else dtype) for name, dtype in SCALARS.items()}
+        shapes.update({name: ((self.sizes[name],), f) for name in VECTORS})
         shapes.update(pos=((self.dims,), np.int64), known_secret=((), np.int64),
                       last_zone=((2,), np.int64), origin=((), np.int64),
-                      damage=((len(DAMAGE_CAUSES),), np.float64),
+                      damage=((len(DAMAGE_CAUSES),), f),
                       damage_seq=((len(DAMAGE_CAUSES),), np.int64),   # 0 = cause absent
                       zones_eaten=((types, self.patches), np.bool_),
                       world=((), np.int64),          # which world of a batch (not an NPC field)
-                      w1=((hidden, n_in), np.float64), b1=((hidden,), np.float64),
-                      w2=((n_out, hidden), np.float64), b2=((n_out,), np.float64))
+                      w1=((hidden, n_in), f), b1=((hidden,), f),
+                      w2=((n_out, hidden), f), b2=((n_out,), f))
         return shapes
 
     def _alloc(self, capacity: int) -> None:

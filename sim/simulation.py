@@ -54,7 +54,8 @@ _PHASES = {"eat": 1, "eat_need": 1, "eat_most": 1, "pick_up": 1,
 
 # Settings that shape arrays, actions or senses: equal within a batch.
 STRUCTURAL = ("dims", "size", "n_food_types", "n_nutrients", "hidden_units", "memory_units",
-              "food_scent", "two_eat_actions", "food_patches_per_type")
+              "food_scent", "two_eat_actions", "food_patches_per_type", "precision")
+PRECISIONS = {"float64": np.float64, "float32": np.float32}
 # World arrays stacked by a batch (each World keeps a view of its row).
 WORLD_ARRAYS = ("soil", "food", "poop", "stink", "scent", "capacity", "zones", "need_distance", "profiles")
 
@@ -92,6 +93,8 @@ class Simulation:
             raise ValueError(f"hall_of_fame_prior_lives must be a number >= 0, got {c.hall_of_fame_prior_lives!r}")
         if not (np.isfinite(c.mutation_lineage_max) and c.mutation_lineage_max >= 1):
             raise ValueError(f"mutation_lineage_max must be a number >= 1, got {c.mutation_lineage_max!r}")
+        if c.precision not in PRECISIONS:
+            raise ValueError(f"precision must be one of {sorted(PRECISIONS)}, got {c.precision!r}")
         self.hall_of_fame: list[dict] = []   # see nursery.hall_of_fame_entry for the fields
         self.overrides: dict[int, object] = {}  # npc id -> controller (see controllers.py)
         self.next_id = 0
@@ -446,24 +449,30 @@ class Batch:
         self.dims, self.size, self.types = cfg.dims, cfg.size, cfg.n_food_types
         self.food_scent = cfg.food_scent
         self.cells = cfg.size ** cfg.dims
+        self.float = PRECISIONS[cfg.precision]
         records = [[s.pop.record(slot) for slot in s._by_id(s.pop.live(s.index))] if s.batch else []
                    for s in sims]
         # Stack the maps; each World keeps a view of its row, so its own methods
         # (food_at, mass, take_from_soil...) write into the batch.
         for name in WORLD_ARRAYS:
             stacked = np.stack([getattr(s.world, name) for s in sims])
+            if stacked.dtype.kind == "f":
+                stacked = stacked.astype(self.float)
             setattr(self, name, stacked)
             for i, s in enumerate(sims):
                 setattr(s.world, name, stacked[i])
         self.seeds = np.array([s.cfg.seed for s in sims], dtype=np.int64)
         self.par = {f.name: np.array([getattr(s.cfg, f.name) for s in sims])
                     for f in fields(Config) if not isinstance(getattr(cfg, f.name), str)}
+        for name, values in self.par.items():       # float settings at the arrays' width,
+            if values.dtype.kind == "f":             # so they don't widen float32 math
+                self.par[name] = values.astype(self.float)
         capacity = sum(max(s.cfg.max_population, s.cfg.initial_npcs, s.cfg.min_population) + 1 for s in sims)
         self.pop = Population(
             capacity, cfg.dims,
             {"nutrients": cfg.n_nutrients, "satiation": self.types, "inventory": self.types,
              "memory": cfg.memory_units, "eaten": self.types},
-            (first.n_inputs, cfg.hidden_units, first.n_outputs), cfg.food_patches_per_type)
+            (first.n_inputs, cfg.hidden_units, first.n_outputs), cfg.food_patches_per_type, self.float)
         for i, (s, recs) in enumerate(zip(sims, records)):
             for r in recs:
                 self.pop.add(r, i)
@@ -474,7 +483,7 @@ class Batch:
         self._act_index = {name: i for i, name in enumerate(self.actions)}
         self._nbr = first.world.neighbor_table()                   # (cells, 2 * dims), same for all
         self._serves = np.stack([s.world.serves_table().reshape(cfg.n_nutrients, -1) for s in sims])
-        self._shrine = np.zeros((W, self.cells, cfg.dims + 1))
+        self._shrine = np.zeros((W, self.cells, cfg.dims + 1), dtype=self.float)
         self._shrines_cached: list = [None] * W
         self._aging = np.ones(W, dtype=bool)
         self.present: np.ndarray | None = None    # slots alive at the tick's start
@@ -667,7 +676,7 @@ class Batch:
             # Relative difference: points uphill at any distance, like a nose.
             parts += [here / (here + self._p("scent_half", wn)[:, None]),
                       ((s_plus - s_minus) / (s_plus + s_minus + 1e-12)).reshape(n, d * T)]
-        obs = np.concatenate(parts, axis=1, dtype=float)
+        obs = np.concatenate(parts, axis=1, dtype=self.float)
         assert obs.shape == (n, self.sims[0].n_inputs), obs.shape
         return obs
 

@@ -255,6 +255,37 @@ means over 6 nurseries x 5 seeds, +- standard error:
 - **M2 metrics** (`_record_approach`, zone switches) are 12-13% of a tick and
   must be vectorized too, or they become the bottleneck.
 
+## float32 measured (D2, 2026-11-05/06)
+`Config.precision` ("float64" default, "float32"): the array engine's float
+arrays, settings and brains at that width (reference engine: float64 only).
+A batch can't mix them (`STRUCTURAL`). Tests: `tests/test_precision.py`.
+- **Speed** (40-run sweeps, 16 processes): 2D x 3,000 ticks 20 s either way
+  (2D is limited by Python, not memory); 4D x 1,000 ticks 27 s -> 18 s
+  (1.5x). The loaded 4D world step alone: 1.39 -> 0.62 ms per world (2.2x).
+- **Mass drift** (one world, relative to the total; float64 is ~3e-13 at
+  100,000 ticks):
+  | float32 | 1,000 | 10,000 | 30,000 | 100,000 ticks |
+  |---|---|---|---|---|
+  | 2D | -9e-8 | -3.4e-5 | -1.0e-4 | -2.4e-4 |
+  | 4D | +1e-6 | -1.9e-5 | -5.9e-5 | -1.4e-4 |
+  Always a loss, growing about linearly (`runs/f32-drift.log`).
+- **Why:** the loss is biggest with no NPCs at all (2D -3e-4 in 20,000
+  ticks), so it's the world step: a tiny growth step added to a food cell
+  near 1-2 rounds away, while the same amount leaves near-empty soil
+  exactly. The pattern: float32 loses mass wherever a small amount moves into a
+  much larger pool.
+- **Fix, measured** (patched in a scratch script, not in `sim/` yet): move what
+  the receiving pool actually gained (`food += g; soil -= (food - before)`;
+  the same for poop -> soil). No NPCs: drift -3e-4 -> -4e-8 (2D), -6e-5 ->
+  +4e-7 (4D), signs now random. With NPCs: 2D -7e-5 -> +5e-6, 4D -4e-5 ->
+  +1e-5 over 20,000 ticks; the rest comes from NPC transfers (eating,
+  metabolism), which the same rule would fix. In float64 this changes last
+  bits, so applying it everywhere is a re-baseline (5zorro's call); it's also
+  how the C++ mod should move mass in float32.
+- **M2 verdicts in float32:** running (`runs/2026-11-06-f32{,-twoeat}.csv`,
+  nurseries in `snapshots/ladder-f32{,-twoeat}`), with today's float32 (drift
+  ~3e-5 per 10,000 ticks, far below anything behavior can notice).
+
 ## Decisions (5zorro)
 Settled 2026-11-05 ("I fully agree with the approach"): D1, D3, D5, D6 as
 recommended. Open: D2 (reopened), D4, and anything touching the C++ port

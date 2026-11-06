@@ -166,6 +166,12 @@ class Config:
     # True: the whole world freezes while the player is AFK.
     freeze_all_when_afk: bool = False
 
+    # --- numbers -----------------------------------------------------------
+    # Width of the engine's floating-point arrays: "float64" (the reference
+    # engine's, and every result so far) or "float32" (half the memory traffic;
+    # being measured, docs/plan-gpu-backend.md D2). Only the array engine reads it.
+    precision: str = "float64"
+
     def to_dict(self) -> dict:
         return asdict(self)
 
