@@ -52,6 +52,50 @@ class ScriptedController:
         return A[best]
 
 
+class SenseController:
+    """A hand-written forager that sees only the sense vector, like a brain
+    (plus which nutrient each food type is rich in, as an instinct would). A
+    probe: if it meets the goals in a dimension, the senses carry enough
+    information there and the limit is learning; if not, it's the senses or the
+    world (2026-11-06, 5zorro: "are the 4D senses giving bad results?").
+    Counts how often the needed food's scent gives no direction (`blind`)."""
+
+    def __init__(self):
+        self.decisions = self.blind = self.scent_zero = 0
+
+    def decide(self, sim, npc, obs: np.ndarray) -> int:
+        cfg = sim.cfg
+        A = {name: i for i, name in enumerate(sim.actions)}
+        L = sim.sense_layout()
+        self.decisions += 1
+        if obs[L["bowel"]][0] > 0.8:
+            return A["poop"]
+        nutrients = obs[L["nutrients"]]
+        need = int(np.argmin(nutrients))
+        needed = sim.world.rich == need                      # food types rich in it
+        here = obs[L["food_here"]] * cfg.food_capacity
+        bite = 0.5 * cfg.bite_size
+        eat_need = A["eat"] if "eat" in A else A["eat_need"]
+        if nutrients.min() < 0.7 and here[needed].max() > bite:
+            return eat_need
+        if obs[L["body"]][0] < 0.9 and here.sum() > bite:
+            return A.get("eat_most", eat_need)
+        t, d = cfg.n_food_types, cfg.dims
+        if "scent_grad" in L:
+            if not (obs[L["scent_here"]][needed] > 0).any():
+                self.scent_zero += 1
+            grad = obs[L["scent_grad"]].reshape(d, t)[:, needed].sum(axis=1)
+        else:
+            grad = obs[L["food_grad"]].reshape(d, t)[:, needed].sum(axis=1)
+        if not np.any(np.abs(grad) > 1e-9):
+            self.blind += 1
+            axis, sign = (npc.id + sim.tick) % d, 1             # no direction: wander
+        else:
+            axis = int(np.argmax(np.abs(grad)))
+            sign = 1 if grad[axis] > 0 else -1
+        return A[f"move{'+' if sign > 0 else '-'}{axis}"]
+
+
 class ClaudeController:
     """Placeholder for an NPC driven by Claude through the player's own API key."""
 

@@ -229,6 +229,24 @@ class Simulation:
         return (n + 4 + t + t + d * t + 1 + d + 1 + t + 2
                 + 1 + d + d + 1 + 1 + m + 1 + scent)
 
+    def sense_layout(self) -> dict[str, slice]:
+        """Where each part of the sense vector sits (the order of reference.sense).
+        Gradients are axis-major: axis 0's food types, then axis 1's..."""
+        c = self.cfg
+        t, n, d, m = c.n_food_types, c.n_nutrients, c.dims, c.memory_units
+        parts = [("nutrients", n), ("health", 1), ("age", 1), ("body", 1), ("bowel", 1),
+                 ("satiation", t), ("food_here", t), ("food_grad", d * t), ("stink_here", 1),
+                 ("stink_grad", d), ("neighbors", 1), ("inventory", t), ("piety", 1), ("smite", 1),
+                 ("secret", 1 + d), ("shrine", d + 1), ("moved", 1), ("memory", m), ("bias", 1)]
+        if c.food_scent:
+            parts += [("scent_here", t), ("scent_grad", d * t)]
+        out, at = {}, 0
+        for name, size in parts:
+            out[name] = slice(at, at + size)
+            at += size
+        assert at == self.n_inputs, (at, self.n_inputs)
+        return out
+
     # ================================ the reference's single-NPC helpers (tests)
     def sense(self, npc, index=None) -> np.ndarray:
         """One NPC's senses (`index` is ignored; kept for the reference's signature)."""

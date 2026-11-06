@@ -34,7 +34,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from sim import Config, Simulation  # noqa: E402
 from sim.simulation import STRUCTURAL, Batch  # noqa: E402
 from sim.config import parse_overrides as config_overrides  # noqa: E402
-from sim.controllers import ScriptedController  # noqa: E402
+from sim.controllers import ScriptedController, SenseController  # noqa: E402
 from sim.nursery import load_brain_pool, seed_brains  # noqa: E402
 from sim.stats import CAUSES  # noqa: E402
 from sim.world import wrapped_delta  # noqa: E402
@@ -50,7 +50,7 @@ BUCKETS = [("g0", 0, 0), ("g1-2", 1, 2), ("g3-5", 3, 5), ("g6-10", 6, 10), ("g11
 MIN_BUCKET_LIFETIME = 500     # NPC-ticks; below this a bucket's rate is too noisy to report
 NUTRIENT_WINDOW = 0.75        # mean lowest nutrient is measured after this fraction of the run
 DISTANCE_EVERY = 100          # ticks; "how far from where it was this long ago" (M2)
-CONTROLLERS = ("brain", "scripted")
+CONTROLLERS = ("brain", "scripted", "sense")
 SHOWN_CAUSES = [("smite", "smite"), ("nutrient_starve", "nutr"), ("body_starve", "body"),
                 ("stink", "stink"), ("elder", "elder")]
 
@@ -121,7 +121,8 @@ class Run:
         self.sim = Simulation(Config(**{**RESEARCH_DEFAULTS, **overrides, "seed": seed}), log_every=log_every)
         if brains_from:
             seed_brains(self.sim, load_brain_pool(brains_from))
-        self.scripted = ScriptedController() if controller == "scripted" else None
+        hand_written = {"scripted": ScriptedController, "sense": SenseController}
+        self.scripted = hand_written[controller]() if controller in hand_written else None
         self.nutrient_from = int(ticks * NUTRIENT_WINDOW)
         self.late_start = int(ticks * late_from)
         self.min_nutrients: list[float] = []
