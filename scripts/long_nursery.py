@@ -32,7 +32,8 @@ from sim.snapshot import save_snapshot  # noqa: E402
 from ladder import MIN_DIET, MIN_NUTRIENT, MIN_TYPES, NURSERY_RULES, NURSERY_SEEDS, WORLD_SETS, world  # noqa: E402
 from sweep import run_batch  # noqa: E402
 
-ARMS = {"base": (16, {}), "both32": (32, {"craving_sense": True, "mate_sense": True})}
+ARMS = {"base": (16, {}), "both32": (32, {"craving_sense": True, "mate_sense": True}),
+        "both64": (64, {"craving_sense": True, "mate_sense": True})}   # 5zorro: "the 64 ... brain"
 CHECKPOINTS = (50_000, 100_000, 200_000, 350_000, 500_000, 700_000)
 
 
