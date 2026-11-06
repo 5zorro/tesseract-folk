@@ -123,8 +123,10 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
    has `/dev/dxg` (GPU paravirtualization) but no `/dev/kfd`; whether ROCm on
    WSL supports this RDNA2 card is unverified (check AMD's ROCm-on-WSL
    compatibility list before planning on it). Windows-native options don't
-   depend on that. Plan: `docs/plan-gpu-backend.md` (written 2026-11-05;
-   decisions D1-D6 open, G1 waits on D1-D3).
+   depend on that. Plan: `docs/plan-gpu-backend.md`. **2026-11-05: G0 and G1
+   built** (new tick rules + keyed randomness, one re-baseline); the M2 ladder
+   re-check of G1 is the open step (plan, G1). Talk to 5zorro before PyTorch
+   (D4) or anything C++.
 2. Known gaps carried from M1: body starvation is ~35% of collapses; births
    still trail top-ups in 2D (M3's job).
 3. Other levers: a harsher scarcity nursery (half food gave a mild win); **seasons** as a config schedule (famine winters, mostly for
@@ -176,6 +178,6 @@ In WSL, make a separate venv (`.venv/bin/python`); see `gotchas.md`.
 - Mass is conserved; new mechanics move matter between pools.
 - Stay N-dimensional; test new features at dims=4.
 - No ML frameworks; never script or reward the emergent behaviors.
-- All randomness through `sim.rng`.
+- All randomness keyed through `sim/keyed.py`; nothing depends on `sim.npcs` order.
 - 5zorro pushes. Agents may commit locally, with no Co-Authored-By or AI attribution
   lines (a local commit-msg hook in `.git/hooks`, not tracked, rejects them for any AI tool).

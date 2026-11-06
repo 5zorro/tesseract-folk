@@ -43,8 +43,11 @@ for the full design and `docs/ROADMAP.md` for milestones.
 5. **Tunables go in `sim/config.py`,** not as magic numbers.
 6. **Don't script the emergent behaviors.** Don't add fitness rewards for
    trading, sharing, etc. The point is to see whether they emerge.
-7. **Determinism:** all randomness goes through `sim.rng` so snapshots resume
-   identically. A speed change must leave `scripts/fingerprint.py`'s hashes unchanged.
+7. **Determinism:** every draw after the world is built is keyed on (seed, tick,
+   id, purpose) through `sim/keyed.py`, never a shared stream, and no result may
+   depend on the order of `sim.npcs` (`tests/test_tick_rules.py`). A speed change
+   must leave `scripts/fingerprint.py`'s hashes unchanged, except a re-baseline
+   5zorro approved, recorded in the plan with the old and new hashes.
 8. **Safety:** `sim/` has no outside I/O (no network, processes, pickle, eval);
    `tests/test_safety.py` enforces it. Integrations (e.g. the AI-model pawn) live
    outside `sim/`. Read `docs/SAFETY.md` before adding I/O, an AI-model

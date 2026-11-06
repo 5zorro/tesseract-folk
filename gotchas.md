@@ -153,6 +153,16 @@ Traps that already bit us, by area. Add to this when something surprises you.
   scent difference relative to its sum, so even a faint smell points the right
   way (92-100% in 2D-4D, `scripts/probe_scent.py`). Don't "fix" reach unless
   senses get noise or a threshold.
-- **Speed refactors must keep the draw order.** One extra or missing rng draw
-  shifts every later number. Run `scripts/fingerprint.py` before and after;
-  the hashes must match.
+- **Speed refactors must keep the hashes.** Run `scripts/fingerprint.py` before
+  and after; they must match. Since G1 (2026-11-05) draws are keyed, so an
+  extra draw no longer shifts the others, but a changed key does (a different
+  id, tick or purpose). New purposes go at the end of `sim/keyed.py`'s list;
+  never renumber one.
+- **Nothing may depend on the order of `sim.npcs`.** Arrays (G2 of the GPU
+  plan) won't keep it. Choices among neighbors sort by id; every phase of a
+  tick goes in the keyed priority order. `tests/test_tick_rules.py` reverses
+  the list every tick and expects the same run.
+- **Snapshots from before G1 (format < 4) don't resume** (other tick rules);
+  `--brains-from` still takes their brains. Old nursery folders under
+  `snapshots/` are pre-G1: retrain into a new `--out` (ladder.py refuses to
+  reuse them).

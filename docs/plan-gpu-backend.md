@@ -113,7 +113,16 @@ Not built here; it gets its own plan, since it changes behavior (re-measure).
   `python scripts/ladder.py --worlds time --hidden 8 --nursery-seeds 100 101 102 103 104 105
   [--set two_eat_actions=true] --out snapshots/ladder-g1[-twoeat] --csv runs/2026-11-05-g1[-twoeat].csv`,
   then `scripts/compare_runs.py` per dims.
-- **G1. New tick rules + keyed randomness, still per-NPC Python code.** The
+- **G1. New tick rules + keyed randomness, still per-NPC Python code. Built
+  2026-11-05 (54c162c); the M2 re-check is running.** New fingerprints:
+  2D `2ab287e453c4e17f` (2.6 s), 3D `ce0acf01d4e46e2f` (2.5 s), 4D
+  `c5f8ec78c59fc41b` (3.1 s), old ones under "What we know". Also done:
+  choices among neighbors (gift takers, mates) and top-up candidates are
+  sorted by id, so results don't depend on `sim.npcs` order (tested by
+  reversing it every tick); the fingerprint hashes the tick instead of the old
+  rng state; `scripts/ladder.py` refuses pre-G1 nursery folders. Re-check runs:
+  `runs/2026-11-05-g1-twoeat.csv` and `runs/2026-11-05-g1.csv` (nurseries in
+  `snapshots/ladder-g1-twoeat`, `snapshots/ladder-g1`). The
   one planned re-baseline: record old and new hashes here. Write
   `sim/keyed.py` (hash -> uniforms, normals) and route all 25 draws through
   it. Snapshots: brains load as before (nursery seeding works); resuming a
