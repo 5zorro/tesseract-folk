@@ -117,6 +117,12 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
      sense (needed food's scent gradient per axis). Crossover top-ups built
      (`topup_crossover`, off): no consistent effect. Nurseries end with 28-30 of
      30 NPCs being top-ups: selection there is already the hall of fame.
+   - **Craving sense (`craving_sense`, built, off):** no fix for 4D at any width,
+     even linear. 2D/3D pass everywhere. **R9:** 4D is 10x sparser for mates
+     (someone within reach 3% vs 17% in 2D), but most mate attempts come from
+     NPCs too young/thin/unwell to mate; births are rare in every dimension.
+     **Next:** a hand-built craving-following brain through the normal action
+     draw: does a working 4D brain exist?
    - **4D Miner targets (5zorro, 2026-11-04):** land walkers on 3D surfaces, 4D fish
      and birds in full 4D. Both 3D and 4D must pass.
    - Speed: ticks 27-39% faster (bit-identical); `scripts/fingerprint.py` checks

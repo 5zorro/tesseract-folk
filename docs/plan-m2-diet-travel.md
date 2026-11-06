@@ -934,6 +934,41 @@ lowest nutrient, eats when it's on that food, and poops when full.
   needs most, one number per axis (d inputs). Perception, not a scripted
   behavior (rule 6): the brain still decides whether to follow it.
 
+- **Craving sense (built, `craving_sense`, off; 5zorro: "probably good").**
+  Fixed nursery, `--set craving_sense=true`, worlds matched on travel time.
+  `runs/ladder-crave*.csv`; 2D's no-craving baseline is `runs/ladder-width-2d.csv`.
+
+  | Dims | Hidden | Collapses, no craving | Collapses, craving | Food types, no craving | Food types, craving | Goals with craving |
+  |---|---|---|---|---|---|---|
+  | 2 | 0 | 0.88 | 0.93 | 2.97 | 2.96 | all 5 |
+  | 2 | 4 | 0.75 | 0.50 | 2.97 | 2.96 | all 5 |
+  | 2 | 16 | 0.45 | 0.61 | 2.96 | 2.94 | all 5 |
+  | 3 | 0 | 0.71 | 0.90 | 2.77 | 2.66 | all 5 |
+  | 3 | 4 | 0.37 | 0.75 | 2.83 | 2.79 | all 5 |
+  | 3 | 16 | 0.68 | 0.59 | 2.83 | 2.79 | all 5 |
+  | 3 | 32 | 0.94 | 0.64 | 2.76 | 2.68 | all 5 |
+  | 4 | 0 | 2.50 | 2.67 | 1.89 | 1.86 | 2 of 5 |
+  | 4 | 4 | 2.11 | 2.80 | 1.98 | 1.75 | 2 of 5 |
+  | 4 | 16 | 2.50 | 2.80 | 1.96 | 1.53 | 2 of 5 |
+  | 4 | 32 | 3.44 | 2.68 | 1.43 | 1.83 | 2 of 5 |
+
+  - 2D and 3D pass at every width with or without it; 4D fails at every width
+    with or without it. The craving sense doesn't fix 4D, even for linear brains,
+    for which "follow the craving input" is now a straight-line rule.
+  - The one hint of 5zorro's "brains may need to scale with inputs": at 32 units
+    craving helps (3D 0.94 -> 0.64, 4D 3.44 -> 2.68, 4D food types 1.43 -> 1.83);
+    at 4 it hurts. Within noise of the other rows, so not a finding yet.
+  - So 4D's gap isn't information or the shape of the computation. Left: the
+    action draw (outputs are sampled at temperature 0.5 over 14 actions in 4D,
+    so a right brain still mis-steps) or the search (R3: selection is mostly
+    luck). **Next diagnostic:** hand-build a linear brain that follows the
+    craving and eats on food, and run it through the normal action draw. If it
+    passes 4D, the brain exists and evolution misses it; if not, it's the draw.
+- **Movement is axis steps only** (5zorro asked): `move+k` / `move-k` per axis,
+  2 x dims moves, no diagonals; distances are wrapped axis steps. Diagonals would
+  mean 3^dims - 1 moves (80 in 4D), or a multi-axis step per tick from the same
+  2 x dims outputs. Held until the diagnostic above.
+
 ### Slice R9: Finding a mate per dimension (2026-11-06)
 5zorro: "there is probably a lot of distance between every 4D creature and
 other creatures... is there a different measure for mating? ... a lot more
