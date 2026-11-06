@@ -486,8 +486,9 @@ class ReferenceSimulation:
         cfg, w = self.cfg, self.world
 
         moved_mass = cfg.metabolism_rate * npc.body
-        npc.body -= moved_mass
+        before = npc.bowel
         npc.bowel += moved_mass
+        npc.body -= npc.bowel - before         # exact transfer: what the bowel gained
         if npc.bowel >= cfg.bowel_capacity:
             w.poop[npc.pos] += npc.bowel
             npc.bowel = 0.0
@@ -686,7 +687,8 @@ class ReferenceSimulation:
         brains seen so far. Mass comes out of the soil, so it's still conserved."""
         cfg = self.cfg
         while len(self.npcs) < cfg.min_population:
-            if not self.world.take_from_soil(cfg.npc_start_mass):
+            body = self.world.take_from_soil(cfg.npc_start_mass)
+            if not body:
                 break
             track = cfg.hall_of_fame_track_record
             population = self.population_collapse_rate() if track else -1.0
@@ -705,7 +707,7 @@ class ReferenceSimulation:
                 origin, gen = "copy", gen + 1
             else:
                 brain, gen = self._random_brain(draw), 0
-            npc = self._spawn(brain, self.world.random_cell(draw), cfg.npc_start_mass, gen)
+            npc = self._spawn(brain, self.world.random_cell(draw), body, gen)
             npc.origin, npc.mutations, npc.parent_rate = origin, mutations, parent_rate
             npc.lineage, npc.source = lineage, source
             self.stats.count("spawns")

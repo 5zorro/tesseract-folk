@@ -158,6 +158,13 @@ Traps that already bit us, by area. Add to this when something surprises you.
   extra draw no longer shifts the others, but a changed key does (a different
   id, tick or purpose). New purposes go at the end of `sim/keyed.py`'s list;
   never renumber one.
+- **Sweeps and the ladder run in float32; `Config()` is float64** (2026-11-06,
+  `RESEARCH_DEFAULTS` in `scripts/sweep.py`). A run started by hand with
+  `Simulation(Config())`, the tests and the reference engine are float64, so
+  they won't match a sweep's numbers bit for bit; `--set precision=float64`
+  makes a sweep match. Old nursery folders (float64) aren't reused by the
+  ladder now; retrain into a new `--out`. Mass in float32 is good to ~1e-6
+  (tests use `rel=1e-5`), not 1e-13.
 - **A world's arrays are views into its batch (G3).** Write them in place
   (`sim.world.food[...] = x`), never rebind (`sim.world.food = x` detaches
   the world from the engine), then call `sim.world_changed()`. Stepping any

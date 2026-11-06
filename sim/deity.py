@@ -48,7 +48,9 @@ class Deity:
             pos = world.random_cell(rng)
             amount = min(cfg.secret_amount, float(world.soil[pos]))
             if amount > 0:
+                before = float(world.soil[pos])
                 world.soil[pos] -= amount
+                amount = before - float(world.soil[pos])     # exactly what left the soil
                 food_type = int(rng.integers(0, cfg.n_food_types))
                 self.secrets[self.next_id] = Secret(
                     self.next_id, pos, food_type, amount, tick, tick + cfg.secret_lifetime

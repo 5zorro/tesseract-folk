@@ -371,7 +371,8 @@ class Simulation:
         brains seen so far. Mass comes out of the soil, so it's still conserved."""
         cfg, P = self.cfg, self.pop
         while P.count(self.index) < cfg.min_population:
-            if not self.world.take_from_soil(cfg.npc_start_mass):
+            body = self.world.take_from_soil(cfg.npc_start_mass)
+            if not body:
                 break
             track = cfg.hall_of_fame_track_record
             population = self.population_collapse_rate() if track else -1.0
@@ -405,7 +406,7 @@ class Simulation:
                 origin, gen = "copy", gen + 1
             else:
                 brain, gen = self._random_brain(draw), 0
-            npc = self._spawn(brain, self.world.random_cell(draw), cfg.npc_start_mass, gen)
+            npc = self._spawn(brain, self.world.random_cell(draw), body, gen)
             npc.origin, npc.mutations, npc.parent_rate = origin, mutations, parent_rate
             npc.lineage, npc.source = lineage, source
             self.stats.count("spawns")
@@ -577,13 +578,16 @@ class Batch:
         total = growth.sum(axis=1)
         scale = np.minimum(1.0, soil / np.maximum(total, 1e-12))
         growth *= scale[:, None]
+        # Exact transfers, as in World.step: the giver loses what the receiver gained.
+        before = food.copy()
         food += growth
-        soil -= growth.sum(axis=1)
+        soil -= (food - before).sum(axis=1)
 
         # Poop slowly becomes soil again (fertilizer) and emits stink.
         decomposed = poop * sp("poop_decompose_rate")
-        poop -= decomposed
+        before = soil.copy()
         soil += decomposed
+        poop -= soil - before
         stink += poop * sp("stink_emission")
 
         # Stink spreads to neighbors and fades.
@@ -1078,8 +1082,9 @@ class Batch:
         p = lambda name: self._p(name, wn)          # noqa: E731
         g = wn * C + self._flat(P.pos[s])
         moved_mass = p("metabolism_rate") * P.body[s]
-        P.body[s] -= moved_mass
-        P.bowel[s] += moved_mass
+        before = P.bowel[s]
+        P.bowel[s] = before + moved_mass
+        P.body[s] -= P.bowel[s] - before       # exact transfer: what the bowel gained
         accident = P.bowel[s] >= p("bowel_capacity")
         if accident.any():
             a = s[accident]

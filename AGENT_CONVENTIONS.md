@@ -34,7 +34,10 @@ for the full design and `docs/ROADMAP.md` for milestones.
 1. **Mass conservation is an invariant.** Soil + food + poop + secret caches +
    NPC body/bowel/inventory must stay constant. Any new mechanic that moves
    matter must move it between these pools, never create or delete it. The
-   tests check this; keep them passing.
+   tests check this; keep them passing. Where a small amount moves into a big
+   pool, make it an exact transfer: add to the receiver, then take from the
+   giver what the receiver actually gained (rounding can swallow the step;
+   in float32 that leaked ~2e-4 of all mass per 100,000 ticks).
 2. **Stay N-dimensional.** Never hard-code 2D. Use `cfg.dims`, `world.neighbor`,
    `world.adjacent`, `wrapped_delta`. New features should be tested at dims=4.
 3. **No ML frameworks.** Brains are plain NumPy arrays with a simple forward

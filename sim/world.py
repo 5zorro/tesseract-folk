@@ -131,13 +131,17 @@ class World:
         total = growth.sum(axis=0)
         scale = np.minimum(1.0, self.soil / np.maximum(total, 1e-12))
         growth *= scale[None]
+        # Exact transfers: the giver loses what the receiver actually gained after
+        # rounding (a small step into a big pool can round away; docs/plan-gpu-backend.md).
+        before = self.food.copy()
         self.food += growth
-        self.soil -= growth.sum(axis=0)
+        self.soil -= (self.food - before).sum(axis=0)
 
         # Poop slowly becomes soil again (fertilizer) and emits stink.
         decomposed = self.poop * cfg.poop_decompose_rate
-        self.poop -= decomposed
+        before = self.soil.copy()
         self.soil += decomposed
+        self.poop -= self.soil - before
         self.stink += self.poop * cfg.stink_emission
 
         # Stink spreads to neighbors and fades.
@@ -235,10 +239,13 @@ class World:
     def mass(self) -> float:
         return float(self.soil.sum() + self.food.sum() + self.poop.sum())
 
-    def take_from_soil(self, amount: float) -> bool:
-        """Pull mass evenly out of the soil (used to spawn new NPCs)."""
+    def take_from_soil(self, amount: float) -> float:
+        """Pull about `amount` evenly out of the soil (used to spawn new NPCs).
+        Returns exactly what left the soil (0.0 if there isn't enough), so the
+        newcomer's body can be that much."""
         total = self.soil.sum()
         if total < amount:
-            return False
+            return 0.0
+        before = self.soil.copy()
         self.soil -= amount * self.soil / total
-        return True
+        return float((before - self.soil).sum(dtype=np.float64))

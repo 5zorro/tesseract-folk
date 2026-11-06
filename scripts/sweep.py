@@ -8,6 +8,7 @@ from here. Examples:
     python scripts/sweep.py --set dims=4 --set size=10 --ticks 2000
     python scripts/sweep.py --variant smiting=true,smite_damage=0.1 --csv runs/smite.csv
 
+Runs use float32 (RESEARCH_DEFAULTS; `--set precision=float64` for the old width).
 Each --variant is a comma-separated list of Config overrides, compared against
 a baseline that has only the --set overrides. The pseudo-key
 controller=scripted runs every NPC, including newborns and top-ups, on
@@ -37,6 +38,11 @@ from sim.controllers import ScriptedController  # noqa: E402
 from sim.nursery import load_brain_pool, seed_brains  # noqa: E402
 from sim.stats import CAUSES  # noqa: E402
 from sim.world import wrapped_delta  # noqa: E402
+
+# Settings research runs use unless overridden (both here and in ladder.py):
+# float32, since it ran the M2 ladder to the same verdicts 1.5x faster in 4D
+# (docs/plan-gpu-backend.md, D2). `--set precision=float64` for the old width.
+RESEARCH_DEFAULTS = {"precision": "float32"}
 
 # Generation buckets for collapse rates: (label, first generation, last generation).
 BUCKETS = [("g0", 0, 0), ("g1-2", 1, 2), ("g3-5", 3, 5), ("g6-10", 6, 10), ("g11+", 11, 10**9)]
@@ -111,7 +117,7 @@ class Run:
         controller = overrides.pop("controller", "brain")
         brains_from = overrides.pop("brains_from", None)
         self.seed, self.ticks, self.log_every = seed, ticks, log_every
-        self.sim = Simulation(Config(**{**overrides, "seed": seed}), log_every=log_every)
+        self.sim = Simulation(Config(**{**RESEARCH_DEFAULTS, **overrides, "seed": seed}), log_every=log_every)
         if brains_from:
             seed_brains(self.sim, load_brain_pool(brains_from))
         self.scripted = ScriptedController() if controller == "scripted" else None
@@ -214,7 +220,8 @@ def run_one(overrides: dict, seed: int, ticks: int, late_from: float, log_every:
 def batch_key(job: tuple) -> tuple:
     """Jobs with equal keys can share a batch."""
     overrides, _, ticks, late_from, log_every = job
-    cfg = Config(**{k: v for k, v in overrides.items() if k not in ("controller", "brains_from")})
+    cfg = Config(**{**RESEARCH_DEFAULTS,
+                    **{k: v for k, v in overrides.items() if k not in ("controller", "brains_from")}})
     return tuple(getattr(cfg, k) for k in STRUCTURAL) + (ticks, late_from, log_every)
 
 

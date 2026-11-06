@@ -38,11 +38,14 @@ def fingerprint(sim: Simulation) -> str:
 
 
 def main() -> None:
-    for dims, kw in WORLDS.items():
-        sim = Simulation(Config(dims=dims, hidden_units=8, seed=7, **kw), log_every=100)
-        start = time.perf_counter()
-        sim.run(TICKS)
-        print(f"{dims}D  npcs {len(sim.npcs):3d}  {fingerprint(sim)}  {time.perf_counter() - start:.1f}s")
+    for precision in ("float64", "float32"):      # the engine's default, then the sweeps' default
+        for dims, kw in WORLDS.items():
+            sim = Simulation(Config(dims=dims, hidden_units=8, seed=7, precision=precision, **kw),
+                             log_every=100)
+            start = time.perf_counter()
+            sim.run(TICKS)
+            print(f"{dims}D {precision}  npcs {len(sim.npcs):3d}  {fingerprint(sim)}  "
+                  f"{time.perf_counter() - start:.1f}s")
 
 
 if __name__ == "__main__":

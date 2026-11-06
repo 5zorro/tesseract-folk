@@ -133,8 +133,12 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
    **float32 measured** (`Config.precision`, default float64): 4D sweeps 1.5x
    faster, M2 verdicts unchanged in all 6 rows, mass drifts ~2e-4 per 100k
    ticks; a "move what the receiver gained" fix cuts the map leak ~10,000x
-   (scratch-tested, not applied: it re-baselines float64). Open for 5zorro: apply
-   that fix, float32 default or not, then G4 (D4: PyTorch or not). Post-G1 nurseries:
+   (scratch-tested). **2026-11-06, 5zorro said yes to both:** exact transfers in both
+   engines (new fingerprints in the plan), float32 the default for sweeps and
+   the ladder (`Config()` stays float64); M2 verdicts unchanged in all 6 rows;
+   float32 drift ~5e-5 per 100k ticks, almost all the soil's float32 sum (the
+   mod would need integer mass for exactness). Post-change nurseries:
+   `snapshots/ladder-exact{,-twoeat}`. Next: G4, starting with the D4 talk. Post-G1 nurseries:
    `snapshots/ladder-g1`, `snapshots/ladder-g1-twoeat` (older folders are pre-G1). Talk to 5zorro before PyTorch
    (D4) or anything C++.
 2. Known gaps carried from M1: body starvation is ~35% of collapses; births

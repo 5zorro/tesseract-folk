@@ -36,7 +36,7 @@ from sim import Config, Simulation  # noqa: E402
 from sim.config import parse_overrides  # noqa: E402
 from sim.snapshot import FORMAT, LEGACY, save_snapshot  # noqa: E402
 from sim.simulation import Batch  # noqa: E402
-from sweep import plan_batches, run_batch  # noqa: E402
+from sweep import RESEARCH_DEFAULTS, plan_batches, run_batch  # noqa: E402
 
 # dims -> (size, food_patch_radius), per way of matching worlds across dimensions:
 # "coverage" (slice 3d): ~1,000 cells, 45% bite coverage per food type.
@@ -60,8 +60,8 @@ MIN_NUTRIENT, MIN_DIET, MIN_TYPES = 0.4, 0.9, 2.5
 # since worker processes re-import this module and wouldn't see the chosen set.
 def world(shape: tuple) -> dict:
     dims, size, radius, hidden, rules = shape
-    return {"dims": dims, "size": size, "food_patch_radius": radius, "hidden_units": hidden,
-            **dict(rules)}
+    return {**RESEARCH_DEFAULTS, "dims": dims, "size": size, "food_patch_radius": radius,
+            "hidden_units": hidden, **dict(rules)}
 
 
 def rules_text(rules: tuple) -> str:

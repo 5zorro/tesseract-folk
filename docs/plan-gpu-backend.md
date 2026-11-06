@@ -1,6 +1,8 @@
 # Plan: CPU/GPU-agnostic simulation
 
-Status (2026-11-05): **G0-G3 done.** G1 passes its M2 re-check; G2's array
+Status (2026-11-06): **G0-G3 done; float32 is the research default** (with
+exact transfers; same M2 verdicts). Next: G4, after the D4 talk.
+Earlier status (2026-11-05): **G0-G3 done.** G1 passes its M2 re-check; G2's array
 engine matches the reference bit for bit; G3 batches worlds (also bit for
 bit). 2D sweeps are 2.5x faster and meet the 5-minute goal; 4D sweeps aren't
 faster yet, because 4D maps now limit them through memory bandwidth (G3
@@ -302,6 +304,41 @@ A batch can't mix them (`STRUCTURAL`). Tests: `tests/test_precision.py`.
 - **So for research runs, float32 looks safe for behavior**, and the remaining
   question is mass bookkeeping (the transfer fix) and whether to make it the
   default (5zorro).
+
+### Applied 2026-11-06 (5zorro: "Yes, both")
+- **Exact transfers, both engines, both precisions:** food growth out of the
+  soil, poop -> soil, digestion (body -> bowel), new secrets and top-up NPCs
+  out of the soil (`World.take_from_soil` now returns what it removed; the
+  newcomer's body is that). The second planned re-baseline. Fingerprints,
+  float64: 2D `2ab287e453c4e17f` -> `277074ed77bc4e97`, 3D `ce0acf01d4e46e2f`
+  -> `2b31b06269db5ebd`, 4D `c5f8ec78c59fc41b` -> `996422ed88b12562`; float32
+  (new line in `scripts/fingerprint.py`): 2D `f50dff43ea5efde0`, 3D
+  `cd20cfb81a81bca9`, 4D `17e8299a93b51ef8`.
+- **float32 is the research default** (`RESEARCH_DEFAULTS` in `scripts/sweep.py`,
+  used by `ladder.py`); `Config()` stays float64 (tests, reference engine,
+  snapshots; `LEGACY` loads old snapshots as float64).
+- **Drift after the fix**, 100,000 ticks (before -> after):
+  | | float64 | float32 |
+  |---|---|---|
+  | 2D | 2.3e-13 -> 3.7e-15 | -2.4e-4 -> +4.5e-5 |
+  | 4D | 3.3e-13 -> 5.5e-14 | -1.4e-4 -> +7.2e-5 |
+  float32 improves 2-5x over a long run, not 10,000x: the fix removed the
+  rounding-away at the receiver, and what's left grows, so a per-phase ledger
+  was run (float32, 2D, 20,000 ticks, float64 sums around each phase): the
+  world step's growth transfer makes +5.2e-6 of the +5.3e-6 total;
+  decomposition -9e-9, eating +1e-7, metabolism and the rest below 1e-8. So
+  it's the soil's subtraction of three food types' gains, summed and
+  subtracted in float32; no cell goes negative. Fixing NPC transfers wouldn't
+  help. **For the C++ mod:** exact conservation at any width means integer
+  mass units (fixed point), not float bookkeeping; float32 with exact
+  transfers drifts ~5e-5 per 100,000 ticks.
+- **M2 re-check (float32 + exact transfers): same verdicts in all 6 rows.**
+  `runs/2026-11-06-exact{,-twoeat}.csv`, nurseries `snapshots/ladder-exact{,-twoeat}`.
+  Collapses, float64 (G1) / float32 / float32 + exact: 2D one eat 0.74 /
+  0.86 / 0.85, two eat 1.06 / 1.14 / 0.92; 3D one eat 0.85 / 1.00 / 0.88,
+  two eat 0.76 / 0.84 / 0.77; 4D one eat 6.86 / 6.45 / 6.87, two eat 2.53 /
+  2.49 / 2.41. Food types per life within 0.1 everywhere (3D one eat 2.32 /
+  2.18 / 2.24, still short of 2.5). Births swing as before.
 
 ## Decisions (5zorro)
 Settled 2026-11-05 ("I fully agree with the approach"): D1, D3, D5, D6 as
