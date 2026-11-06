@@ -10,6 +10,9 @@ per child (the default); a hall-of-fame track record (off) helps 2D a lot.
 cut 4D collapses 58%; 4D still fails. Next: decide defaults (two eat, track
 record), then meal scent with two eat, then 4a.** Slices are ordered; each one ends with tests passing and a commit.
 Open decisions (bottom) are 5zorro's.
+**Since the GPU plan's G1 (2026-11-05)** the tick rules changed; the re-check
+(`docs/plan-gpu-backend.md`, G1) gives the same verdicts within seed noise.
+New M2 runs must use post-G1 nurseries.
 
 **For a new session:** read `handoff.md`, `gotchas.md` and this file. M1's plan
 (`docs/plan-m1-survival.md`) holds the nursery recipe and every rule change so far.

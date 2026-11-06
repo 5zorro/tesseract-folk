@@ -1,6 +1,6 @@
 # Plan: CPU/GPU-agnostic simulation
 
-Status (2026-11-05): **G0 done, G1 in progress.** 5zorro agreed with the
+Status (2026-11-05): **G0 and G1 done (G1 passes its M2 re-check); G2 next.** 5zorro agreed with the
 approach (2026-11-05): D1-D3, D5, D6 as recommended. D4 (PyTorch) and anything
 about the C++ port get discussed with 5zorro before they're touched; neither is
 needed before G4. Stages are ordered;
@@ -114,7 +114,7 @@ Not built here; it gets its own plan, since it changes behavior (re-measure).
   [--set two_eat_actions=true] --out snapshots/ladder-g1[-twoeat] --csv runs/2026-11-05-g1[-twoeat].csv`,
   then `scripts/compare_runs.py` per dims.
 - **G1. New tick rules + keyed randomness, still per-NPC Python code. Built
-  2026-11-05 (54c162c); the M2 re-check is running.** New fingerprints:
+  2026-11-05 (54c162c); passes the M2 re-check (below).** New fingerprints:
   2D `2ab287e453c4e17f` (2.6 s), 3D `ce0acf01d4e46e2f` (2.5 s), 4D
   `c5f8ec78c59fc41b` (3.1 s), old ones under "What we know". Also done:
   choices among neighbors (gift takers, mates) and top-up candidates are
@@ -150,6 +150,27 @@ Not built here; it gets its own plan, since it changes behavior (re-measure).
   libraries disagree on (scatter-add, segment sums, sort-by-key) live in one
   small `sim/ops.py`. The backend is imported and chosen in `scripts/`, never
   in `sim/` (their drivers and kernel caches write to disk; D6).
+
+### G1's M2 re-check (2026-11-05): same verdicts, within seed noise
+Same command as G0, nurseries retrained under the new rules (so pairs by
+nursery seed are different brains; compare means). `scripts/compare_runs.py`,
+means over 6 nurseries x 5 seeds, +- standard error:
+| | Collapses before -> after | Food types / life | Lowest nutrient | Births | Goals |
+|---|---|---|---|---|---|
+| 2D one eat | 0.95 ± 0.06 -> 0.74 ± 0.10 | 2.83 -> 2.87 | 0.47 -> 0.51 | 45 -> 90 | all -> all |
+| 2D two eat | 1.02 ± 0.07 -> 1.06 ± 0.05 | 2.94 -> 2.88 | 0.45 -> 0.45 | 185 -> 121 | all -> all |
+| 3D one eat | 0.75 ± 0.10 -> 0.85 ± 0.11 | 2.36 -> 2.32 | 0.47 -> 0.45 | 32 -> 9 | not food types (both) |
+| 3D two eat | 0.82 ± 0.11 -> 0.76 ± 0.07 | 2.69 -> 2.68 | 0.41 -> 0.42 | 76 -> 112 | all -> all |
+| 4D one eat | 6.32 ± 0.40 -> 6.86 ± 0.37 | 0.69 -> 0.67 | 0.34 -> 0.35 | 0 -> 0 | fails 3 (both) |
+| 4D two eat | 2.63 ± 0.08 -> 2.53 ± 0.17 | 1.72 -> 1.81 | 0.31 -> 0.31 | 2 -> 2 | fails 3 (both) |
+- **Every goal verdict is unchanged**, and the gaps are within about 2
+  standard errors with no consistent direction (collapses go down in 3 rows,
+  up in 3). So one-at-a-time order wasn't driving M2's results.
+- **Births swing most** (2D one eat 45 -> 90, 2D two eat 185 -> 121, 3D one eat
+  32 -> 9), up in some rows and down in others. Births are few and lumpy per
+  run, so this reads as noise, but they're the number to watch if a later
+  stage seems to change behavior.
+- Files: `runs/2026-11-05-g1{,-twoeat}.csv`, logs `runs/g1{,-twoeat}.log`.
 
 ## Guards and risks
 - **Backends won't agree bit for bit.** Summation order and math libraries

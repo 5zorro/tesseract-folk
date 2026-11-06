@@ -124,8 +124,9 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
    WSL supports this RDNA2 card is unverified (check AMD's ROCm-on-WSL
    compatibility list before planning on it). Windows-native options don't
    depend on that. Plan: `docs/plan-gpu-backend.md`. **2026-11-05: G0 and G1
-   built** (new tick rules + keyed randomness, one re-baseline); the M2 ladder
-   re-check of G1 is the open step (plan, G1). Talk to 5zorro before PyTorch
+   done** (new tick rules + keyed randomness, one re-baseline; the M2 re-check
+   gives the same verdicts within seed noise). Next: G2. Post-G1 nurseries:
+   `snapshots/ladder-g1`, `snapshots/ladder-g1-twoeat` (older folders are pre-G1). Talk to 5zorro before PyTorch
    (D4) or anything C++.
 2. Known gaps carried from M1: body starvation is ~35% of collapses; births
    still trail top-ups in 2D (M3's job).
