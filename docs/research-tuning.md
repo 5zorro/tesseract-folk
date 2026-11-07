@@ -161,6 +161,10 @@ gitignored). The plan tables are the record; to check one, rerun its script.
 | Populations are bistable (Allee effect): 3D worlds at 0.85x either boom to the 250 cap or stay at the 30 floor, none in between | hint (10 worlds) | plan-m2 R12; follows from mate reach ~ N |
 | Hunger isn't 4D's M2 lever: food types 1.96 at 1x, 2.11 at 0.36x (goal 2.5) | finding | plan-m2 R12 |
 | Diagonal (king) steps cut the food-to-food walk 1.4x / 1.75x / 1.9x in 2D / 3D / 4D (theory for an open grid: 2d/3) | finding (random walker) | plan-m2 R12; `probe_random_walk.py --diagonal` |
+| The kids rules (birth weight + child credit) raise births only where births are possible: 2D 12x at 1.25x hunger, 4D 5x at 0.25x; the finish line moves at most one step | hint (2 seeds) | plan-m2 R11 |
+| At 0.25x hunger 4D lives are nearly collapse-free (~0.01 per 1,000 ticks) and, with the kids rules, births are most of the replacements (9-12 vs 4-7 top-ups) | finding (scratch brains, 2 seeds) | plan-m2 R11 |
+| Stink only matters in crowded 2D: 17-53% of 2D collapses (65-69% for NPCs that never move), 0-2% in 3D/4D | finding (no law yet: candidate reach ~ sqrt(diffusion / decay) ~ 2.4 cells, mean stink ~ NPCs per cell x poop rate / decay; unmeasured) | plan-m2 R12 sanity logs; `runs/hunger-sanity-*.log` |
+| Ideal or equilibrium population density | open: no law. Seen: at 0.25x hunger 2D grows to ~0.19 NPCs/cell, 3D hits the 250 cap, 4D stays at the 30 floor (0.003/cell); population x hunger isn't constant | plan-m2 R11, R12 |
 | Collapses rise linearly with hunger past the fertile range: ~3.4 per 1x in 2D/3D, ~4.6 in 4D | hint | plan-m2 R11 |
 | In 4D, body starvation's share of collapses rises with hunger (19% at 1x, 80% at 6x); 2D/3D stay nutrient starvation | finding | plan-m2 R11 |
 | Gives fall ~30x from 0.25x to 1x hunger in 2D; worship ~0 everywhere | finding | plan-m2 R11 |

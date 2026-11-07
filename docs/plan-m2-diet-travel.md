@@ -1281,7 +1281,8 @@ the same in both arms. Population: 2D ~190 and 3D 250 (the cap) at 0.25x; 4D sta
 at the floor of 30 even there.
 
 **Relationships:**
-- **The last fertile hunger halves with each dimension (hint, 2 seeds):** 2D ~1.0x,
+- **The last fertile hunger halves with each dimension (hint, 2 seeds; ~0.6x per
+  dimension once interpolated, see "Hunger distance" below):** 2D ~1.0x,
   3D ~0.5x, 4D ~0.25x. **Today's 1x is past the fertile range in 3D (7% of peak)
   and 4D (zero):** M2's nurseries there select only through top-ups.
 - **4D births are density-limited, not hunger-limited:** at 0.25x hunger 4D still
