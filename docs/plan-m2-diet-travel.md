@@ -1164,6 +1164,142 @@ Why mate attempts fail (share of attempts; "partner ready" was 0% everywhere):
   directional movement per dimension ("plenty of games allow it"). The outputs
   curve above predicts what 3^dims - 1 move actions would cost in training.
 
+### Slice R10: Why 4D nurseries decay after their peak (2026-11-06)
+5zorro picked three tests of the candidate causes. Tools: `scripts/probe_decay.py`
+(`hof`, `rules`, `freeze`), `scripts/long_nursery.py --nursery-seeds`, and the
+research rule `hall_of_fame_frozen` (off by default). Checkpoints: the 700k run
+(`snapshots/long`, base 16 units, both senses at 32 and 64) and ten base nurseries
+to 500k (`snapshots/long-seeds`). Play scores are collapses per 1,000 ticks in
+worlds started from a checkpoint, 5 seeds x 10,000 ticks; lower is better.
+
+**Test 1: do the brains fit the nursery instead of play? No.** Every checkpoint
+scored under the nursery's own rules (`probe_decay.py rules`,
+`runs/decay-nursery-rules-4d.csv`) peaks at the same tick and decays as much:
+
+| Arm | Peak | Nursery rules, peak -> 700k | Play rules, peak -> 700k |
+|---|---|---|---|
+| base (16) | 100k | 1.73 -> 2.37 | 2.09 -> 2.78 |
+| both senses, 32 | 100k | 1.70 -> 2.48 | 1.94 -> 2.85 |
+| both senses, 64 | 100k | 2.09 -> 2.32 | 2.37 -> 2.68 |
+
+The two curves run parallel (nursery rules ~0.3 lower throughout), and food
+types fall in step. The later brains are worse brains. (The nursery's own
+collapse rate read off the 30 NPCs alive at a checkpoint looked flat; that
+reading is too noisy to show the trend. Score fresh worlds instead.)
+
+**Test 2: hall-of-fame drift? The freeze stops the decay, but also stops
+evolution.** Resumed with `hall_of_fame_frozen` (`probe_decay.py freeze`,
+`runs/decay-freeze-4d.csv`, base, 2 nurseries):
+
+| Nursery ticks | Normal | Frozen at 100k | Frozen at 200k |
+|---|---|---|---|
+| 200k | 2.07 +- 0.07 | 2.09 +- 0.07 | |
+| 350k | 2.41 +- 0.12 | 2.10 +- 0.09 | 2.11 +- 0.04 |
+| 500k | 2.41 +- 0.13 | 2.14 +- 0.07 | 2.13 +- 0.07 |
+
+Frozen, the population is re-made from the same 20 entries: generations crept
+148 -> 155 in 400k ticks and the squared weight norm stayed at ~215. So the freeze
+holds the peak and doesn't beat it; it can't separate hall-of-fame churn from
+weight drift (it stops both). It does show the decay comes from evolution going
+on past the peak, not from noise in scoring checkpoints.
+
+**Test 3: selection luck? The average decays; single nurseries wander.** Ten base
+nurseries to 500k (`runs/long-seeds-4d.csv`; seeds 100 and 101 reproduced the 700k
+run exactly):
+
+| Nursery ticks | 50k | 100k | 200k | 350k | 500k |
+|---|---|---|---|---|---|
+| Collapses, mean of 10 (+- se) | 2.31 (0.04) | 2.27 (0.05) | 2.35 (0.06) | 2.56 (0.06) | 2.48 (0.06) |
+| Food types per life | 1.98 | 2.12 | 2.22 | 2.11 | 2.08 |
+
+Scratch 3.82. Each nursery's best checkpoint falls anywhere from 50k (3) to
+100k (3), 200k (2) and 500k (2); 8 of 10 end 0.2+ worse than their own best
+(median 0.36). The decay of the average is real (~+0.25, ~4 se, by 350k), but a
+single nursery's curve wanders +-0.3 from checkpoint to checkpoint.
+
+**What the checkpoints show (`probe_decay.py hof`):**
+- The hall of fame turns over completely between checkpoints (100% new ids).
+  Entries average 1.1 lives and 0.1 copies: they are pushed out before their
+  copies finish, so it's a rolling list of recent good lives, not a memory.
+- **Weights drift at the neutral rate (law in 4D):** squared weight norm = start
+  + (mutations per child x mutation_scale^2) x generations. Measured 1.21, 1.28,
+  1.24 per generation (16, 32, 64 units) against 13.8 x 0.09 = 1.24 predicted;
+  r = 1.000. Selection doesn't restrain the weights at all in 4D. In 2D they grow
+  at ~half the neutral rate (0.6-0.8 vs 1.5), in 3D near it (0.65-0.87 vs
+  0.9-1.0): **hint: the harder the world, the more neutral the drift.**
+
+**Reading (not yet tested):** 4D's decay is mutation load. Selection in 4D is too
+weak and noisy (one life is a noisy score; births are rare, so the hall of fame
+is the only selection) to hold what it found, so after the knee, harmful changes
+pile up as fast as good ones. **Practical now:** stop or freeze a 4D nursery at
+50-200k ticks, or keep each nursery's best checkpoint. **Next test (proposed):**
+a mutation rule that pulls weights back toward zero (norm can't drift) while
+evolution goes on; if the decay stops there too, drift in weight space is the
+mechanism; if not, it's the selection noise itself (then: longer scoring per
+entry, or the children rules of slice R11).
+
+### Slice R11: The hunger limit for births, and the hall-of-fame rules (2026-11-06)
+5zorro: crank hunger up until survival is impossible; "the finish is when child
+births go down and never recover when hunger goes up". Since top-ups keep every
+world at 30 NPCs, nothing ever goes extinct; births are the line.
+
+**New rules (all off by default, both engines):**
+- `hall_of_fame_birth_weight`: a life's merit counts each birth per 1,000 ticks
+  lived as that many fewer collapses (merit ignored children before; the old
+  fitness weighed a child as 5 collapses).
+- `hall_of_fame_child_credit` (5zorro: "parents should not be out of the hall of
+  fame before the children's proof is in"): a child's finished life joins each
+  parent's track record, and an entry with children alive can't be pushed out
+  or dropped.
+- `hall_of_fame_trials` (5zorro, `sim/trials.py`): a finished life is re-run as N
+  exact clones (top-ups) and enters only if `hall_of_fame_trial_passes` of its
+  lives pass; its merit averages them. Pass = a collapse rate below the
+  population's (default), or at most `hall_of_fame_trial_max_collapses`.
+  Measured first (play and nursery worlds from current pools, 20k ticks): clean
+  lives (0 collapses) are 59% in 2D, 34% in 3D, **0% in 4D**; lives with a child
+  11% / 7% / **0%**. 5zorro's literal "no collapses in 2 of 3" would admit nobody
+  in 4D, hence the relative default. Not yet tested in a nursery.
+
+**The hunger staircase** (`scripts/hunger_ladder.py`, `runs/hunger-ladder.csv`):
+each world starts from scratch at 0.25x and holds each level (2D 20k, 3D 30k, 4D
+60k ticks; scored on the second half), 2 seeds; hunger scales `nutrient_decay`
+and `metabolism_rate`. Arms: "off" (defaults) and "kids" (birth weight 5 + child
+credit). Births per 1,000 ticks:
+
+| Hunger | 2D off | 2D kids | 3D off | 3D kids | 4D off | 4D kids |
+|---|---|---|---|---|---|---|
+| 0.25 | 142 | 149 | 125 | 125 | 2.1 | 10.6 |
+| 0.5 | 116 | 119 | 19.5 | 21.3 | 0.07 | 0.05 |
+| 0.75 | 85 | 87 | 7.9 | 8.1 | 0 | 0 |
+| 1.0 | 24 | 48 | 1.4 | 2.2 | 0 | 0 |
+| 1.25 | 0.8 | 9.9 | 0.17 | 0.30 | 0 | 0 |
+| 1.5 | 0 | 2.9 | 0 | 0.03 | 0 | 0 |
+| 2+ | ~0 | ~0 | 0 | 0 | 0 | 0 |
+
+Finish (births below 10% of peak from there on): **2D 1.25x, 3D 0.75x, 4D 0.5x**,
+the same in both arms. Population: 2D ~190 and 3D 250 (the cap) at 0.25x; 4D stays
+at the floor of 30 even there.
+
+**Relationships:**
+- **The last fertile hunger halves with each dimension (hint, 2 seeds):** 2D ~1.0x,
+  3D ~0.5x, 4D ~0.25x. **Today's 1x is past the fertile range in 3D (7% of peak)
+  and 4D (zero):** M2's nurseries there select only through top-ups.
+- **4D births are density-limited, not hunger-limited:** at 0.25x hunger 4D still
+  sits at 30 NPCs with 2-11 births per 1,000 ticks. Slice R9's reach formula
+  (mates in reach ~ N (1 + 2d) / cells = 30 x 9 / 10,000 ~ 3%) is the bottleneck.
+  A 4D world needs more NPCs per cell before births can carry selection.
+- **The kids rules raise births only where births are possible:** 2D at 1.25x 12x
+  more (9.9 vs 0.8), at 1x 2x; 4D at 0.25x 5x (10.6 vs 2.1). They don't move the
+  finish line by more than one step.
+- **Collapses rise linearly with hunger above the fertile range** (population held
+  at 30): ~3.4 per 1x of hunger in 2D and 3D, ~4.6 in 4D.
+- **What kills shifts in 4D:** body starvation (not enough food at all) goes from
+  19% of collapses at 1x to 80% at 6x; 2D and 3D stay 85-95% nutrient
+  starvation (wrong food). 4D runs out of mass reachable per tick first.
+- **Other behaviors fade with hunger (5zorro's point):** gives per NPC per 1,000
+  ticks fall ~30x in 2D from 0.25x to 1x (13 -> 0.4) and stay under 1 in 3D/4D;
+  worship is ~0 everywhere; prayer falls in 4D (45 -> 0.3 by 1x).
+
 ### Slice 4: Levers, only if criterion 3 fails
 Criterion 3 isn't demonstrated (slice 3b). 5zorro picked the memory stack as the
 first lever (2026-11-03).

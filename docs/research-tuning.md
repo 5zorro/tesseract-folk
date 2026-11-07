@@ -146,7 +146,17 @@ gitignored). The plan tables are the record; to check one, rerun its script.
 |---|---|---|
 | Search time per extra dimension grows ~0.7 x width / target size | law | plan-m2 R6; section 4b above |
 | Ticks for a nursery to reach its knee ~ weights^0.5 (same in 2D and 3D) | law (2 dims, 5 sizes; single points noisy) | plan-m2 R7 "Brain size vs ideal training length"; `long_nursery.py --arms h4..h64` |
-| 4D nurseries peak at 100-200k ticks, then decay (16, 32, 64 units) | law for 4D (3 sizes); cause untested | plan-m2 R7 "4D, 700,000-tick baseline"; `long_nursery.py` |
+| 4D nurseries peak at 50-200k ticks, then decay (16, 32, 64 units; mean of 10 nurseries +0.25 collapses by 350k, ~4 se); a single nursery wanders +-0.3 | law for 4D (3 sizes, 10 seeds) | plan-m2 R7 "4D, 700,000-tick baseline", R10 test 3; `long_nursery.py --nursery-seeds` |
+| The decay isn't the nursery rules: checkpoints decay the same under nursery and play rules | finding | plan-m2 R10 test 1; `probe_decay.py rules` |
+| Freezing the hall of fame holds the 4D peak (2.1 vs 2.4) but stops evolution | finding | plan-m2 R10 test 2; `probe_decay.py freeze` |
+| Squared weight norm = start + mutations/child x scale^2 x generations (neutral drift; 4D r = 1.000 at 3 sizes) | law in 4D; 2D grows at ~half that, 3D near it (hint: harder world, more neutral drift) | plan-m2 R10; `probe_decay.py hof` |
+| The hall of fame turns over completely between 4D checkpoints (1.1 lives per entry) | finding | plan-m2 R10 |
+| The last fertile hunger halves per dimension: 2D ~1.0x, 3D ~0.5x, 4D ~0.25x; today's 1x is past it in 3D and 4D | hint (2 seeds) | plan-m2 R11; `scripts/hunger_ladder.py` |
+| 4D births are density-limited (30 NPCs in 10,000 cells even at 0.25x hunger) | finding | plan-m2 R11, R9 |
+| Collapses rise linearly with hunger past the fertile range: ~3.4 per 1x in 2D/3D, ~4.6 in 4D | hint | plan-m2 R11 |
+| In 4D, body starvation's share of collapses rises with hunger (19% at 1x, 80% at 6x); 2D/3D stay nutrient starvation | finding | plan-m2 R11 |
+| Gives fall ~30x from 0.25x to 1x hunger in 2D; worship ~0 everywhere | finding | plan-m2 R11 |
+| Clean lives (0 collapses): 2D 59%, 3D 34%, 4D 0%; lives with a child 11% / 7% / 0% | finding | plan-m2 R11 |
 | 4D's peak is 3-6x the 3D knee at similar size: dimension adds its own factor | hint | same two sections |
 | The more ticks at full pressure, the better the nursery (thermostat < ramp < fixed) | hint (one budget, 10 runs per row) | plan-m2 R7 anneal and ramp tables |
 | Lowering hunger only by nutrient decay doesn't spare 4D bodies (body burn is the other hunger) | finding | plan-m2 R7 anneal design notes |

@@ -67,9 +67,14 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
    (two eat actions and the track record are defaults now); 4D fails. Ruled out
    for 4D: senses (a sense-only forager passes), the action draw, brain size
    (4-64 units), crossover top-ups, anneal and ramp nurseries, the craving and
-   mating senses. **Open lead: 4D nurseries peak at 100-200k ticks and then
-   decay; why is untested** (nursery rules vs play, hall-of-fame or mutation
-   drift, selection luck). Built and off by default: `topup_crossover`,
+   mating senses. **4D nurseries peak at 50-200k ticks and then decay: mutation
+   load under weak selection** (slice R10: not the nursery rules, not luck;
+   freezing the hall of fame holds the peak; weights drift at the neutral rate).
+   **Births can't carry selection yet:** today's 1x hunger is past 3D's and 4D's
+   fertile range, and 4D births are density-limited (slice R11). Also built, off:
+   hall-of-fame birth bonus, child credit, trials (`sim/trials.py`), frozen;
+   `scripts/probe_decay.py`, `scripts/hunger_ladder.py`. **Next: test trials in
+   4D nurseries** (5zorro's proposal, built 2026-11-06). Built and off by default: `topup_crossover`,
    `craving_sense`, `mate_sense` (pheromone call), `actions_off`,
    `extra_stay_actions`, `hidden_units=0`; `Simulation.set_rule`. 5zorro's open
    questions: the private `openitems.md` (2026-11-06 list).
