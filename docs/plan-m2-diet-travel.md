@@ -1573,6 +1573,49 @@ Rounds 20-35, mean +- se over the 4 nurseries:
   (5zorro: "same-y same-y"). The next levers are variation (mutation size)
   and capacity (brain size) at 0.36x, which R10 and R7 tested only at 1x.
 
+### Slice R15: Variation x capacity in 4D at 0.36x (2026-11-07)
+5zorro: "if the problem is we get same-y same-y bs then we need either more
+mutations or bigger brains or both?" and "lets move on (if we hit the
+goalposts)". `python scripts/variation_ladder.py` (`runs/var-4d.log`): plain
+nurseries, `mutation_scale` 0.5x/1x/2x the default (nursery only; the
+lineage rule still sets how many weights change) x 8/16/32 hidden units, 4
+nurseries x 3 play seeds per cell, 300,000 ticks, scored at 100k/200k/300k.
+At 300k (mean +- se over nurseries):
+| Mutation size | Hidden | Types | Diet | Nutrient | Collapses |
+|---|---|---|---|---|---|
+| 0.5x | 8 | 2.59 +- 0.09 | 0.77 | 0.82 | 0.02 |
+| 0.5x | 16 | 2.45 +- 0.03 | 0.78 | 0.83 | 0.00 |
+| 0.5x | 32 | 2.38 +- 0.03 | 0.77 | 0.73 | 0.01 |
+| 1x | 8 | 2.65 +- 0.09 | 0.80 | 0.86 | 0.01 |
+| 1x | 16 | 2.61 +- 0.06 | 0.79 | 0.85 | 0.01 |
+| 1x | 32 | 2.49 +- 0.10 | 0.78 | 0.83 | 0.01 |
+| 2x | 8 | 2.35 +- 0.19 | 0.77 | 0.79 | 0.06 |
+| 2x | 16 | 2.40 +- 0.19 | 0.78 | 0.79 | 0.04 |
+| 2x | 32 | 2.44 +- 0.10 | 0.77 | 0.81 | 0.04 |
+Fit at 300k, per doubling: types -0.04 +- 0.05 (mutation), -0.05 +- 0.05
+(brain); diet +0.001 / -0.002 (+- 0.005); collapses +0.020 +- 0.006 per
+mutation doubling, -0.003 per brain doubling.
+- **No cell meets M2: diet is 0.77-0.80 in every cell** (goal 0.9). Neither
+  lever moves it (both slopes within +-0.005 per doubling).
+- **Mutation size is an inverted U centred on today's default:** 1x beats
+  0.5x and 2x on types in every brain size; 2x raises collapses (~3 se per
+  doubling). The default sits at the best point we can see.
+- **Bigger brains don't help:** 8 units does as well as 16-32 (types slightly
+  better, within noise). The capacity guess from the shallow-network product
+  bound (~4 units per need x food product, ~96 in 4D) isn't supported in the
+  range an evolved brain can use; small-mutation big brains learn slowest
+  (0.5x, 32: nutrient 0.73).
+- **What the lineage rule does in 4D (probe, one nursery, 20k ticks):** mean
+  21.5 mutations per child at 0.36x (13.8 at 1x); ~40% of children sit at the
+  1/4 floor (7.5) and none reach the 4x cap (120), so the big jumps R4 credited
+  almost never happen. Not tested: the rule off in 4D.
+- **Reading:** with luck (R14), variation and capacity each ruled out at
+  0.36x, 4D's diet ceiling (~0.80, ~0.85 with racing) is not a training-
+  method problem. What's left is the world and the goal: what selection
+  rewards (not collapsing) says little about diet when almost nothing
+  collapses ("rewarding B while hoping for A", Kerr 1975), and whether 0.9
+  is the right diet goal for 4D. Both are 5zorro's call.
+
 ### Slice 4: Levers, only if criterion 3 fails
 Criterion 3 isn't demonstrated (slice 3b). 5zorro picked the memory stack as the
 first lever (2026-11-03).
