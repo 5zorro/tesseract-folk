@@ -11,6 +11,8 @@ are reused, so reruns only add what's missing.
     python scripts/hunger_search.py --dims 3 --levels 0.85 0.9 0.95 1.0
     python scripts/hunger_search.py --dims 4 --levels 0.36 0.5 0.75 1.0 --refine 2
     python scripts/hunger_search.py --dims 3 --report-only
+    python scripts/hunger_search.py --dims 4 --keys metabolism_rate --levels 0.25 0.5 0.75
+        # split hunger (R13): only body burn scales, nutrient decay stays at 1x
 
 Pick: the lowest hunger that meets every goal (lower hunger = more births, R12).
 Within-noise misses (e.g. diet 0.89 vs 0.9) count as misses: the goals stay put.
@@ -35,12 +37,20 @@ from ladder import read_csv, verdicts  # noqa: E402
 ROOT = Path(__file__).resolve().parent.parent
 
 
+KEYS = HUNGER          # which hunger settings a level scales (--keys); the rest stay at 1x
+TAGS = {"metabolism_rate": "body", "nutrient_decay": "nutr"}
+
+
 def name(level: float) -> str:
     return f"{round(level, 3)}"
 
 
+def tag() -> str:
+    return "" if set(KEYS) == set(HUNGER) else "-" + "-".join(TAGS[k] for k in KEYS)
+
+
 def csv_path(dims: int, level: float) -> Path:
-    return ROOT / "runs" / f"hdist-{dims}d-h{name(level)}.csv"
+    return ROOT / "runs" / f"hdist-{dims}d{tag()}-h{name(level)}.csv"
 
 
 def run_level(dims: int, level: float, hidden: int, out: str) -> None:
@@ -48,7 +58,7 @@ def run_level(dims: int, level: float, hidden: int, out: str) -> None:
     if path.exists():
         return
     base = Config()
-    rules = ",".join(f"{k}={round(getattr(base, k) * level, 8)}" for k in HUNGER)
+    rules = ",".join(f"{k}={round(getattr(base, k) * (level if k in KEYS else 1.0), 8)}" for k in HUNGER)
     cmd = [sys.executable, str(ROOT / "scripts" / "ladder.py"), "--worlds", "time", "--dims", str(dims),
            "--hidden", str(hidden), "--set", rules, "--out", out, "--csv", str(path)]
     print(f"  {dims}D hunger {name(level)}x: running ladder", flush=True)
@@ -73,7 +83,7 @@ def summary(dims: int, level: float) -> dict | None:
 
 def known_levels(dims: int) -> list[float]:
     out = []
-    for p in (ROOT / "runs").glob(f"hdist-{dims}d-h*.csv"):
+    for p in (ROOT / "runs").glob(f"hdist-{dims}d{tag()}-h*.csv"):
         try:
             out.append(float(p.stem.split("-h", 1)[1]))
         except ValueError:
@@ -87,7 +97,8 @@ def report(dims: int) -> float | None:
         print(f"{dims}D: no runs yet")
         return None
     goal_names = list(rows[0]["goals"])
-    print(f"\n{dims}D, nursery-started worlds by hunger (goals: {', '.join(goal_names)})")
+    scaled = f" (scaling {', '.join(KEYS)} only)" if tag() else ""
+    print(f"\n{dims}D, nursery-started worlds by hunger{scaled} (goals: {', '.join(goal_names)})")
     print(f"{'hunger':>6} {'clpse':>5} {'scr':>5} {'nutr':>5} {'diet':>5} {'types':>5} "
           f"{'births':>7} {'top-ups':>7} {'pop':>5}  goals")
     for s in rows:
@@ -108,8 +119,12 @@ def main() -> None:
     ap.add_argument("--min-gap", type=float, default=0.02, help="stop bisecting below this hunger gap")
     ap.add_argument("--hidden", type=int, default=16)
     ap.add_argument("--out", default="snapshots/hdist")
+    ap.add_argument("--keys", nargs="+", choices=HUNGER, default=list(HUNGER),
+                    help="hunger settings a level scales (default both; the rest stay at 1x)")
     ap.add_argument("--report-only", action="store_true")
     args = ap.parse_args()
+    global KEYS
+    KEYS = tuple(k for k in HUNGER if k in args.keys)
     if any(not 0 < lv <= 10 for lv in args.levels):
         ap.error("--levels must be in (0, 10]")
     for dims in args.dims:
