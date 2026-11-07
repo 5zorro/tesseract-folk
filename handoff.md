@@ -76,8 +76,11 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
    `scripts/probe_decay.py`, `scripts/hunger_ladder.py`. **2026-11-07 (R12):** the
    travel-time worlds are sane (never-moving NPCs starve); at each dimension's
    fertile hunger 2D passes, 3D loses diet and collapses, 4D still fails diet
-   and types: hunger isn't 4D's lever, but 4D at 0.36x has births. **Next: test trials in
-   4D nurseries** (5zorro's proposal, built 2026-11-06). Built and off by default: `topup_crossover`,
+   and types: hunger isn't 4D's lever, but 4D at 0.36x has births. **R13 (2026-11-07):** trials lose in 4D at
+   0.36x (no collapse signal to rank; half the generations). Proposed next: split
+   hunger (nutrient decay 1x, body burn low) so diet keeps pressure and bodies can
+   mate. Earlier plan: test trials in
+   4D nurseries (5zorro's proposal, built 2026-11-06). Built and off by default: `topup_crossover`,
    `craving_sense`, `mate_sense` (pheromone call), `actions_off`,
    `extra_stay_actions`, `hidden_units=0`; `Simulation.set_rule`. 5zorro's open
    questions: the private `openitems.md` (2026-11-06 list).

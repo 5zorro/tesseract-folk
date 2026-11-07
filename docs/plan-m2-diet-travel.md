@@ -1391,6 +1391,38 @@ seeks diet.
   law that would roughly double 4D's fertile hunger (~0.7x). Not built; 5zorro's
   hex-grid / equal-neighbor lattice idea is in `openitems.md` (backburner).
 
+### Slice R13: Hall-of-fame trials in 4D at 0.36x hunger (2026-11-07)
+5zorro: test trials in 4D at its working hunger (0.36x, R12). `ladder.py --worlds
+time --dims 4 --hidden 16 --nursery-seeds 100 101 102 103 --set
+nutrient_decay=0.00108,metabolism_rate=0.0036[,rules]`, 4 nurseries x 5 seeds,
+20,000-tick nurseries (`runs/trials-4d-*.log`; nurseries in `snapshots/hdist`).
+The ladder now prints each trial nursery's admitted / rejected / expired counts
+(new counters `trial_admit`, `trial_reject`, `trial_expired`, `child_credit_lost`).
+| Arm | Collapses (scratch) | Diet | Types | Births vs top-ups | Admitted / rejected | Nursery generations | Goals |
+|---|---|---|---|---|---|---|---|
+| base | **0.05** (0.15) | **0.76** | **2.03** (1.93-2.18) | 43 vs 102 | - | 4.2-5.9 | not diet, types |
+| trials (relative) | 0.10 (0.17) | 0.72 | 1.80 (1.75-1.86) | 44 vs 106 | 30-45 / 65-75 | 1.8-5.6 | not diet, types |
+| literal (0 collapses in 2 of 3) | 0.09 (0.17) | 0.73 | 1.75 (1.71-1.79) | 30 vs 116 | 72-88 / 19-42 | 1.6-2.3 | not diet, types, seeks |
+| literal + kids (birth weight 5, child credit) | 0.12 (0.17) | 0.73 | 1.79 (1.72-1.86) | 51 vs 102 | 71-87 / 22-43 | - | not diet, types, seeks |
+- **Trials lose:** every trial nursery is below every base nursery on food types
+  (best trials 1.86 < worst base 1.93), collapses double, and the literal arms lose
+  "seeks diet".
+- **Why: at 0.36x the nursery has nothing to measure.** Nursery NPCs collapse
+  ~0-0.06 per 1,000 ticks even under nursery rules, so collapse-based merit ranks
+  noise. The literal pass line admits 75-80% of candidates (it filters almost
+  nothing); the relative one rejects ~65% on noise. Meanwhile clones take the
+  top-ups (24-28 of 30 nursery NPCs are trial clones), so trial nurseries reach
+  about half the generations (mostly ~2 vs 4-6).
+- **The tension in 4D:** births need low hunger, diet selection needs collapses
+  (R12: diet diversity needs hunger). Hunger scales two things at once:
+  `nutrient_decay` (wrong-food pressure) and `metabolism_rate` (body burn; thin
+  bodies can't mate, R9). Untested split: nutrient decay at 1x, body burn low.
+  (R7's anneal notes: lowering nutrient decay alone didn't spare 4D bodies; the
+  reverse hasn't been tried.)
+- Trials stay built and off. Their premise (a noisy life score) holds where
+  lives do collapse; a 4D test at a hunger with collapse pressure, or a longer
+  nursery, is still open.
+
 ### Slice 4: Levers, only if criterion 3 fails
 Criterion 3 isn't demonstrated (slice 3b). 5zorro picked the memory stack as the
 first lever (2026-11-03).
