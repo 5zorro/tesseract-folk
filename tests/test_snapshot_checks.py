@@ -75,3 +75,24 @@ def test_crafted_npcs_fail_clearly_at_load(snap, field, value, message):
     (snap / "state.json").write_text(json.dumps(state))
     with pytest.raises(ValueError, match=message):
         load_snapshot(snap)
+
+
+@pytest.mark.parametrize("field, value, message", [
+    ("hidden_units", 10**7, "hidden_units"), ("memory_units", 10**6, "memory_units"),
+    ("hidden_units", -1, "hidden_units"), ("memory_units", 2.5, "memory_units"),
+    ("size", 3000, "cells"), ("dims", 40, "dims"), ("max_population", 10**9, "max_population"),
+])
+def test_crafted_sizes_are_refused_before_allocating(snap, field, value, message):
+    """A shared snapshot's config sizes the arrays: huge counts fail at load."""
+    import json
+    state = json.loads((snap / "state.json").read_text())
+    state["config"][field] = value
+    (snap / "state.json").write_text(json.dumps(state))
+    with pytest.raises(ValueError, match=message):
+        load_snapshot(snap)
+
+
+def test_reference_engine_checks_sizes_too():
+    from sim.reference import ReferenceSimulation
+    with pytest.raises(ValueError, match="hidden_units"):
+        ReferenceSimulation(Config(size=8, hidden_units=5000), log_every=10**9)

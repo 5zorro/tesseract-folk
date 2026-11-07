@@ -1203,10 +1203,11 @@ nursery after a rule change:
   here if carrying matters.
 
 ## Known gaps from the 2026-11-06 research tools (review)
-- `hidden_units` and `memory_units` from a shared snapshot's config aren't
-  capped, so a crafted one could make the sim allocate huge brain arrays
-  (`extra_stay_actions` is capped at 256 since the review; halves, decays and
-  the pheromone emission are range-checked).
+- Fixed 2026-11-06: every count that sizes an array (`hidden_units`,
+  `memory_units`, `size` / `dims` with at most 2^22 cells, food types,
+  nutrients, populations, hall of fame, shrines, secrets) is range-checked by
+  `Config.check_sizes` before either engine builds a world
+  (`tests/test_snapshot_checks.py`); `extra_stay_actions` is capped at 256.
 - Two `sensor_size` copies (array engine and reference); `tests/test_senses.py`
   checks they agree for every sense flag.
 - `SenseController` rebuilds `sense_layout()` on every decision (probe-only

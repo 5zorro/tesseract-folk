@@ -223,6 +223,31 @@ class Config:
         known = {f.name for f in fields(cls)}
         return cls(**{k: v for k, v in data.items() if k in known})
 
+    def check_sizes(self) -> None:
+        """Raise ValueError if a count that sizes the sim's arrays is out of range.
+
+        A shared snapshot's config sets these (docs/SAFETY.md §4), so a crafted
+        one could otherwise make the sim allocate huge arrays before any other
+        check runs. Both engines call this before building the world."""
+        for name, (low, high) in SIZE_LIMITS.items():
+            value = getattr(self, name)
+            if isinstance(value, bool) or not isinstance(value, int) or not low <= value <= high:
+                raise ValueError(f"{name} must be a whole number within {low}-{high}, got {value!r}")
+        if self.size ** self.dims > MAX_CELLS:
+            raise ValueError(f"size ** dims is {self.size ** self.dims:,} cells; the limit is {MAX_CELLS:,}")
+
+
+# Allowed ranges for the counts that size arrays (Config.check_sizes); generous,
+# research uses far less. extra_stay_actions is capped in npc.build_actions.
+SIZE_LIMITS = {
+    "dims": (1, 6), "size": (2, 4096),
+    "n_food_types": (1, 32), "n_nutrients": (1, 32), "food_patches_per_type": (0, 1024),
+    "hidden_units": (0, 1024), "memory_units": (0, 64),
+    "initial_npcs": (0, 100_000), "max_population": (1, 100_000), "min_population": (0, 100_000),
+    "hall_of_fame_size": (0, 10_000), "n_shrines": (0, 1024), "max_secrets": (0, 1024),
+}
+MAX_CELLS = 2 ** 22          # ~4.2M cells: 2D 2048 per axis, 4D 45 per axis
+
 
 def parse_overrides(spec: str) -> dict:
     """'metabolism_rate=0.008,hidden_units=24' -> {'metabolism_rate': 0.008, 'hidden_units': 24}.

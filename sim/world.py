@@ -26,6 +26,7 @@ def wrapped_delta(a: Pos, b: Pos, size: int) -> np.ndarray:
 class World:
     def __init__(self, cfg: Config, rng: np.random.Generator):
         self.cfg = cfg
+        cfg.check_sizes()                                  # before anything is allocated
         self.shape = (cfg.size,) * cfg.dims
         self.soil = np.full(self.shape, cfg.initial_soil_per_cell, dtype=float)
         self.patch_centers: list[list[Pos]] = []          # per food type
