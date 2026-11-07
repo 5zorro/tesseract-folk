@@ -96,6 +96,26 @@ class SenseController:
         return A[f"move{'+' if sign > 0 else '-'}{axis}"]
 
 
+class StillController:
+    """Never moves: poops when full, eats what is in its own cell (the needed
+    food first, else the biggest bite), otherwise stays. A sanity probe
+    (5zorro, 2026-11-07): if NPCs that never travel survive and eat a balanced
+    diet, the world is too easy to test whether diet drives travel."""
+
+    def decide(self, sim, npc, obs: np.ndarray) -> int:
+        cfg = sim.cfg
+        A = {name: i for i, name in enumerate(sim.actions)}
+        if npc.bowel > 0.8 * cfg.bowel_capacity:
+            return A["poop"]
+        here = sim.world.food_at(npc.pos)
+        if here.sum() > 0.05:
+            need = int(np.argmin(npc.nutrients))
+            if "eat" in A:
+                return A["eat"]
+            return A["eat_need"] if here[sim.world.rich == need].sum() > 0.05 else A["eat_most"]
+        return A["stay"] if "stay" in A else A["poop"]
+
+
 class ClaudeController:
     """Placeholder for an NPC driven by Claude through the player's own API key."""
 

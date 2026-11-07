@@ -10,6 +10,11 @@ from full to starving).
 
     python scripts/probe_random_walk.py
     python scripts/probe_random_walk.py --scaling   # same width, only dims change
+    python scripts/probe_random_walk.py --diagonal  # king steps: any of the 3^d - 1 neighbors
+
+--diagonal (5zorro, 2026-11-07: what do diagonals do to the hunger distance?):
+each step moves to any of the 3^d - 1 cells around (several axes at once), not
+one axis. NPCs today move one axis per tick (sim/npc.py: build_actions).
 
 --scaling (5zorro's question: what's the base of the exponential?): one round
 target of radius 2 in a world of fixed width, walkers starting 4 cells away;
@@ -37,11 +42,18 @@ WALKERS, MAX_STEPS, HUNGER_CLOCK = 4000, 20_000, 300
 WORLDS = {1: WORLD_SETS["coverage"][1], **WORLD_SETS["time"]}
 
 
-def walk(cfg: Config, seed: int) -> tuple[np.ndarray, np.ndarray]:
+def king_steps(dims: int) -> np.ndarray:
+    """Every offset in {-1, 0, 1}^dims except staying put."""
+    grid = np.stack(np.meshgrid(*[(-1, 0, 1)] * dims, indexing="ij"), -1).reshape(-1, dims)
+    return grid[np.abs(grid).sum(1) > 0]
+
+
+def walk(cfg: Config, seed: int, diagonal: bool = False) -> tuple[np.ndarray, np.ndarray]:
     """Steps for each walker from a type-a core to any type-b core (b != a), and
     the shortest L1 trip from each start."""
     w = World(cfg, np.random.default_rng(seed))
     rng = np.random.default_rng(1000 + seed)
+    king = king_steps(cfg.dims)
     cores = w.zones >= 0
     steps_all, short_all = [], []
     types = cores.shape[0]
@@ -65,10 +77,13 @@ def walk(cfg: Config, seed: int) -> tuple[np.ndarray, np.ndarray]:
             n = int(active.sum())
             if n == 0:
                 break
-            axis = rng.integers(cfg.dims, size=n)
-            sign = rng.choice((-1, 1), size=n)
             idx = np.nonzero(active)[0]
-            pos[idx, axis] = (pos[idx, axis] + sign) % cfg.size
+            if diagonal:
+                pos[idx] = (pos[idx] + king[rng.integers(len(king), size=n)]) % cfg.size
+            else:
+                axis = rng.integers(cfg.dims, size=n)
+                sign = rng.choice((-1, 1), size=n)
+                pos[idx, axis] = (pos[idx, axis] + sign) % cfg.size
             hit = target[tuple(pos[idx].T)]
             steps[idx[hit]] = t
             active[idx[hit]] = False
@@ -114,15 +129,17 @@ def scaling() -> None:
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--scaling", action="store_true")
-    if ap.parse_args().scaling:
+    ap.add_argument("--diagonal", action="store_true", help="king steps (any of 3^d - 1 neighbors)")
+    args = ap.parse_args()
+    if args.scaling:
         scaling()
         return
-    print(f"Random walk from one food's core to another food's core ({WALKERS} walkers per type, 4 maps)")
+    print(("King-step" if args.diagonal else "Axis-step") + f" random walk from one food's core to another food's core ({WALKERS} walkers per type, 4 maps)")
     print(f"{'dims':>4} {'size':>5} {'shortest':>8} {'walk median':>11} {'walk mean':>9} "
           f"{'x shortest':>10} {'within 300':>10}")
     for dims, (size, radius) in WORLDS.items():
         cfg_kw = dict(dims=dims, size=size, food_patch_radius=radius)
-        steps, short = zip(*(walk(Config(**cfg_kw, seed=s), s) for s in range(4)))
+        steps, short = zip(*(walk(Config(**cfg_kw, seed=s), s, args.diagonal) for s in range(4)))
         steps, short = np.concatenate(steps), np.concatenate(short)
         print(f"{dims:>4} {size:>5} {np.median(short):8.1f} {np.median(steps):11.0f} {steps.mean():9.0f} "
               f"{np.median(steps) / max(np.median(short), 1):10.1f} {(steps <= HUNGER_CLOCK).mean():10.0%}")
