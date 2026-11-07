@@ -1462,10 +1462,72 @@ round (`runs/arena-4d.log`):
   from -1.5 to -3.7 collapses per 1,000 ticks in round 1 to -0.3 to -0.9 by
   round 5: the hall of fame gets more uniform, leaving the race less to tell
   apart.
-- Running (2026-11-07): the luck split for untested halls of fame (5zorro's
-  "how much pressure luck plays on an untested hall of fame"; `--measure`),
-  and both arms extended to 700,000 ticks (5zorro: "perhaps 700k ticks would
-  keep improving up to the last tick?").
+
+**To 700,000 ticks** (5zorro: "perhaps 700k ticks would keep improving up to
+the last tick?"). Both arms resumed from their round-5 checkpoints
+(`--start-round 5 --rounds 35 --play-every 5`, `runs/arena-4d-700k.log`):
+| Round (ticks) | Plain types | Arena types | Plain diet | Arena diet | Plain nutrient | Arena nutrient |
+|---|---|---|---|---|---|---|
+| 5 (100k) | 2.34 | 2.38 | 0.76 | 0.78 | 0.77 | 0.81 |
+| 10 (200k) | 2.61 | 2.45 | 0.83 | 0.79 | 0.88 | 0.83 |
+| 15 (300k) | 2.66 | 2.53 | 0.83 | 0.77 | 0.88 | 0.83 |
+| 20 (400k) | 2.65 | 2.60 | 0.80 | 0.81 | 0.86 | 0.85 |
+| 25 (500k) | 2.65 | 2.66 | 0.81 | 0.84 | 0.87 | 0.89 |
+| 30 (600k) | 2.60 | 2.70 | 0.79 | 0.86 | 0.85 | 0.90 |
+| 35 (700k) | 2.61 | 2.62 | 0.80 | 0.84 | 0.85 | 0.89 |
+(standard errors 0.02-0.09 on types; collapses 0.00-0.03 throughout, scratch 0.16.)
+- **No, not to the last tick.** Plain levels off by 200-300k (fit: types
+  -> 2.65, tau ~93k, 95% there by ~280k) and drifts down ~0.05 after (within
+  ~2 se). The arena climbs more slowly to the same level (-> 2.67, tau ~165k,
+  95% by ~490k) and peaks at 600k. Same ceiling, so the race buys nothing on
+  types; it may buy a little diet late (0.84-0.86 vs 0.79-0.81 at 500-700k,
+  about 2 se), and 2 of its 7 scored rounds pass "seeks diet".
+- **Types goal (2.5) is met by both after ~200-300k; diet (0.9) by neither.**
+  Diet's ceiling in 4D at 0.36x is ~0.80-0.86 whatever the training length,
+  so diet is not a training-time problem.
+- No 1x-style decay at 0.36x: the drift after the plateau is a few hundredths.
+
+**Luck in an untested hall of fame** (5zorro: "how much pressure luck plays on
+an 'un tested' hall of fame"). `--measure` races each plain checkpoint's hall
+of fame once (4 shared scenarios, no write-back) and splits each scenario's
+score (collapses per 1,000 ticks) into brain quality + shared luck (the same
+for every brain on that scenario) + leftover luck (`runs/arena-4d-luck.log`,
+`runs/arena-4d-luck-700k.log`). r = quality's share of one score.
+| Round | Quality var | Shared luck | Leftover | r (shared scenarios) | r (alone) | Tests for 0.8 (shared/alone) | Merit~race | Top half agrees |
+|---|---|---|---|---|---|---|---|---|
+| 1 | 6.05 | 0.53 | 0.94 | 0.85 | 0.79 | 0.7 / 1.1 | +0.07 | 50% |
+| 2 | 4.07 | 0.35 | 0.60 | 0.85 | 0.76 | 0.7 / 1.3 | +0.08 | 55% |
+| 3 | 0.42 | 0.27 | 0.17 | 0.71 | 0.50 | 1.6 / 3.9 | +0.15 | 57% |
+| 5 | 0.05 | 0.13 | 0.06 | 0.45 | 0.24 | 4.9 / 12.3 | +0.03 | 48% |
+| 10-35 (6 rounds) | 0.03-0.12 | 0.07-0.20 | 0.04-0.06 | 0.42-0.66 | 0.15-0.44 | 2-6 / 5-22 | -0.17 to +0.02 | 42-55% |
+- **Quality differences collapse ~100x in the first 100k ticks** (variance
+  6 -> 0.05) and then stay there; luck shrinks only ~10x (0.9 -> 0.06). So
+  luck's share of a score grows from ~20% to ~50-80% as the hall of fame
+  fills with relatives.
+- **After ~60k ticks one untested life is 15-45% quality.** A reliable (0.8)
+  ranking then needs ~5-20 independent lives per brain, or ~2-6 shared
+  scenarios: common random numbers halve to quarter the tests, because shared
+  luck is about as big as quality.
+- **The hall of fame's own ranking predicts the race at chance** in every
+  round: merit~race rank correlation -0.17 to +0.15 (mean ~0), top-half
+  agreement 42-57% (chance 50%). Even in rounds 1-2, when one life was
+  reliable, it was +0.07. The hall's merit is earned in the nursery (0.36x,
+  collapse aging) and the race scores the test world (1x, no aging), so part
+  of this is a different test, not just luck; hall entries also have few
+  lives (median 1, mean 2, plus the prior's 3).
+- **Why the arena doesn't pull ahead: its verdicts don't last.** Across 116
+  consecutive race pairs, only 14 of the 1,160 entries kept by one race were
+  still in the hall of fame at the next (~1%; `race.json`). Those 14 did beat
+  the newcomers in the next race (stage-1 excess -0.15 +- 0.05 vs 0.00 +-
+  0.01), so the race picks real winners, but the nursery's stream of new lives
+  replaces the whole hall within one 20,000-tick round. Likely causes (not yet
+  checked): the race writes its excess on the test world's scale into the same
+  merit as nursery lives, and the copies' nursery lives then add to it; and
+  after 5 copies an entry whose copies did worse than average is dropped.
+- So with the current hall-of-fame rules, the race is a ~1% nudge. The
+  untested hall of fame is mostly luck among near-equals after ~60k ticks,
+  which is cheap because the near-equals really are near-equal. Not built:
+  luck per output option (needs per-action counters in the scenario worlds).
 
 ### Slice 4: Levers, only if criterion 3 fails
 Criterion 3 isn't demonstrated (slice 3b). 5zorro picked the memory stack as the

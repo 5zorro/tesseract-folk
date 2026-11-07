@@ -77,10 +77,16 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
    travel-time worlds are sane (never-moving NPCs starve); at each dimension's
    fertile hunger 2D passes, 3D loses diet and collapses, 4D still fails diet
    and types: hunger isn't 4D's lever, but 4D at 0.36x has births. **R13 (2026-11-07):** trials lose in 4D at
-   0.36x (no collapse signal to rank; half the generations). Proposed next: split
-   hunger (nutrient decay 1x, body burn low) so diet keeps pressure and bodies can
-   mate. Earlier plan: test trials in
-   4D nurseries (5zorro's proposal, built 2026-11-06). Built and off by default: `topup_crossover`,
+   0.36x (no collapse signal to rank; half the generations); split hunger
+   (body burn low, nutrient decay 1x) gives no births. **R14 (2026-11-07):**
+   `scripts/arena.py` races the hall of fame on shared scenarios (common random
+   numbers, successive halving). To 700k ticks in 4D at 0.36x: no advantage over
+   the plain nursery; both level off at ~2.65 food types (types goal met after
+   ~200-300k), diet stuck at ~0.80-0.86. Luck: after ~60k ticks the hall of
+   fame's brains are near-equal and its own ranking predicts the race at chance;
+   race verdicts are washed out within one 20k round (~1% of kept entries
+   survive). Not built: luck per output option. Pick of hunger per dimension
+   waiting on 5zorro: 2D 1x, 3D 0.9x, 4D 0.36x. Built and off by default: `topup_crossover`,
    `craving_sense`, `mate_sense` (pheromone call), `actions_off`,
    `extra_stay_actions`, `hidden_units=0`; `Simulation.set_rule`. 5zorro's open
    questions: the private `openitems.md` (2026-11-06 list).

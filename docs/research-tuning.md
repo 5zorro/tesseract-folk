@@ -164,6 +164,12 @@ gitignored). The plan tables are the record; to check one, rerun its script.
 | Trials halve a nursery's generations at a fixed tick budget (clones take most top-ups) | finding | plan-m2 R13 |
 | At 0.36x hunger 4D nurseries barely collapse (0-0.06 per 1,000 ticks, nursery rules): collapse-based merit has no signal there | finding | plan-m2 R13 |
 | 4D births are blocked by nutrient pressure, not body burn: with nutrient decay at 1x, births stay ~0 (2-6 vs ~285 top-ups) at body burn 0.25-1x | finding (2 nurseries x 5 seeds per level) | plan-m2 R13; `hunger_search.py --keys metabolism_rate` |
+| 4D at 0.36x: training levels off, it doesn't improve to the last tick. Types -> ~2.65 with tau ~93k (plain) or ~165k (arena), 95% there by ~280k / ~490k; same ceiling either way | finding (4 nurseries x 3 seeds, 7 scored rounds to 700k) | plan-m2 R14; `arena.py --start-round 5 --rounds 35` |
+| 4D diet tops out at ~0.80-0.86 at 0.36x whatever the training length (goal 0.9) | finding | plan-m2 R14 |
+| Brain quality differences in a hall of fame shrink ~100x in the first ~100k ticks (variance 6 -> 0.05) while luck shrinks ~10x: luck's share of one score rises from ~20% to 50-80% | hint (one dimension, 4 nurseries) | plan-m2 R14; `arena.py --measure` |
+| After ~60k ticks one untested life is 15-45% quality: 0.8 reliability needs ~5-20 lives alone, or ~2-6 shared scenarios (common random numbers cut the tests 2-4x) | hint | plan-m2 R14 (Spearman-Brown) |
+| A hall of fame's own merit ranks brains no better than chance against a shared-scenario race (rank corr. ~0, top-half agreement 42-57%) | finding (every measured round, 1-35) | plan-m2 R14 |
+| Race verdicts written into the hall of fame don't last a 20k round: ~1% of kept entries survive to the next race (though the survivors are better) | finding | plan-m2 R14; `race.json` |
 | Hunger isn't 4D's M2 lever: food types 1.96 at 1x, 2.11 at 0.36x (goal 2.5) | finding | plan-m2 R12 |
 | Diagonal (king) steps cut the food-to-food walk 1.4x / 1.75x / 1.9x in 2D / 3D / 4D (theory for an open grid: 2d/3) | finding (random walker) | plan-m2 R12; `probe_random_walk.py --diagonal` |
 | The kids rules (birth weight + child credit) raise births only where births are possible: 2D 12x at 1.25x hunger, 4D 5x at 0.25x; the finish line moves at most one step | hint (2 seeds) | plan-m2 R11 |

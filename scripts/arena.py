@@ -334,7 +334,7 @@ def report(rows: list[dict], args: dict) -> None:
             print(f"{arm:>6} {rnd:>5} {cell[0]['ticks']:>8,} {m['collapse_rate']:5.2f} {m['min_nutrient']:5.2f} "
                   f"{m['diet_diversity']:5.2f} {m['zone_types_per_life']:5.2f}+-{se:4.2f} "
                   f"{m['approach_excess']:7.3f}  {marks}")
-            curves.setdefault(arm, []).append((cell[0]["ticks"], m))
+            curves.setdefault(arm, []).append((cell[0]["ticks"], m, rnd))
     print("\nEquilibrium projection, y = y_inf + (y0 - y_inf) exp(-t / tau); ~95% there at 3 tau:")
     for arm, points in curves.items():
         if len(points) < 3:
@@ -346,9 +346,11 @@ def report(rows: list[dict], args: dict) -> None:
             y = np.array([p[1][key] for p in points])
             f = fit(t, y)
             peak = int(np.argmax(y) if key != "collapse_rate" else np.argmin(y))
-            shape = "" if peak == len(y) - 1 else f"; best at round {peak + 1}, then worse"
+            shape = "" if peak == len(y) - 1 else f"; best at round {points[peak][2]}, then worse"
             where = "no clear equilibrium (tau at the fit's edge)" if f["edge"] else \
                 f"-> {f['y_inf']:.2f}, tau {f['tau']:,.0f} ticks, 95% by ~{f['t95']:,.0f}"
+            if not f["edge"] and f["t95"] > 2 * t.max():
+                where += " (beyond 2x the data: a guess)"
             print(f"  {arm:>6} {label:>9}: {where}{shape}")
 
 
