@@ -1529,6 +1529,50 @@ for every brain on that scenario) + leftover luck (`runs/arena-4d-luck.log`,
   which is cheap because the near-equals really are near-equal. Not built:
   luck per output option (needs per-action counters in the scenario worlds).
 
+**Why the picks vanished, and the persist arm** (5zorro: "do you still think
+that the best next step is to make the race picks persist? if so then lets do
+it!"). A probe reloaded two arena checkpoints taken right after a race and
+followed the 10 kept entries for a round: 18 of 20 left within a median ~5-9k
+ticks, 13 dropped by the 5-copies floor (copies' nursery lives at 0.36x barely
+collapse, so the floor fires on luck) and 5 pushed out by newcomers. Fix
+(commit 16b84f6, both engines, default runs unchanged): an entry marked
+`raced` (only `arena.py` sets it) takes no credit from copies' lives and ranks
+above the rest. Arm `persist` marks the race's top 10 and adds each later race
+to their record. Fresh from tick 0, same settings (`runs/arena-4d-persist.log`):
+| Round (ticks) | Persist types | Persist diet | Persist nutrient | Seeks diet |
+|---|---|---|---|---|
+| 5 (100k) | 2.23 | 0.79 | 0.78 | Y |
+| 10 (200k) | 2.48 | 0.82 | 0.79 | Y |
+| 15 (300k) | 2.53 | 0.82 | 0.86 | . |
+| 20 (400k) | 2.52 | 0.84 | 0.88 | Y |
+| 25 (500k) | 2.66 | 0.85 | 0.88 | Y |
+| 30 (600k) | 2.57 | 0.85 | 0.83 | Y |
+| 35 (700k) | 2.66 | 0.86 | 0.90 | Y |
+Rounds 20-35, mean +- se over the 4 nurseries:
+| Arm | Types | Diet | Nutrient |
+|---|---|---|---|
+| plain | 2.63 +- 0.02 | 0.80 +- 0.01 | 0.86 +- 0.01 |
+| arena | 2.65 +- 0.07 | 0.84 +- 0.02 | 0.88 +- 0.02 |
+| persist | 2.60 +- 0.06 | 0.85 +- 0.01 | 0.88 +- 0.03 |
+- **The picks now last:** all 1,360 kept entries were still there at the next
+  race (arena arm: 14 of 1,160).
+- **The race's ranking partly repeats:** the same kept brains rank with
+  correlation +0.41 (median +0.46) from one race to the next, so there are real
+  differences among them.
+- **But kept brains aren't better than the newcomers they meet** (next race,
+  stage-1 excess -0.002 +- 0.007 vs +0.002 +- 0.009). Top-ups now copy the
+  champions, so the newcomers are mostly their mutated copies and about as
+  good. The generation spread in a race's field doubles (sd 4.3 vs 2.0): old
+  champions stand beside their descendants.
+- **Same types ceiling (~2.6-2.65) in all three arms.** Racing, either arm,
+  raises late diet by ~0.04-0.05 over plain (persist vs plain ~3.5 se on 4
+  nurseries) and passes "seeks diet" in 5 of 7 scored rounds, but diet stays
+  below the 0.9 goal.
+- **So luck isn't what caps 4D.** Selection with luck taken out lands on the
+  same ceiling; the hall of fame is near-equal because the population is
+  (5zorro: "same-y same-y"). The next levers are variation (mutation size)
+  and capacity (brain size) at 0.36x, which R10 and R7 tested only at 1x.
+
 ### Slice 4: Levers, only if criterion 3 fails
 Criterion 3 isn't demonstrated (slice 3b). 5zorro picked the memory stack as the
 first lever (2026-11-03).

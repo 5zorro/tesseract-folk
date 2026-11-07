@@ -169,7 +169,9 @@ gitignored). The plan tables are the record; to check one, rerun its script.
 | Brain quality differences in a hall of fame shrink ~100x in the first ~100k ticks (variance 6 -> 0.05) while luck shrinks ~10x: luck's share of one score rises from ~20% to 50-80% | hint (one dimension, 4 nurseries) | plan-m2 R14; `arena.py --measure` |
 | After ~60k ticks one untested life is 15-45% quality: 0.8 reliability needs ~5-20 lives alone, or ~2-6 shared scenarios (common random numbers cut the tests 2-4x) | hint | plan-m2 R14 (Spearman-Brown) |
 | A hall of fame's own merit ranks brains no better than chance against a shared-scenario race (rank corr. ~0, top-half agreement 42-57%) | finding (every measured round, 1-35) | plan-m2 R14 |
-| Race verdicts written into the hall of fame don't last a 20k round: ~1% of kept entries survive to the next race (though the survivors are better) | finding | plan-m2 R14; `race.json` |
+| Race verdicts written into the hall of fame don't last a 20k round: ~1% of kept entries survive to the next race (though the survivors are better); the 5-copies floor drops most of them on luck | finding | plan-m2 R14; `race.json` |
+| Taking luck out of selection (races whose picks persist) doesn't raise 4D's food-types ceiling (~2.6-2.65 in all arms); it raises late diet ~0.05 (0.85 vs 0.80), still below 0.9 | finding (4 nurseries per arm, to 700k) | plan-m2 R14 persist arm |
+| With persistent champions, the next race's newcomers (mostly their mutated copies) are as good as the champions: the population converges on them | finding | plan-m2 R14 persist arm |
 | Hunger isn't 4D's M2 lever: food types 1.96 at 1x, 2.11 at 0.36x (goal 2.5) | finding | plan-m2 R12 |
 | Diagonal (king) steps cut the food-to-food walk 1.4x / 1.75x / 1.9x in 2D / 3D / 4D (theory for an open grid: 2d/3) | finding (random walker) | plan-m2 R12; `probe_random_walk.py --diagonal` |
 | The kids rules (birth weight + child credit) raise births only where births are possible: 2D 12x at 1.25x hunger, 4D 5x at 0.25x; the finish line moves at most one step | hint (2 seeds) | plan-m2 R11 |

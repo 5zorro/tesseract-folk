@@ -85,7 +85,10 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
    ~200-300k), diet stuck at ~0.80-0.86. Luck: after ~60k ticks the hall of
    fame's brains are near-equal and its own ranking predicts the race at chance;
    race verdicts are washed out within one 20k round (~1% of kept entries
-   survive). Not built: luck per output option. Pick of hunger per dimension
+   survive). With the picks made to persist (raced entries, arm `persist`):
+   same types ceiling, diet +0.05 (0.85), still short of 0.9; luck isn't the
+   cap. Next levers: mutation size and brain size at 0.36x. Not built: luck
+   per output option. Pick of hunger per dimension
    waiting on 5zorro: 2D 1x, 3D 0.9x, 4D 0.36x. Built and off by default: `topup_crossover`,
    `craving_sense`, `mate_sense` (pheromone call), `actions_off`,
    `extra_stay_actions`, `hidden_units=0`; `Simulation.set_rule`. 5zorro's open
