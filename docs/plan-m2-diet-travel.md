@@ -1318,6 +1318,57 @@ at the floor of 30 even there.
   ticks fall ~30x in 2D from 0.25x to 1x (13 -> 0.4) and stay under 1 in 3D/4D;
   worship is ~0 everywhere; prayer falls in 4D (45 -> 0.3 by 1x).
 
+### Slice R12: M2 at the fertile edge, after a sanity check (2026-11-07)
+5zorro: before testing M2 at each dimension's fertile hunger, make sure the world
+is sane (the first 4D worlds had food everywhere and nobody died). Then pick
+whatever hunger per dimension gets what we want; equal fertility or equal hunger
+isn't required.
+
+**Sanity check** (`sweep.py`, scratch brains, 3 seeds x 10,000 ticks, travel-time
+worlds; new `controller=still`: an NPC that eats what's in its cell and never
+moves; `runs/hunger-sanity-{2,3,4}d.log`). Hunger distance 0.10 and 0.14 clocks
+(R11), and 1x:
+| | Hunger | Wander collapses | Still collapses | Types/life (wander / still) | Births |
+|---|---|---|---|---|---|
+| 2D | 0.75x / 1.05x / 1x | 0.8 / 1.5 / 1.2 | 3.2 / 4.9 / 4.7 | 2.9 / 1.6-1.8 | 260 / 46 / 71 |
+| 3D | 0.54x / 0.75x / 1x | 0.2 / 0.4 / 1.2 | 2.5 / 3.8 / 5.4 | 2.6-2.7 / 0.5 | 891 / 119 / 29 |
+| 4D | 0.26x / 0.36x / 1x | **0.0** / 0.2 / 3.7 | 2.8 / 3.9 / 10.8 | 1.4-1.7 / 0.1-0.5 | 44 / 22 / 1 |
+- **The maps are sane:** an NPC that never moves collapses 3-15x more than a
+  random wanderer and eats 0.1-0.5 food types per life in 3D/4D. No crumbs-
+  everywhere world.
+- **The pressure isn't:** at 0.10 clocks untrained 4D wanderers never collapse
+  (5zorro's "zero deaths"); at 0.14 clocks 3D and 4D are weak (0.2-0.4). At
+  equal hunger distance, fertility lines up across dimensions but collapse
+  pressure falls with dimension (2D 1.5, 3D 0.4, 4D 0.2).
+
+**M2 ladder at the fertile edge (0.14 clocks) vs 1x** (`ladder.py --worlds time
+--hidden 16 --set nutrient_decay=...,metabolism_rate=...`, 2 nurseries x 5 seeds,
+20,000-tick nurseries; `runs/hdist-*.log`, nurseries in `snapshots/hdist`).
+Goals: collapses below scratch, lowest nutrient >= 0.4, diet >= 0.9, types >= 2.5,
+seeks diet.
+| | Hunger | Collapses (scratch) | Nutrient | Diet | Types | Births vs top-ups | Goals |
+|---|---|---|---|---|---|---|---|
+| 2D | 1x | 0.45 (1.23) | 0.51 | 0.95 | 2.96 | 87 vs 113 | all |
+| 2D | 1.05x | 0.79 (1.50) | 0.48 | 0.95 | 2.97 | 110 vs 99 | all |
+| 3D | 1x | 0.68 (1.19) | 0.44 | 0.93 | 2.83 | 43 vs 147 | all |
+| 3D | 0.75x | 0.56 (0.41) | 0.45 | **0.85** | 2.72 | **1,042 vs 14** (pop 179) | not collapses, diet |
+| 4D | 1x | 2.50 (3.82) | **0.30** | 0.81 | 1.96 | 1 vs 283 | collapses, seeks |
+| 4D | 0.36x | 0.03 (0.15) | 0.72 | **0.75** | 2.11 | 50 vs 98 | not diet, types |
+- **Hunger isn't 4D's lever:** at 0.36x 4D gains the nutrient goal, more food
+  types (2.11 vs 1.96) and births (a third of replacements vs ~0), but diet
+  diversity falls (0.75 vs 0.81). Types and diet fail at both levels.
+- **Diet diversity needs hunger:** lower hunger lowers it in 3D (0.93 -> 0.85)
+  and 4D (0.81 -> 0.75). NPCs that need food less eat whatever is near.
+- **3D at 0.75x is M3-like:** nursery worlds grow to 179 NPCs on births (1,042
+  births vs 14 top-ups), but they lose the collapse goal to scratch (confounded:
+  scratch worlds stay at 32 NPCs) and the diet goal.
+- **The 1x baseline still stands:** 2D and 3D pass every goal at 1x; 3D's births
+  there are a quarter of replacements.
+- Diagonals (5zorro's question): king steps cut the median food-to-food walk
+  1.4x (2D), 1.75x (3D), 1.9x (4D) (`probe_random_walk.py --diagonal`); by R11's
+  law that would roughly double 4D's fertile hunger (~0.7x). Not built; 5zorro's
+  hex-grid / equal-neighbor lattice idea is in `openitems.md` (backburner).
+
 ### Slice 4: Levers, only if criterion 3 fails
 Criterion 3 isn't demonstrated (slice 3b). 5zorro picked the memory stack as the
 first lever (2026-11-03).

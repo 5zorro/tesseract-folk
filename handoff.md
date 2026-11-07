@@ -73,7 +73,10 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
    **Births can't carry selection yet:** today's 1x hunger is past 3D's and 4D's
    fertile range, and 4D births are density-limited (slice R11). Also built, off:
    hall-of-fame birth bonus, child credit, trials (`sim/trials.py`), frozen;
-   `scripts/probe_decay.py`, `scripts/hunger_ladder.py`. **Next: test trials in
+   `scripts/probe_decay.py`, `scripts/hunger_ladder.py`. **2026-11-07 (R12):** the
+   travel-time worlds are sane (never-moving NPCs starve); at each dimension's
+   fertile hunger 2D passes, 3D loses diet and collapses, 4D still fails diet
+   and types: hunger isn't 4D's lever, but 4D at 0.36x has births. **Next: test trials in
    4D nurseries** (5zorro's proposal, built 2026-11-06). Built and off by default: `topup_crossover`,
    `craving_sense`, `mate_sense` (pheromone call), `actions_off`,
    `extra_stay_actions`, `hidden_units=0`; `Simulation.set_rule`. 5zorro's open
