@@ -19,7 +19,9 @@ without help. Watch `clpse` and `gen` in the headless table.
 Likely work: tune hunger/food numbers, maybe start brains with a mild
 "eat when hungry" bias, try more hidden units.
 
-## M2: Diet drives travel
+## M2: Diet drives travel ✅ (2026-11-07)
+Passed in 2D, 3D and 4D (4D's diet goal is 0.8, 5zorro 2026-11-07); see
+`docs/plan-m2-diet-travel.md`.
 **Pass:** `diet_diversity` stays high *and* NPCs move between food zones
 (add a metric: distinct food zones visited per lifetime).
 

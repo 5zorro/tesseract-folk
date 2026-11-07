@@ -29,6 +29,9 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
   eating counts as busy, food only in patches, slower hunger (0.003), costlier
   collapses (300). Criteria settled by 5zorro (plan, Goal): **all four met, in 2D
   and 4D** (3 only easily). 4D uses `food_patch_radius=2.0`.
+- **M2 diet drives travel is done** (2026-11-07): passes in 2D, 3D and 4D, with
+  4D's diet goal moved to 0.8 by 5zorro. Hunger: 2D 1x, 3D 0.9x, 4D 0.36x.
+  4D recipe and the hints for revisiting 4D diet: plan-m2 slice R15.
 - `--until-stable` honestly fails (top-ups, population on the floor) and prints
   why. Expect that until M3.
 - **Smiting is off** (`Config.smiting = False`, 5zorro 2026-11-02) until a snapshot
@@ -89,9 +92,9 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
    same types ceiling, diet +0.05 (0.85), still short of 0.9; luck isn't the
    cap. **R15:** mutation size (inverted U at the default) and brain size
    (8-32, flat) don't move it either; diet ~0.78-0.80 in every cell. 4D's diet
-   ceiling isn't a training-method limit: next is 5zorro's call on the goal
-   or the selection signal (collapses say little about diet at 0.36x). Not
-   built: luck per output option. Pick of hunger per dimension
+   ceiling isn't a training-method limit. **5zorro moved 4D's diet goal to
+   0.8 and closed M2 (2026-11-07);** revisit hints are in R15. Next: M3
+   (births, `docs/ROADMAP.md`) or the manager nets (`openitems.md`), 5zorro's pick. Pick of hunger per dimension
    waiting on 5zorro: 2D 1x, 3D 0.9x, 4D 0.36x. Built and off by default: `topup_crossover`,
    `craving_sense`, `mate_sense` (pheromone call), `actions_off`,
    `extra_stay_actions`, `hidden_units=0`; `Simulation.set_rule`. 5zorro's open

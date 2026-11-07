@@ -32,7 +32,7 @@ from sim import keyed  # noqa: E402
 from sim.config import parse_overrides  # noqa: E402
 from sim.controllers import SenseController  # noqa: E402
 from sim.simulation import Batch  # noqa: E402
-from ladder import MIN_DIET, MIN_NUTRIENT, MIN_TYPES, WORLD_SETS  # noqa: E402
+from ladder import MIN_DIET, min_diet, MIN_NUTRIENT, MIN_TYPES, WORLD_SETS  # noqa: E402
 from sweep import Run  # noqa: E402
 
 
@@ -92,13 +92,13 @@ def main() -> None:
     controllers = args.controllers + [f"sense@{p:g}" for p in args.follow]
     jobs = [(d, c, range(args.seeds), args.ticks, overrides) for d in args.dims for c in controllers]
     print(f"{'dims':>4} {'forager':>9} {'clpse':>6} {'nutr':>5} {'diet':>5} {'types':>5} {'blind':>6} "
-          f"{'no scent':>8}  goals (nutrient {MIN_NUTRIENT}, diet {MIN_DIET}, types {MIN_TYPES})")
+          f"{'no scent':>8}  goals (nutrient {MIN_NUTRIENT}, diet {MIN_DIET} (4D {min_diet(4)}), types {MIN_TYPES})")
     with ProcessPoolExecutor(len(jobs)) as pool:
         for dims, controller, rows, blind, zero in pool.map(job, jobs):
             m = {k: float(np.nanmean([r[k] for r in rows]))
                  for k in ("collapse_rate", "min_nutrient", "diet_diversity", "zone_types_per_life")}
             marks = " ".join("Y" if ok else "." for ok in (m["min_nutrient"] >= MIN_NUTRIENT,
-                             m["diet_diversity"] >= MIN_DIET, m["zone_types_per_life"] >= MIN_TYPES))
+                             m["diet_diversity"] >= min_diet(dims), m["zone_types_per_life"] >= MIN_TYPES))
             print(f"{dims:>4} {controller:>9} {m['collapse_rate']:6.2f} {m['min_nutrient']:5.2f} "
                   f"{m['diet_diversity']:5.2f} {m['zone_types_per_life']:5.2f} {blind:6.1%} {zero:8.1%}  {marks}")
 

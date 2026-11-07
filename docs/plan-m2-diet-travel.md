@@ -1,14 +1,11 @@
 # Plan: M2 Diet drives travel
 
-Status (2026-11-05): **slices 1–3f and research slices R1–R6 done. 2D passes
-all criteria (criterion 3 via the move metric, not yet accepted by 5zorro). 3D
-fails food types per life (2.36-2.41 vs 2.5); 4D fails badly. Cause found in
-3f: crumb grazing. Research (R): smell reach isn't the cause, training length
-isn't, random-walk luck barely is in 3D; mutation is now lineage-adaptive at 30
-per child (the default); a hall-of-fame track record (off) helps 2D a lot.
-5zorro's two eat actions (slice 3g, built, off) make **3D meet every goal** and
-cut 4D collapses 58%; 4D still fails. Next: decide defaults (two eat, track
-record), then meal scent with two eat, then 4a.** Slices are ordered; each one ends with tests passing and a commit.
+Status (2026-11-07): **M2 passes in 2D, 3D and 4D, with 4D's diet goal moved to
+0.8** (5zorro: "im not married to the goal of .9. lets change the goalposts,
+record the hints of where to go further if we want to revisit and move on").
+Hunger per dimension: 2D 1x, 3D 0.9x, 4D 0.36x (R12). Where to dig if 4D diet
+is revisited: "Revisit hints" at the end of slice R15. The 2026-11-05 status
+and every slice below are kept as the record.
 Open decisions (bottom) are 5zorro's.
 **Since the GPU plan's G1 (2026-11-05)** the tick rules changed; the re-check
 (`docs/plan-gpu-backend.md`, G1) gives the same verdicts within seed noise.
@@ -27,7 +24,8 @@ needed for a balanced diet.
 
 **Criteria** (over 5 seeds × 10,000 ticks, 2D, play worlds started from the
 nursery, as in M1). Settled 2026-11-03 with criterion 1 raised to 0.9 (see slice 2):
-1. `diet_diversity` stays at or above 0.9 in the last quarter.
+1. `diet_diversity` stays at or above 0.9 in the last quarter. **4D: 0.8** (moved 2026-11-07,
+   5zorro; slice R15).
 2. NPCs eat in the zones of all three food types: the mean number of distinct
    food types eaten *inside a zone* per lifetime is at least 2.5.
 3. **Diet drives the travel:** NPCs switch between zones more often in the normal
@@ -1616,6 +1614,46 @@ mutation doubling, -0.003 per brain doubling.
   collapses ("rewarding B while hoping for A", Kerr 1975), and whether 0.9
   is the right diet goal for 4D. Both are 5zorro's call.
 
+**Goal moved (5zorro, 2026-11-07):** "im not married to the goal of .9. lets
+change the goalposts, record the hints of where to go further if we want to
+revisit and move on." 4D's diet goal is now 0.8 (`ladder.min_diet`; 2D and 3D
+stay at 0.9). Re-scored, these 4D checkpoints meet every goal (collapses,
+nutrient, diet, types, seeks diet):
+| Run | Ticks | Diet | Types | Nutrient |
+|---|---|---|---|---|
+| plain (R14) | 200k | 0.83 | 2.61 | 0.88 |
+| arena (R14) | 500k, 600k | 0.84-0.86 | 2.66-2.70 | 0.89-0.90 |
+| persist (R14) | 400k, 500k, 600k, 700k | 0.84-0.86 | 2.52-2.66 | 0.83-0.90 |
+| variation grid, 1x / 16 units (R15) | 200k | 0.81 | 2.57 | 0.87 |
+"Seeks diet" (approach excess above 0 in every run, and above scratch) is now
+the goal that decides it. Persist passes every scored round from 400k on, so
+it is the 4D recipe: `python scripts/arena.py --dims 4 --breed H --play H
+--arms persist --rounds 20` with H = `nutrient_decay=0.00108,metabolism_rate=0.0036`
+(~1 hour). No 4D snapshot is kept today (all were deleted before the goal
+moved); rebuild one with that command when a later milestone needs it.
+
+**Revisit hints** (where to dig if 4D diet 0.9 matters again; none built):
+1. **The selection signal** ("rewarding B while hoping for A"): selection
+   rewards not collapsing, and at 0.36x almost nothing collapses (0.03 per
+   1,000 ticks). Racing in 1x test worlds raised diet ~0.05 (R14). Next: score
+   brains in a harsher test world where a poor diet causes collapses, or
+   measure how well a brain's collapse score predicts its diet (Goodhart's
+   regressional kind). A direct diet reward may cross Rule 6.
+2. **The lineage rule in 4D:** it almost never gives its big jumps (0% of
+   children at the 4x cap; R15 probe). Test 4D with it off, or keyed on
+   something that varies at 0.36x.
+3. **Brain shape, not size:** a product of n inputs takes ~2^n units in one
+   layer but ~n with depth (Rolnick & Tegmark 2018, from memory). The forager's
+   rule is a product (R8). A second hidden layer is untested; 8-32 units in one
+   layer are flat (R15).
+4. **Luck per output option** (5zorro, R14): needs per-action counters in the
+   scenario worlds.
+5. **Lattices:** hex/FCC/D4 (equal neighbours, `openitems.md` backburner) and
+   diagonals (walks 1.4x/1.75x/1.9x faster in 2D/3D/4D, R12) change the hunger
+   distance; a law across lattices may show where 4D's diet is lost.
+6. **Weight pull-back mutation** (R10 proposal) for the late decay at 1x; at
+   0.36x there's no decay, so lower priority.
+
 ### Slice 4: Levers, only if criterion 3 fails
 Criterion 3 isn't demonstrated (slice 3b). 5zorro picked the memory stack as the
 first lever (2026-11-03).
@@ -1689,6 +1727,7 @@ nursery after a rule change:
 
 ## Open decisions (5zorro)
 - ~~The criteria thresholds~~: settled 2026-11-03 (slice 2, "Thresholds").
+- ~~4D diet goal~~: settled 2026-11-07 (5zorro): 0.8 for 4D (slice R15).
 - **Is the eat action's food choice OK as an instinct?** It picks the best food
   at a cell automatically. Keeping it makes M2 about *where* NPCs go, not *what*
   they choose to eat once there. The alternative is one eat action per food type,

@@ -175,6 +175,7 @@ gitignored). The plan tables are the record; to check one, rerun its script.
 | Mutation size is an inverted U centred on the default (0.3) in 4D at 0.36x: half or double loses ~0.1-0.25 food types; double raises collapses +0.02 per doubling | finding (3 x 3 grid, 4 nurseries per cell, 300k) | plan-m2 R15; `variation_ladder.py` |
 | Brain size 8-32 units doesn't change 4D's ceiling at 0.36x (types -0.05 +- 0.05, diet -0.002 +- 0.005 per doubling) | finding | plan-m2 R15 |
 | 4D diet (~0.77-0.80) is flat across mutation size, brain size and selection noise: not a training-method limit | finding (R14 + R15) | plan-m2 R15 |
+| With 4D's diet goal at 0.8 (moved 2026-11-07), "seeks diet" decides 4D's M2 pass; persistent races pass it every scored round from 400k ticks | finding | plan-m2 R15 "Goal moved" |
 | Lineage-adaptive mutation rarely gives its big jumps: in 4D 0% of children reach the 4x cap and ~40% sit at the 1/4 floor (mean 21.5 per child at 0.36x, 13.8 at 1x) | hint (one nursery, 20k ticks) | plan-m2 R15 notes; scratch probe |
 | Hunger isn't 4D's M2 lever: food types 1.96 at 1x, 2.11 at 0.36x (goal 2.5) | finding | plan-m2 R12 |
 | Diagonal (king) steps cut the food-to-food walk 1.4x / 1.75x / 1.9x in 2D / 3D / 4D (theory for an open grid: 2d/3) | finding (random walker) | plan-m2 R12; `probe_random_walk.py --diagonal` |

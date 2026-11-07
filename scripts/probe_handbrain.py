@@ -29,7 +29,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from sim.brain import Brain  # noqa: E402
 from sim.simulation import Batch  # noqa: E402
-from ladder import MIN_DIET, MIN_NUTRIENT, MIN_TYPES, WORLD_SETS  # noqa: E402
+from ladder import MIN_DIET, min_diet, MIN_NUTRIENT, MIN_TYPES, WORLD_SETS  # noqa: E402
 from sweep import Run  # noqa: E402
 
 FIXED = {"hidden_units": 0, "craving_sense": True, "mutations_per_birth": 0.0,
@@ -82,13 +82,13 @@ def main() -> None:
     args = ap.parse_args()
     jobs = [(d, k, range(args.seeds), args.ticks) for d in args.dims for k in args.sharpness]
     print(f"{'dims':>4} {'sharp':>5} {'clpse':>6} {'nutr':>5} {'diet':>5} {'types':>5}  "
-          f"goals (nutrient {MIN_NUTRIENT}, diet {MIN_DIET}, types {MIN_TYPES})")
+          f"goals (nutrient {MIN_NUTRIENT}, diet {MIN_DIET} (4D {min_diet(4)}), types {MIN_TYPES})")
     with ProcessPoolExecutor(len(jobs)) as pool:
         for dims, k, rows in pool.map(job, jobs):
             m = {key: float(np.nanmean([r[key] for r in rows]))
                  for key in ("collapse_rate", "min_nutrient", "diet_diversity", "zone_types_per_life")}
             marks = " ".join("Y" if ok else "." for ok in (m["min_nutrient"] >= MIN_NUTRIENT,
-                             m["diet_diversity"] >= MIN_DIET, m["zone_types_per_life"] >= MIN_TYPES))
+                             m["diet_diversity"] >= min_diet(dims), m["zone_types_per_life"] >= MIN_TYPES))
             print(f"{dims:>4} {k:5g} {m['collapse_rate']:6.2f} {m['min_nutrient']:5.2f} "
                   f"{m['diet_diversity']:5.2f} {m['zone_types_per_life']:5.2f}  {marks}")
 

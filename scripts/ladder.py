@@ -53,6 +53,14 @@ LATE_FROM, LOG_EVERY = 0.5, 250
 
 # The M1/M2 goals each nursery-started world is checked against.
 MIN_NUTRIENT, MIN_DIET, MIN_TYPES = 0.4, 0.9, 2.5
+# 4D's diet goal moved to 0.8 (5zorro, 2026-11-07, plan-m2 R15: "im not married to the
+# goal of .9. lets change the goalposts"): luck, mutation size and brain size all left
+# 4D diet at ~0.78-0.86.
+MIN_DIET_BY_DIMS = {4: 0.8}
+
+
+def min_diet(dims: int) -> float:
+    return MIN_DIET_BY_DIMS.get(int(dims), MIN_DIET)
 
 
 # A "shape" is (dims, size, food_patch_radius, hidden_units, rules), where rules
@@ -186,7 +194,7 @@ def verdicts(rows: list[dict]) -> list[dict]:
             line["goals"] = {
                 "collapses": line["collapses"] < line["scratch_collapses"],
                 "nutrient": line["min_nutrient"] >= MIN_NUTRIENT,
-                "diet": line["diet"] >= MIN_DIET,
+                "diet": line["diet"] >= min_diet(dims),
                 "types": line["types"] >= MIN_TYPES,
                 "seeks diet": line["excess_positive"] == line["runs"] and line["excess_vs_scratch"] > 0,
             }

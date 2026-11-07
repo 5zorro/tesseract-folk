@@ -15,7 +15,8 @@ are reused, so reruns only add what's missing.
         # split hunger (R13): only body burn scales, nutrient decay stays at 1x
 
 Pick: the lowest hunger that meets every goal (lower hunger = more births, R12).
-Within-noise misses (e.g. diet 0.89 vs 0.9) count as misses: the goals stay put.
+Within-noise misses (e.g. diet 0.89 vs 0.9) count as misses: the goals stay put
+(4D's diet goal is 0.8 since 2026-11-07: `ladder.min_diet`).
 """
 from __future__ import annotations
 

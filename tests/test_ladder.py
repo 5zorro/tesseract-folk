@@ -43,3 +43,9 @@ def test_verdicts_check_every_goal_against_scratch():
     assert line["excess_vs_scratch"] == pytest.approx(0.05)
     rows[-1]["approach_excess"] = -0.01                  # one run doesn't seek its food
     assert not verdicts(rows)[0]["goals"]["seeks diet"]
+
+
+def test_4d_has_its_own_diet_goal():
+    from scripts.ladder import MIN_DIET, min_diet
+    assert min_diet(2) == min_diet(3) == MIN_DIET == 0.9
+    assert min_diet(4) == 0.8                     # 5zorro moved it, plan-m2 R15

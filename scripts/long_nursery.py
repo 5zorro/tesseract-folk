@@ -32,7 +32,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from sim import Config, Simulation  # noqa: E402
 from sim.simulation import Batch  # noqa: E402
 from sim.snapshot import save_snapshot  # noqa: E402
-from ladder import MIN_DIET, MIN_NUTRIENT, MIN_TYPES, NURSERY_RULES, NURSERY_SEEDS, WORLD_SETS, world  # noqa: E402
+from ladder import MIN_DIET, min_diet, MIN_NUTRIENT, MIN_TYPES, NURSERY_RULES, NURSERY_SEEDS, WORLD_SETS, world  # noqa: E402
 from sweep import run_batch  # noqa: E402
 
 ARMS = {"base": (16, {}), "both32": (32, {"craving_sense": True, "mate_sense": True}),
@@ -135,14 +135,14 @@ def report_sizes(rows: list[dict]) -> None:
 
 def report(rows: list[dict]) -> None:
     print(f"\n{'arm':>7} {'ticks':>8} {'clpse':>6} {'nutr':>5} {'diet':>5} {'types':>5}  goals (nutrient "
-          f"{MIN_NUTRIENT}, diet {MIN_DIET}, types {MIN_TYPES})")
+          f"{MIN_NUTRIENT}, diet {MIN_DIET} (4D {min_diet(4)}), types {MIN_TYPES})")
     for arm in sorted({r["arm"] for r in rows}):
         for t in sorted({int(r["nursery_ticks"]) for r in rows if r["arm"] == arm}):
             rs = [r for r in rows if r["arm"] == arm and int(r["nursery_ticks"]) == t]
             m = {k: float(np.nanmean([r[k] for r in rs]))
                  for k in ("collapse_rate", "min_nutrient", "diet_diversity", "zone_types_per_life")}
             marks = " ".join("Y" if ok else "." for ok in (m["min_nutrient"] >= MIN_NUTRIENT,
-                             m["diet_diversity"] >= MIN_DIET, m["zone_types_per_life"] >= MIN_TYPES))
+                             m["diet_diversity"] >= min_diet(rs[0]["dims"]), m["zone_types_per_life"] >= MIN_TYPES))
             print(f"{arm:>7} {t:>8,} {m['collapse_rate']:6.2f} {m['min_nutrient']:5.2f} "
                   f"{m['diet_diversity']:5.2f} {m['zone_types_per_life']:5.2f}  {marks}")
     report_sizes(rows)
