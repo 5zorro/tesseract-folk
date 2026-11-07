@@ -130,8 +130,8 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
      (`mate_sense`, off); no births in any 4D nursery with it. **Brain size vs
      training length:** ticks to the knee ~ sqrt(weights) in 2D and 3D.
      **4D 700k baseline peaks at 100-200k ticks, then decays** (cause untested).
-     Outputs vs training time: no clean law (dummy outputs are cheap). 64-unit
-     4D arm still running. Open with 5zorro: a second hidden layer; directional
+     Outputs vs training time: no clean law (dummy outputs are cheap). 64 units
+     peak at 100k too and never beat 16/32. Open with 5zorro: a second hidden layer; directional
      movement (5zorro plans to test).
    - **4D Miner targets (5zorro, 2026-11-04):** land walkers on 3D surfaces, 4D fish
      and birds in full 4D. Both 3D and 4D must pass.

@@ -1155,7 +1155,10 @@ Why mate attempts fail (share of attempts; "partner ready" was 0% everywhere):
     or lineage-adaptive mutation drifts over a long run; or selection noise
     (R3) accumulates. Checking the nursery's own scores along the run, and
     play scores of nursery-rules worlds, would split these.
-  - The 64-unit arm (both senses) is still running.
+  - **64 units + both senses** (`runs/long-nursery-4d-64.csv`): collapses 2.85
+    (50k), **2.37 (100k)**, 2.54, 2.78, 2.84, 2.68 (700k); food types peak 2.07
+    at 200k. It also peaks at 100-200k and never overtakes 16 or 32 units, so
+    4D isn't short of brain at 16-32 units; the peak-then-decay is the limit.
 - **Directional movement (5zorro, 2026-11-06):** plans to test diagonal /
   directional movement per dimension ("plenty of games allow it"). The outputs
   curve above predicts what 3^dims - 1 move actions would cost in training.
