@@ -1436,6 +1436,37 @@ The ladder now prints each trial nursery's admitted / rejected / expired counts
   lives do collapse; a 4D test at a hunger with collapse pressure, or a longer
   nursery, is still open.
 
+### Slice R14: The arena: a hall of fame raced on shared scenarios (2026-11-07)
+5zorro: fill the hall of fame fast, then de-noise each admission; "that cancelling
+out of luck sounds awesome", build it so top-ups copy objectively good brains.
+`scripts/arena.py` (outside `sim/`, no rule change): after each 20,000-tick
+round the nursery's hall of fame is raced in clonal test worlds that every
+brain plays with the same seeds (common random numbers), by successive halving
+(2, 2, 4 scenarios; 1,200 ticks, 1x hunger, no collapse aging); the top 10 stay
+with the race as their track record. Bred and played at 4D's 0.36x. Arm
+`plain` = the same nursery seeds with no race. 4 nurseries x 3 play seeds per
+round (`runs/arena-4d.log`):
+| Round (ticks) | Plain types | Arena types | Plain nutrient | Arena nutrient | Diet (both) |
+|---|---|---|---|---|---|
+| 1 (20k) | 2.01 | 2.09 | 0.71 | 0.73 | 0.75-0.76 |
+| 2 (40k) | 2.03 | 2.08 | 0.71 | 0.70 | 0.75-0.76 |
+| 3 (60k) | 2.15 | 2.18 | 0.75 | 0.72 | 0.76 |
+| 4 (80k) | 2.29 | 2.25 | 0.75 | 0.74 | 0.77 |
+| 5 (100k) | 2.34 | 2.38 | 0.77 | 0.81 | 0.76-0.78 |
+(standard errors ~0.04 on types.)
+- **No arena advantage by 100k:** the arms are within ~1 se every round.
+- **No decay at 0.36x:** both arms improve steadily (types 2.0 -> 2.35, still
+  linear, so the fit finds no equilibrium yet); at 1x, 4D peaked at 100-200k
+  (R7, R10). Lower hunger may itself have removed the early decay.
+- **The race's margin shrinks:** the best entry's excess over the field goes
+  from -1.5 to -3.7 collapses per 1,000 ticks in round 1 to -0.3 to -0.9 by
+  round 5: the hall of fame gets more uniform, leaving the race less to tell
+  apart.
+- Running (2026-11-07): the luck split for untested halls of fame (5zorro's
+  "how much pressure luck plays on an untested hall of fame"; `--measure`),
+  and both arms extended to 700,000 ticks (5zorro: "perhaps 700k ticks would
+  keep improving up to the last tick?").
+
 ### Slice 4: Levers, only if criterion 3 fails
 Criterion 3 isn't demonstrated (slice 3b). 5zorro picked the memory stack as the
 first lever (2026-11-03).
