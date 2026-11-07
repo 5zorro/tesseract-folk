@@ -26,6 +26,8 @@ SCALARS = {
     "directed_hits": np.float64, "directed_chance": np.float64, "approach_sum": np.float64,
     "approach_null": np.float64, "approach_moves": np.int64, "mutations": np.float64,
     "parent_rate": np.float64, "lineage": np.float64, "source": np.int64, "source2": np.int64,
+    "parent1": np.int64, "parent2": np.int64, "kids_alive": np.int64, "kid_lives": np.float64,
+    "kid_excess_sum": np.float64,
 }
 VECTORS = ("nutrients", "satiation", "inventory", "memory", "eaten")   # float rows
 BRAIN = ("w1", "b1", "w2", "b2")

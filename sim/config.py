@@ -165,11 +165,26 @@ class Config:
     hall_of_fame_track_record: bool = True   # default since 2026-11-06 (5zorro)
     hall_of_fame_prior_lives: float = 3.0
     hall_of_fame_min_copies: int = 5
+    # Birth bonus (5zorro, 2026-11-06; 0 = off): with the track record, a life's
+    # score also counts its children: each birth per 1,000 ticks lived counts as
+    # this many fewer collapses per 1,000 ticks. The old fitness weighed a child
+    # as 5 collapses (500 vs 100). Without it, merit ignores children entirely.
+    hall_of_fame_birth_weight: float = 0.0
+    # Child credit (5zorro, 2026-11-06: "parents should not be out of the hall of
+    # fame before the children's proof is in"; off = children don't count). A
+    # child's finished life joins each parent's track record (the living parent's
+    # tally, carried into its entry, or its entry if it died), and an entry with
+    # children still alive can't be pushed out of the hall of fame or dropped.
+    hall_of_fame_child_credit: bool = False
     # Crossover top-ups (5zorro, 2026-11-06): a top-up is the child of two
     # tournament winners (crossover, then mutation, as a birth), not a mutated
     # copy of one, so top-ups can combine good brains instead of only exploring
     # near one. Both parents' track records get its life. Off = copies.
     topup_crossover: bool = False
+    # Research switch (M2 slice R10, 2026-11-06): a frozen hall of fame takes no
+    # new entries, credits no copies and drops none, so a resumed nursery keeps
+    # selecting from the entries it had (does hall-of-fame drift cause 4D's decay?).
+    hall_of_fame_frozen: bool = False
 
     # --- deity, prayer, secrets --------------------------------------------
     n_shrines: int = 2

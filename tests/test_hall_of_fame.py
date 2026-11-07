@@ -21,7 +21,7 @@ def sim_with_population_rate(rate=2.0, **kw):
 def entry(sim, id, lives, excess_sum, copies=0.0, copy_excess_sum=0.0):
     return {"fitness": 0.0, "generation": 0, "brain": sim.npcs[0].brain, "rate": 0.0,
             "lineage": -1.0, "id": id, "lives": lives, "excess_sum": excess_sum,
-            "copies": copies, "copy_excess_sum": copy_excess_sum}
+            "copies": copies, "copy_excess_sum": copy_excess_sum, "kids": 0.0, "kids_alive": 0.0}
 
 
 def finished_life(sim, source, collapses, lifetime=1000):
@@ -127,3 +127,80 @@ def test_crossover_top_ups_have_two_parents_and_credit_both():
     two = [n for n in crosses if n.source >= 0 and n.source2 >= 0]
     assert two and all(n.source != n.source2 for n in two)
     assert len(set(credited)) > 1
+
+
+# ---- birth bonus and child credit (5zorro, 2026-11-06)
+def test_birth_bonus_ranks_a_life_with_children_higher():
+    sim = sim_with_population_rate(hall_of_fame_birth_weight=5.0)
+    sim.hall_of_fame = []
+    plain, parent = finished_life(sim, -1, 2), finished_life(sim, -1, 2)
+    parent.offspring = 2
+    sim._record_hall_of_fame(plain)
+    sim._record_hall_of_fame(parent)
+    assert sim.hall_of_fame[0]["id"] == parent.id
+    assert sim.hall_of_fame[0]["excess_sum"] == pytest.approx((2 - 2) - 5.0 * 2)
+
+
+def test_without_the_bonus_children_dont_count():
+    sim = sim_with_population_rate()
+    sim.hall_of_fame = []
+    plain, parent = finished_life(sim, -1, 2), finished_life(sim, -1, 2)
+    parent.offspring = 2
+    sim._record_hall_of_fame(plain)
+    sim._record_hall_of_fame(parent)
+    assert [e["id"] for e in sim.hall_of_fame] == [plain.id, parent.id]   # a tie keeps arrival order
+
+
+def test_parents_stay_until_their_childrens_proof_is_in():
+    sim = sim_with_population_rate(hall_of_fame_child_credit=True, hall_of_fame_size=1)
+    sim.hall_of_fame = []
+    parent = finished_life(sim, -1, 3)          # worse than the population
+    parent.kids_alive = 1
+    best = finished_life(sim, -1, 0)
+    sim._record_hall_of_fame(parent)
+    sim._record_hall_of_fame(best)
+    assert [e["id"] for e in sim.hall_of_fame] == [best.id, parent.id]   # kept past the size limit
+    child = finished_life(sim, -1, 0)
+    child.parent1 = parent.id
+    sim._record_hall_of_fame(child)
+    assert [e["id"] for e in sim.hall_of_fame] == [best.id]              # proof in, ranked out
+
+
+def test_a_childs_life_joins_its_dead_parents_entry():
+    sim = sim_with_population_rate(hall_of_fame_child_credit=True)
+    sim.hall_of_fame = []
+    parent = finished_life(sim, -1, 3)
+    parent.kids_alive = 1
+    sim._record_hall_of_fame(parent)
+    child = finished_life(sim, -1, 0)
+    child.parent1 = parent.id
+    sim._record_hall_of_fame(child)
+    e = next(e for e in sim.hall_of_fame if e["id"] == parent.id)
+    assert (e["lives"], e["kids"], e["kids_alive"]) == (2.0, 1.0, 0.0)
+    assert e["excess_sum"] == pytest.approx((3 - 2) + (0 - 2))
+
+
+def test_a_living_parent_carries_its_childrens_lives_into_its_entry():
+    sim = sim_with_population_rate(hall_of_fame_child_credit=True)
+    parent = sim.npcs[0]
+    parent.kids_alive = 1
+    child = finished_life(sim, -1, 0)
+    child.parent1 = parent.id
+    sim._record_hall_of_fame(child)
+    assert (parent.kids_alive, parent.kid_lives) == (0, 1.0)
+    assert parent.kid_excess_sum == pytest.approx(0 - 2)
+
+
+def test_births_record_both_parents():
+    from sim.reference import ReferenceSimulation
+    for engine in (Simulation, ReferenceSimulation):
+        from tests.test_engines import BUSY
+        sim = engine(Config(**BUSY, hall_of_fame_child_credit=True), log_every=10**9)
+        sim.run(200)                   # births come early in this world; lives are short
+        born = [n for n in sim.npcs if n.origin == "birth"]
+        assert born, "no births to check"
+        ids = {n.id for n in sim.npcs}
+        for n in born:
+            assert n.parent1 >= 0 and n.parent2 >= 0 and n.parent1 != n.parent2
+        living_kids = sum(1 for n in born for p in (n.parent1, n.parent2) if p in ids)
+        assert sum(n.kids_alive for n in sim.npcs) == living_kids

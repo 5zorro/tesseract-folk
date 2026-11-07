@@ -98,6 +98,14 @@ class NPC:
     # life can be added to that entry's track record.
     source: int = -1
     source2: int = -1         # a crossover top-up's second parent entry (Config.topup_crossover)
+    # Birth parents' ids (-1 = not born), and for Config.hall_of_fame_child_credit:
+    # this NPC's children still alive, and its finished children's lives and
+    # summed collapse excess (carried into its hall-of-fame entry).
+    parent1: int = -1
+    parent2: int = -1
+    kids_alive: int = 0
+    kid_lives: float = 0.0
+    kid_excess_sum: float = 0.0
 
     def __post_init__(self):
         if self.eaten is None:

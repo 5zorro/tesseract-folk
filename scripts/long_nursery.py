@@ -70,12 +70,17 @@ def train(job: tuple) -> str:
 
 
 def play(job: tuple) -> list[dict]:
-    dims, arm, tick, seeds, ticks, out = job
-    base = world(shape(dims, arm))
-    nseeds = NURSERY_SEEDS if tick else (None,)
-    runs = [({**base, **({"brains_from": str(folder(out, dims, arm, n, tick))} if n is not None else {})},
+    """Play worlds from one checkpoint (tick 0 = scratch). `rules` are extra
+    play-world overrides (e.g. the nursery's own rules, scripts/probe_decay.py)."""
+    dims, arm, tick, nursery_seeds, seeds, ticks, out, *rest = job
+    rules = rest[0] if rest else {}
+    base = {**world(shape(dims, arm)), **rules}
+    nseeds = nursery_seeds if tick else (-1,)
+    runs = [({**base, **({"brains_from": str(folder(out, dims, arm, n, tick))} if n >= 0 else {})},
              seed, ticks, 0.5, 250) for n in nseeds for seed in range(seeds)]
-    return [{"dims": dims, "arm": arm, "nursery_ticks": tick, **row} for row in run_batch(runs)]
+    keys = [n for n in nseeds for _ in range(seeds)]
+    return [{"dims": dims, "arm": arm, "nursery_ticks": tick, "nursery": n, **row}
+            for n, row in zip(keys, run_batch(runs))]
 
 
 def ideal_ticks(curve: list[tuple[int, float]], within: float = 0.10) -> tuple[int, float]:
@@ -152,16 +157,19 @@ def main() -> None:
     ap.add_argument("--ticks", type=int, default=10_000)
     ap.add_argument("--out", default="snapshots/long")
     ap.add_argument("--csv", default=None)
+    ap.add_argument("--nursery-seeds", type=int, nargs="+", default=list(NURSERY_SEEDS))
     ap.add_argument("--report-only", action="store_true")
     args = ap.parse_args()
     csv_path = Path(args.csv or f"runs/long-nursery-{args.dims}d.csv")
     out, cps = Path(args.out), sorted(args.checkpoints)
     if not args.report_only:
-        jobs = [(args.dims, a, n, cps, out) for a in args.arms for n in NURSERY_SEEDS]
+        jobs = [(args.dims, a, n, cps, out) for a in args.arms for n in args.nursery_seeds]
         with ProcessPoolExecutor(len(jobs)) as pool:
             for fut in as_completed([pool.submit(train, j) for j in jobs]):
                 print("  ", fut.result(), flush=True)
-        plays = [(args.dims, a, t, args.seeds, args.ticks, out) for a in args.arms for t in [0] + cps]
+        plays = [(args.dims, a, t, [n], args.seeds, args.ticks, out)       # one nursery per job: more cores
+                 for a in args.arms for t in cps for n in args.nursery_seeds]
+        plays += [(args.dims, a, 0, [], args.seeds, args.ticks, out) for a in args.arms]
         rows = []
         with ProcessPoolExecutor(min(os.cpu_count() or 1, len(plays))) as pool:
             for fut in as_completed([pool.submit(play, j) for j in plays]):

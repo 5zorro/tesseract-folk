@@ -20,7 +20,8 @@ from .npc import NPC
 
 # Track-record fields of a hall-of-fame entry (plan-m2 slice R5) and their values
 # for entries saved before they existed: one life of unknown merit, no copies.
-TRACK_FIELDS = {"id": -1, "lives": 1.0, "excess_sum": 0.0, "copies": 0.0, "copy_excess_sum": 0.0}
+TRACK_FIELDS = {"id": -1, "lives": 1.0, "excess_sum": 0.0, "copies": 0.0, "copy_excess_sum": 0.0,
+                "kids": 0.0, "kids_alive": 0.0}   # children credited / still alive (child credit)
 
 
 def hall_of_fame_entry(data: dict) -> dict:
@@ -32,7 +33,8 @@ def hall_of_fame_entry(data: dict) -> dict:
              "brain": Brain.from_dict(data["brain"])}
     entry["id"] = int(entry["id"])
     numbers = [v for k, v in entry.items() if k != "brain"]
-    if not all(math.isfinite(v) for v in numbers) or entry["lives"] < 0 or entry["copies"] < 0:
+    if (not all(math.isfinite(v) for v in numbers) or entry["lives"] < 0 or entry["copies"] < 0
+            or entry["kids"] < 0 or entry["kids_alive"] < 0):
         raise ValueError("a hall-of-fame entry holds a non-finite or negative number")
     return entry
 
@@ -74,7 +76,7 @@ def seed_brains(sim, pool: list[dict]) -> None:
                 f"must match the snapshot's (pools saved before food scent need "
                 f"food_scent=false).") from e
     cfg = sim.cfg
-    pool = [dict(e) for e in pool]
+    pool = [dict(e, kids_alive=0.0) for e in pool]   # their children live in another world
     if cfg.hall_of_fame_track_record:
         # Pool ids come from another world and could clash with this one's NPC
         # ids, so entries get fresh ones (only needed to credit the track record).

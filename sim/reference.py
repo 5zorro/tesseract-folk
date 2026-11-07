@@ -71,6 +71,8 @@ class ReferenceSimulation:
             raise ValueError(f"hall_of_fame_prior_lives must be a number >= 0, got {c.hall_of_fame_prior_lives!r}")
         if not (np.isfinite(c.mutation_lineage_max) and c.mutation_lineage_max >= 1):
             raise ValueError(f"mutation_lineage_max must be a number >= 1, got {c.mutation_lineage_max!r}")
+        if not (np.isfinite(c.hall_of_fame_birth_weight) and c.hall_of_fame_birth_weight >= 0):
+            raise ValueError(f"hall_of_fame_birth_weight must be a number >= 0, got {c.hall_of_fame_birth_weight!r}")
         self._shrine_cache: dict = {}
         self._shrines_cached: list = []
         self.npcs: list[NPC] = []
@@ -474,9 +476,11 @@ class ReferenceSimulation:
                                max(npc.generation, mate.generation) + 1)
         child.origin, child.mutations, child.parent_rate = "birth", mutations, parent_rate
         child.lineage = lineage
+        child.parent1, child.parent2 = npc.id, mate.id
         births.append(child)
         for parent in (npc, mate):
             parent.offspring += 1
+            parent.kids_alive += int(cfg.hall_of_fame_child_credit)
             parent.mate_ready_until = -1
             parent.mate_cooldown_until = self.tick + cfg.mate_cooldown
         self.stats.count("births")
@@ -656,22 +660,35 @@ class ReferenceSimulation:
         """A finished life: add it to the entry its brain was copied from (track
         record), then offer it a place of its own."""
         cfg = self.cfg
+        if cfg.hall_of_fame_frozen:          # research: keep the entries as they are
+            return
         population = self.population_collapse_rate()
-        excess = npc.collapse_rate() - population if population >= 0 else 0.0
+        excess = self._life_excess(npc.collapse_rate(), npc.offspring, npc.lifetime, population)
         if cfg.hall_of_fame_track_record:
             for source in (npc.source, npc.source2):
                 if source >= 0:
                     self._credit_source(source, excess)
-        self.hall_of_fame.append({"fitness": npc.fitness(), "generation": npc.generation,
-                                  "brain": npc.brain, "rate": npc.collapse_rate(),
-                                  "lineage": npc.lineage, "id": npc.id, "lives": 1.0,
-                                  "excess_sum": excess, "copies": 0.0, "copy_excess_sum": 0.0})
+        entry = {"fitness": npc.fitness(), "generation": npc.generation,
+                 "brain": npc.brain, "rate": npc.collapse_rate(),
+                 "lineage": npc.lineage, "id": npc.id, "lives": 1.0,
+                 "excess_sum": excess, "copies": 0.0, "copy_excess_sum": 0.0,
+                 "kids": 0.0, "kids_alive": 0.0}
+        if cfg.hall_of_fame_child_credit:
+            self._credit_parents(npc, excess)
+            entry.update(lives=1.0 + npc.kid_lives, excess_sum=excess + npc.kid_excess_sum,
+                         kids=float(npc.kid_lives), kids_alive=float(npc.kids_alive))
+        self.hall_of_fame.append(entry)
         self._rank_hall_of_fame()
 
     def _rank_hall_of_fame(self) -> None:
         key = self._merit if self.cfg.hall_of_fame_track_record else (lambda e: e["fitness"])
         self.hall_of_fame.sort(key=key, reverse=True)
-        del self.hall_of_fame[self.cfg.hall_of_fame_size:]
+        size = self.cfg.hall_of_fame_size
+        if self.cfg.hall_of_fame_child_credit:      # parents stay while their children's proof is out
+            self.hall_of_fame[:] = [e for i, e in enumerate(self.hall_of_fame)
+                                    if i < size or e.get("kids_alive", 0.0) > 0]
+        else:
+            del self.hall_of_fame[size:]
 
     def _merit(self, entry: dict) -> float:
         """Track-record score of a hall-of-fame entry, higher is better: minus
@@ -679,13 +696,43 @@ class ReferenceSimulation:
         copies' lives, with `hall_of_fame_prior_lives` average (0) lives added."""
         return -entry["excess_sum"] / (entry["lives"] + self.cfg.hall_of_fame_prior_lives)
 
+    def _life_excess(self, collapse_rate: float, offspring: int, lifetime: int, population: float) -> float:
+        """A life's collapses per 1,000 ticks above the population's (0 if that's
+        unknown), less hall_of_fame_birth_weight per birth per 1,000 ticks."""
+        base = collapse_rate - population if population >= 0 else 0.0
+        return base - self.cfg.hall_of_fame_birth_weight * (1000.0 * offspring / max(lifetime, 1))
+
     def _living_merit(self, npc: NPC, population: float) -> float:
         """The same score for a living NPC: its life so far counts as a fraction
         of a life (lifetime / old_age, at most 1)."""
-        if population < 0:
+        if population < 0 and not self.cfg.hall_of_fame_birth_weight:
             return 0.0
         weight = min(1.0, npc.lifetime / self.cfg.old_age)
-        return -(npc.collapse_rate() - population) * weight / (weight + self.cfg.hall_of_fame_prior_lives)
+        excess = self._life_excess(npc.collapse_rate(), npc.offspring, npc.lifetime, population)
+        return -excess * weight / (weight + self.cfg.hall_of_fame_prior_lives)
+
+    def _credit_parents(self, npc, excess: float) -> None:
+        """Config.hall_of_fame_child_credit: a finished life joins each birth
+        parent's track record (the living parent's tally, or its entry)."""
+        for parent_id in (npc.parent1, npc.parent2):
+            if parent_id >= 0:
+                self._credit_parent(parent_id, excess)
+
+    def _credit_parent(self, parent_id: int, excess: float) -> None:
+        for parent in self.npcs:
+            if parent.alive and parent.id == parent_id:
+                parent.kids_alive -= 1
+                parent.kid_lives += 1.0
+                parent.kid_excess_sum += excess
+                return
+        for entry in self.hall_of_fame:
+            if entry.get("id", -1) == parent_id:
+                entry["kids_alive"] = max(0.0, entry.get("kids_alive", 0.0) - 1.0)
+                entry["kids"] = entry.get("kids", 0.0) + 1.0
+                entry["lives"] += 1
+                entry["excess_sum"] += excess
+                return
+        self.stats.count("child_credit_lost")    # the parent died and its entry was pushed out
 
     def _credit_source(self, source: int, excess: float) -> None:
         """A copy's finished life joins its source entry's track record. After
@@ -700,7 +747,8 @@ class ReferenceSimulation:
             entry["copies"] += 1
             entry["copy_excess_sum"] += excess
             if (cfg.hall_of_fame_min_copies > 0 and entry["copies"] >= cfg.hall_of_fame_min_copies
-                    and entry["copy_excess_sum"] > 0):
+                    and entry["copy_excess_sum"] > 0
+                    and not (cfg.hall_of_fame_child_credit and entry.get("kids_alive", 0.0) > 0)):
                 del self.hall_of_fame[i]
                 self.stats.count("hall_of_fame_dropped")
             self._rank_hall_of_fame()
