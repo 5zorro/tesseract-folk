@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 import math
 import os
 import sys
@@ -55,7 +56,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from sim import Config, Simulation  # noqa: E402
 from sim.config import parse_overrides  # noqa: E402
 from sim.simulation import Batch  # noqa: E402
-from sim.snapshot import save_snapshot  # noqa: E402
+from sim.snapshot import load_snapshot, save_snapshot  # noqa: E402
 from ladder import LATE_FROM, LOG_EVERY, NURSERY_RULES, WORLD_SETS, verdicts, world  # noqa: E402
 from sweep import run_batch  # noqa: E402
 
@@ -91,9 +92,11 @@ def play_scenarios(brains: list, base: dict, seeds: list[int], ticks: int) -> np
     return rates.reshape(len(brains), len(seeds))
 
 
-def race(entries: list[dict], base: dict, stages: list[int], ticks: int, nseed: int, rnd: int) -> list[dict]:
+def race(entries: list[dict], base: dict, stages: list[int], ticks: int, nseed: int, rnd: int,
+         log: list | None = None) -> list[dict]:
     """Successive halving on shared scenarios. Returns one record per entry:
-    {"stage", "excess": [per scenario]}, in the entries' order."""
+    {"stage", "excess": [per scenario]}, in the entries' order. `log` collects
+    each stage's raw grid (players x scenarios) for the luck analysis."""
     records = [{"stage": 0, "excess": []} for _ in entries]
     alive = list(range(len(entries)))
     index = 0
@@ -103,6 +106,8 @@ def race(entries: list[dict], base: dict, stages: list[int], ticks: int, nseed: 
         seeds = [scenario_seed(nseed, rnd, index + k) for k in range(count)]
         index += count
         raw = play_scenarios([entries[i]["brain"] for i in alive], base, seeds, ticks)
+        if log is not None:
+            log.append({"players": list(alive), "seeds": seeds, "raw": raw.tolist()})
         # The field's mean on a later scenario is estimated from its players'
         # mean, corrected by how much better than the field they already proved.
         proved = np.array([np.mean(records[i]["excess"]) if records[i]["excess"] else 0.0 for i in alive])
@@ -144,23 +149,134 @@ def checkpoint(out: Path, arm: str, nseed: int, rnd: int) -> Path:
     return out / f"{arm}-n{nseed}-r{rnd}"
 
 
+def race_log(sim, records: list[dict], grids: list, keep: int | None) -> dict:
+    """What a race saw, for the luck analysis: each entry's merit going in (the
+    nursery's own, untested ranking), its race record, and the raw grids."""
+    prior = sim.cfg.hall_of_fame_prior_lives
+    return {"tick": sim.tick, "keep": keep,
+            "entries": [{"id": int(e["id"]), "generation": int(e["generation"]), "lives": float(e["lives"]),
+                         "merit": -float(e["excess_sum"]) / (float(e["lives"]) + prior)}
+                        for e in sim.hall_of_fame],
+            "records": records, "grids": grids}
+
+
 def nursery(job: tuple) -> list[str]:
     arm, nseed, args = job
     shape = shape_of(args["dims"], args["hidden"])
     base = world(shape)
-    sim = Simulation(Config(**{**base, **NURSERY_RULES, **args["breed"], "seed": nseed}), log_every=1000)
+    out, start = Path(args["out"]), args["start_round"]
+    if start:
+        sim = load_snapshot(checkpoint(out, arm, nseed, start), log_every=1000)
+    else:
+        sim = Simulation(Config(**{**base, **NURSERY_RULES, **args["breed"], "seed": nseed}), log_every=1000)
     test = {**base, **args["test"], **TEST_RULES}
     msgs = []
-    for rnd in range(1, args["rounds"] + 1):
+    for rnd in range(start + 1, args["rounds"] + 1):
         sim.run(args["round_ticks"])
-        note = ""
+        note, log = "", None
         if arm == "arena" and sim.hall_of_fame:
-            info = write_back(sim, race(sim.hall_of_fame, test, args["stages"], args["test_ticks"], nseed, rnd),
-                              args["keep"])
+            grids: list = []
+            records = race(sim.hall_of_fame, test, args["stages"], args["test_ticks"], nseed, rnd, grids)
+            log = race_log(sim, records, grids, args["keep"])
+            info = write_back(sim, records, args["keep"])
             note = f" (raced {info['raced']}, kept {info['kept']}, best excess {info['best_excess']:+.2f})"
-        save_snapshot(sim, checkpoint(Path(args["out"]), arm, nseed, rnd))
+        path = checkpoint(out, arm, nseed, rnd)
+        save_snapshot(sim, path)
+        if log:
+            (path / "race.json").write_text(json.dumps(log))
         msgs.append(f"{arm} n{nseed} round {rnd} at {sim.tick:,}{note}")
     return msgs
+
+
+def measure(job: tuple) -> str:
+    """Race a checkpoint's hall of fame without writing back (every entry plays
+    every scenario: one stage), to see how much of its ranking is luck."""
+    path, nseed, rnd, args = job
+    sim = load_snapshot(path, log_every=1000)
+    if not sim.hall_of_fame:
+        return f"{path.name}: empty hall of fame"
+    test = {**world(shape_of(args["dims"], args["hidden"])), **args["test"], **TEST_RULES}
+    grids: list = []
+    records = race(sim.hall_of_fame, test, [args["measure_scenarios"]], args["test_ticks"], nseed,
+                   1000 + rnd, grids)                    # other seeds than the training races
+    (path / "measure.json").write_text(json.dumps(race_log(sim, records, grids, None)))
+    return f"measured {path.name}"
+
+
+# ================================================================== luck
+def components(raw: np.ndarray) -> dict:
+    """Two-way split of a brains x scenarios grid (no replication): variance of
+    brain quality, of shared scenario luck (cancels with common random numbers),
+    and the leftover luck that doesn't."""
+    B, S = raw.shape
+    m = raw.mean()
+    bm, sm = raw.mean(axis=1), raw.mean(axis=0)
+    resid = raw - bm[:, None] - sm[None, :] + m
+    ms_r = float((resid ** 2).sum() / max((B - 1) * (S - 1), 1))
+    ms_b = float(S * ((bm - m) ** 2).sum() / max(B - 1, 1))
+    ms_s = float(B * ((sm - m) ** 2).sum() / max(S - 1, 1))
+    vb, vs = max((ms_b - ms_r) / S, 0.0), max((ms_s - ms_r) / B, 0.0)
+    return {"brain": vb, "scenario": vs, "leftover": ms_r,
+            "r_shared": vb / (vb + ms_r) if vb + ms_r > 0 else math.nan,
+            "r_alone": vb / (vb + vs + ms_r) if vb + vs + ms_r > 0 else math.nan}
+
+
+def tests_for(r: float, target: float = 0.8) -> float:
+    """Spearman-Brown: tests whose mean has reliability `target`, if one has r."""
+    if not r > 0:
+        return math.inf
+    return target * (1 - r) / ((1 - target) * r)
+
+
+def spearman(a, b) -> float:
+    ra, rb = np.argsort(np.argsort(a)), np.argsort(np.argsort(b))
+    if np.std(ra) == 0 or np.std(rb) == 0:
+        return math.nan
+    return float(np.corrcoef(ra, rb)[0, 1])
+
+
+def luck_rows(out: Path) -> list[dict]:
+    """One row per race log (training races and measure-only races)."""
+    rows = []
+    for kind, name in (("arena", "race.json"), ("plain", "measure.json")):
+        for p in sorted(out.glob(f"{kind}-n*-r*/{name}")):
+            log = json.loads(p.read_text())
+            grid = log["grids"][0]
+            raw = np.array(grid["raw"])
+            c = components(raw)
+            merit = np.array([log["entries"][i]["merit"] for i in grid["players"]])
+            quality = -raw.mean(axis=1)                  # fewer collapses = better
+            half = len(merit) // 2
+            agree = (len(set(np.argsort(-merit)[:half]) & set(np.argsort(-quality)[:half])) / half
+                     if half else math.nan)
+            rows.append({"kind": "raced" if kind == "arena" else "untested",
+                         "round": int(p.parent.name.rsplit("-r", 1)[1]), "brains": len(merit),
+                         "scenarios": raw.shape[1], **c, "merit_vs_race": spearman(merit, quality),
+                         "top_half": agree})
+    return rows
+
+
+def luck_report(out: Path) -> None:
+    rows = luck_rows(out)
+    if not rows:
+        return
+    print("\nLuck in the hall of fame. One scenario's score = brain quality + shared luck (the same for"
+          "\nevery brain on that scenario; cancels in a race) + leftover luck. r = the share of one score"
+          "\nthat is quality: 'shared' when brains are compared on common scenarios, 'alone' for one life"
+          "\nin its own world (an untested hall of fame). Tests = lives or scenarios for 0.8 reliability"
+          "\n(Spearman-Brown). merit~race = rank correlation of the hall of fame's own merit with the race;"
+          "\ntop half = share of its top half the race also puts there (50% = chance). 'raced' rows use"
+          "\nstage 1 of each training race (the arena arm: half of it was raced before).")
+    print(f"{'hall':>8} {'round':>5} {'brains':>6} {'quality':>7} {'shared':>7} {'leftover':>8} "
+          f"{'r shared':>8} {'r alone':>7} {'tests (shared/alone)':>20} {'merit~race':>10} {'top half':>8}")
+    for kind in ("untested", "raced"):
+        for rnd in sorted({r["round"] for r in rows if r["kind"] == kind}):
+            cell = [r for r in rows if r["kind"] == kind and r["round"] == rnd]
+            m = {k: float(np.nanmean([r[k] for r in cell])) for k in cell[0] if k != "kind"}
+            print(f"{kind:>8} {rnd:>5} {m['brains']:6.0f} {m['brain']:7.2f} {m['scenario']:7.2f} "
+                  f"{m['leftover']:8.2f} {m['r_shared']:8.2f} {m['r_alone']:7.2f} "
+                  f"{tests_for(m['r_shared']):9.1f}/{tests_for(m['r_alone']):<10.1f} "
+                  f"{m['merit_vs_race']:+10.2f} {m['top_half']:8.0%}")
 
 
 # ================================================================== play
@@ -284,6 +400,12 @@ def main() -> None:
     ap.add_argument("--out", default="snapshots/arena")
     ap.add_argument("--csv", default=None, help="default runs/arena-{dims}d.csv")
     ap.add_argument("--jobs", type=int, default=os.cpu_count() or 1)
+    ap.add_argument("--start-round", type=int, default=0,
+                    help="resume each nursery from this round's checkpoint (extends a run)")
+    ap.add_argument("--play-every", type=int, default=1, help="score every Nth round (and the last)")
+    ap.add_argument("--measure", action="store_true",
+                    help="race the plain arm's checkpoints without writing back (luck in an untested hall of fame)")
+    ap.add_argument("--measure-scenarios", type=int, default=4)
     ap.add_argument("--report-only", action="store_true")
     a = ap.parse_args()
     if a.rounds < 1 or a.round_ticks < 1 or a.keep < 1 or not a.stages or min(a.stages) < 1:
@@ -294,10 +416,24 @@ def main() -> None:
         args = {"dims": a.dims, "hidden": a.hidden, "breed": rules(a.breed), "test": rules(a.test),
                 "play": rules(a.play), "rounds": a.rounds, "round_ticks": a.round_ticks, "stages": a.stages,
                 "keep": a.keep, "test_ticks": a.test_ticks, "play_seeds": a.play_seeds,
-                "play_ticks": a.play_ticks, "out": a.out}
+                "play_ticks": a.play_ticks, "out": a.out, "start_round": a.start_round,
+                "measure_scenarios": a.measure_scenarios}
     except ValueError as e:
         ap.error(str(e))
+    if not 0 <= a.start_round < a.rounds or a.play_every < 1 or a.measure_scenarios < 2:
+        ap.error("--start-round must be below --rounds; --play-every >= 1; --measure-scenarios >= 2")
     path = Path(a.csv or f"runs/arena-{a.dims}d.csv")
+    out = Path(a.out)
+    if a.measure:
+        jobs = [(p, int(p.name.split("-n")[1].split("-r")[0]), int(p.name.rsplit("-r", 1)[1]), args)
+                for p in sorted(out.glob("plain-n*-r*")) if not (p / "measure.json").exists()]
+        jobs = [j for j in jobs if j[2] == 1 or j[2] % a.play_every == 0]     # --play-every thins it
+        if jobs:
+            with ProcessPoolExecutor(min(a.jobs, len(jobs))) as pool:
+                for fut in as_completed([pool.submit(measure, j) for j in jobs]):
+                    print("  ", fut.result(), flush=True)
+        luck_report(out)
+        return
     if not a.report_only:
         jobs = [(arm, n, args) for arm in a.arms for n in a.nursery_seeds]
         jobs.sort(key=lambda j: j[0] != "arena")          # the slower arm first
@@ -305,9 +441,12 @@ def main() -> None:
             for fut in as_completed([pool.submit(nursery, j) for j in jobs]):
                 for msg in fut.result():
                     print("  ", msg, flush=True)
-        plays = [(arm, n, r, args) for arm in a.arms for n in a.nursery_seeds for r in range(1, a.rounds + 1)]
-        plays.append(("scratch", -1, 0, args))
-        rows = []
+        scored = sorted(r for r in range(a.start_round + 1, a.rounds + 1) if r % a.play_every == 0 or r == a.rounds)
+        plays = [(arm, n, r, args) for arm in a.arms for n in a.nursery_seeds for r in scored]
+        old = read(path) if a.start_round and path.exists() else []    # an extension keeps earlier rounds
+        rows = [r for r in old if r["arm"] == "scratch" or r["round"] <= a.start_round]
+        if not any(r["arm"] == "scratch" for r in rows):
+            plays.append(("scratch", -1, 0, args))
         with ProcessPoolExecutor(min(a.jobs, len(plays))) as pool:
             for fut in as_completed([pool.submit(play, j) for j in plays]):
                 rows.extend(fut.result())
@@ -315,6 +454,7 @@ def main() -> None:
         rows.sort(key=lambda r: (r["arm"], r["nursery"], r["round"], r["seed"]))
         write(path, rows)
     report(read(path), args)
+    luck_report(out)
 
 
 if __name__ == "__main__":

@@ -67,6 +67,22 @@ def test_real_scenarios_are_clonal_deterministic_and_keep_their_founders():
     assert np.array_equal(a, b)                               # same brain, same seed: same score
 
 
+def test_luck_splits_into_quality_shared_and_leftover():
+    rng = np.random.default_rng(0)
+    B, S = 400, 40
+    quality = rng.normal(0, 1.0, size=(B, 1))         # variance 1
+    shared = rng.normal(0, 2.0, size=(1, S))          # variance 4, the same for every brain
+    leftover = rng.normal(0, 3.0, size=(B, S))        # variance 9
+    c = arena.components(5.0 + quality + shared + leftover)
+    assert c["brain"] == pytest.approx(1.0, rel=0.2)
+    assert c["scenario"] == pytest.approx(4.0, rel=0.3)
+    assert c["leftover"] == pytest.approx(9.0, rel=0.05)
+    assert c["r_shared"] == pytest.approx(0.1, abs=0.02)      # 1 / (1 + 9)
+    assert c["r_alone"] == pytest.approx(1 / 14, abs=0.02)    # 1 / (1 + 4 + 9)
+    assert arena.tests_for(0.5) == pytest.approx(4.0)         # Spearman-Brown: 4 tests -> 0.8
+    assert arena.tests_for(0.0) == float("inf")
+
+
 def test_the_fit_finds_a_known_curve():
     t = np.array([1.0, 2.0, 3.0, 4.0, 5.0]) * 20_000
     y = 2.4 - 0.6 * np.exp(-t / 30_000)
