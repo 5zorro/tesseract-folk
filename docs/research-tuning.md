@@ -159,6 +159,7 @@ gitignored). The plan tables are the record; to check one, rerun its script.
 | Diet diversity needs hunger: lowering hunger to the fertile edge lowers it (3D 0.93 -> 0.85, 4D 0.81 -> 0.75) | hint (2 nurseries x 5 seeds) | plan-m2 R12; `ladder.py --set` |
 | 3D diet diversity falls ~0.04 per 0.1x of hunger below 1x (0.93, 0.89, 0.85 at 1x, 0.85x, 0.75x) | hint (3 levels, 2 nurseries x 5 seeds each) | plan-m2 R12 |
 | Populations are bistable (Allee effect): 3D worlds at 0.85x either boom to the 250 cap or stay at the 30 floor, none in between | hint (10 worlds) | plan-m2 R12; follows from mate reach ~ N |
+| 3D births switch on sharply as hunger drops: ~1x top-ups at 0.95x, ~11x at 0.9x; every M2 goal still met at 0.9x | finding (2 nurseries x 5 seeds per level) | plan-m2 R12; `scripts/hunger_search.py` |
 | Hunger isn't 4D's M2 lever: food types 1.96 at 1x, 2.11 at 0.36x (goal 2.5) | finding | plan-m2 R12 |
 | Diagonal (king) steps cut the food-to-food walk 1.4x / 1.75x / 1.9x in 2D / 3D / 4D (theory for an open grid: 2d/3) | finding (random walker) | plan-m2 R12; `probe_random_walk.py --diagonal` |
 | The kids rules (birth weight + child credit) raise births only where births are possible: 2D 12x at 1.25x hunger, 4D 5x at 0.25x; the finish line moves at most one step | hint (2 seeds) | plan-m2 R11 |

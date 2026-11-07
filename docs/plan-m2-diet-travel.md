@@ -1372,6 +1372,18 @@ seeks diet.
   at 38); none settled in between. Mates in reach grow with N (R9), so births
   per NPC grow with N: a world that gets dense stays dense. Diet diversity is
   the same in both kinds (0.87-0.92), so crowding isn't what lowers it.
+- **3D hunger search** (`scripts/hunger_search.py --dims 3 --levels 0.9 0.95
+  --refine 2`, new: runs the ladder per level and bisects; `runs/hunger-search-3d.log`):
+  | Hunger | Collapses (scratch) | Nutrient | Diet | Types | Births vs top-ups | Pop | Goals |
+  |---|---|---|---|---|---|---|---|
+  | 0.875x | 0.70 (0.65) | 0.43 | 0.88 | 2.79 | 716 vs 41 | 85 | not collapses, diet |
+  | 0.887x | 0.35 (0.79) | 0.52 | 0.92 | 2.81 | 563 vs 52 | 104 | all |
+  | 0.9x | 0.46 (0.84) | 0.48 | 0.91 | 2.81 | 567 vs 53 | 98 | all |
+  | 0.95x | 0.46 (1.02) | 0.47 | 0.93 | 2.73 | 113 vs 97 | 39 | all |
+  **Pick: 3D at 0.9x** (the script's lowest pass is 0.887x, but 0.875x fails
+  right below it, so the edge is within noise; 0.9x has the same births and
+  passes with margin). Births switch sharply between 0.95x (about equal to
+  top-ups) and 0.9x (11x top-ups): the bistable population again.
 - **The 1x baseline still stands:** 2D and 3D pass every goal at 1x; 3D's births
   there are a quarter of replacements.
 - Diagonals (5zorro's question): king steps cut the median food-to-food walk
