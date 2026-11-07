@@ -199,3 +199,39 @@ Traps that already bit us, by area. Add to this when something surprises you.
   `--brains-from` still takes their brains. Old nursery folders under
   `snapshots/` are pre-G1: retrain into a new `--out` (ladder.py refuses to
   reuse them).
+
+## Research runs (2026-11-06)
+- **`runs/` is gitignored, on purpose (5zorro, 2026-11-06: no published CSVs).**
+  Plan tables quote `runs/*.csv`, but the CSVs live only on the machine that
+  made them. The tables in the plan are the durable record; to check one, rerun
+  the named script (keyed randomness reproduces the CSV).
+- **Most snapshot folders named in older plan and handoff entries are gone.**
+  On 2026-11-06 only the snapshots that pass M2 under the current rules were
+  kept (2D/3D `ladder3`, `sizes`, `outputs`, `ramp-e1.0-f30`). Rebuild any
+  other folder with the command next to it.
+- **Editing a script while a background run uses it can crash the run.** On
+  Windows, worker processes re-import the script when a pool starts, so a
+  half-edited file reaches them mid-run. Finish edits (and `py_compile`) before
+  a run reaches its next pool, or copy the script for long runs.
+- **Change a rule mid-run with `Simulation.set_rule`,** not `sim.cfg.x = ...`:
+  the array engine reads most rules from `batch.par`, which only `set_rule`
+  updates (the reference reads `cfg`).
+- **A new sense goes into three places:** `Simulation.sensor_size`,
+  `ReferenceSimulation.sensor_size` (its own copy) and `sense_layout`, plus both
+  engines' sense code. `tests/test_senses.py` checks the counts match.
+- **`ladder.py --set` applies to play worlds too,** so a rule tested that way
+  also changes scratch (crossover top-ups raised scratch collapses ~0.3).
+  Compare nursery rows against their own scratch, or set nursery-only rules
+  in the nursery config.
+- **Fixed-rules nurseries are almost all top-ups:** 28-30 of the 30 NPCs at
+  the end, 0-3 births, in 3D and 4D. Selection there is the ranked hall of
+  fame, not breeding; a sense that only matters for breeding can't show there.
+- **Do-nothing outputs are cheap to learn away** (one bias), so they don't
+  price a real action. `extra_stay_actions` changes the scratch baseline (more
+  idling) more than it slows learning.
+- **The rounding plug needs soil to post into:** after a population boom most
+  soil cells are empty; it now posts to the median of the cells that can absorb
+  the entry (a negative entry in an empty cell broke growth's soil / (soil + k)).
+- **4D nurseries peak, then decay** (100-200k ticks), so "train longer" isn't
+  free: score checkpoints (`scripts/long_nursery.py`) instead of one end point.
+

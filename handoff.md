@@ -61,6 +61,23 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
     every food, and foraging is trivial (`gotchas.md`).
 
 ## Where to pick up
+0. **State at 2026-11-06 (end):** results of the day are in
+   `docs/plan-m2-diet-travel.md` slices R7-R9 and the laws table in
+   `docs/research-tuning.md` ("Relationships we measured"). 2D and 3D pass M2
+   (two eat actions and the track record are defaults now); 4D fails. Ruled out
+   for 4D: senses (a sense-only forager passes), the action draw, brain size
+   (4-64 units), crossover top-ups, anneal and ramp nurseries, the craving and
+   mating senses. **Open lead: 4D nurseries peak at 100-200k ticks and then
+   decay; why is untested** (nursery rules vs play, hall-of-fame or mutation
+   drift, selection luck). Built and off by default: `topup_crossover`,
+   `craving_sense`, `mate_sense` (pheromone call), `actions_off`,
+   `extra_stay_actions`, `hidden_units=0`; `Simulation.set_rule`. 5zorro's open
+   questions: the private `openitems.md` (2026-11-06 list).
+   ~38 commits local, unpushed (5zorro pushes). Snapshots kept: only the ones
+   that pass M2 under the current rules (2D/3D: `snapshots/ladder3`, `sizes`,
+   `outputs`, `ramp-e1.0-f30`). Older folders named below are gone; rebuild
+   them with the command next to them. CSVs aren't published: evidence = rerun
+   the script.
 1. **M2: diet drives travel.** Plan: `docs/plan-m2-diet-travel.md` (the history
    of slices 1–3f with every table lives there). Where it stands (2026-11-04):
    - **2D passes every criterion,** with criterion 3 measured by the move-based

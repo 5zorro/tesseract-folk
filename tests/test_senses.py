@@ -71,3 +71,24 @@ def test_mate_sense_reads_eligibility_readiness_and_direction():
     assert obs[L["pheromone_grad"]][2] > 0 and abs(obs[L["pheromone_grad"]][0]) < 1e-9
     b.mate_cooldown_until = sim.tick + 50                         # b can't mate now: no call, not ready
     assert sim.sense(a)[L["partner_ready"]][0] == 0.0
+
+
+@pytest.mark.parametrize("scent", [True, False])
+@pytest.mark.parametrize("craving", [True, False])
+@pytest.mark.parametrize("mate", [True, False])
+def test_both_engines_count_the_same_inputs(scent, craving, mate):
+    """The reference keeps its own sensor_size; a new sense must go into both."""
+    from sim.reference import ReferenceSimulation
+    cfg = Config(dims=3, size=6, seed=1, initial_npcs=2, food_scent=scent, craving_sense=craving,
+                 mate_sense=mate)
+    ref, arr = ReferenceSimulation(cfg, log_every=10**9), Simulation(cfg, log_every=10**9)
+    assert ref.n_inputs == arr.n_inputs == max(s.stop for s in arr.sense_layout().values())
+    assert ref.sense(ref.npcs[0], ref._spatial_index()).size == ref.n_inputs
+
+
+@pytest.mark.parametrize("bad", [dict(scent_half=0.0), dict(pheromone_half=0.0), dict(pheromone_decay=1.5),
+                                 dict(stink_decay=-0.1), dict(pheromone_emission=float("nan")),
+                                 dict(extra_stay_actions=10**6), dict(actions_off="move+0")])
+def test_bad_rules_are_refused(bad):
+    with pytest.raises(ValueError):
+        Simulation(Config(size=6, initial_npcs=2, **bad), log_every=10**9)

@@ -822,7 +822,8 @@ layer, inputs straight to outputs, new; fixed-rules nursery, 20,000 ticks):
 
 - **3D passes every goal at every width, even linear.** 4D fails nutrient, diet
   and food types at every width, by about the same margin.
-- **Relationship:** collapses are U-shaped in width with the bottom at 4 in both
+- **Relationship (superseded, see the 4D nursery-length table below: a
+  short-budget artifact):** collapses are U-shaped in width with the bottom at 4 in both
   dimensions, and 32 is worst. Past ~4 units, extra weights cost more (more to
   tune with the same 30 mutations per child and the same nursery) than they
   give. So depth wouldn't help today: the task is close to linear, and 4D's
@@ -1200,6 +1201,19 @@ nursery after a rule change:
 - **Carrying food** (pick up, eat later) already exists; check whether anyone uses
   it before adding anything. 5zorro's two-hands inventory idea (`openitems.md`) fits
   here if carrying matters.
+
+## Known gaps from the 2026-11-06 research tools (review)
+- `hidden_units` and `memory_units` from a shared snapshot's config aren't
+  capped, so a crafted one could make the sim allocate huge brain arrays
+  (`extra_stay_actions` is capped at 256 since the review; halves, decays and
+  the pheromone emission are range-checked).
+- Two `sensor_size` copies (array engine and reference); `tests/test_senses.py`
+  checks they agree for every sense flag.
+- `SenseController` rebuilds `sense_layout()` on every decision (probe-only
+  cost); `probe_mating.py` swaps `Batch.decide_all` for the process's life of a
+  job (restored after; never import it into a long-lived process).
+- The pheromone field is allocated (and saved) even with `mate_sense` off; one
+  float per cell, but it's in every snapshot.
 
 ## Known gaps carried from M1 (not M2's pass criteria)
 - Body starvation is about a third of collapses: nutrients stay up but mass

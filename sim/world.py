@@ -64,6 +64,16 @@ class World:
             value = getattr(cfg, name)
             if not (np.isfinite(value) and 0 <= value <= 1):   # a mix with the neighbor mean
                 raise ValueError(f"{name} must be within 0-1, got {value!r}")
+        for name in ("scent_decay", "stink_decay", "pheromone_decay"):
+            value = getattr(cfg, name)
+            if not (np.isfinite(value) and 0 <= value <= 1):   # a fraction lost per tick
+                raise ValueError(f"{name} must be within 0-1, got {value!r}")
+        for name in ("scent_half", "pheromone_half"):          # s / (s + half): 0 gives 0/0
+            value = getattr(cfg, name)
+            if not (np.isfinite(value) and value > 0):
+                raise ValueError(f"{name} must be a number > 0, got {value!r}")
+        if not (np.isfinite(cfg.pheromone_emission) and cfg.pheromone_emission >= 0):
+            raise ValueError(f"pheromone_emission must be a number >= 0, got {cfg.pheromone_emission!r}")
         if cfg.food_layout not in ("separate", "shared"):
             raise ValueError(f"food_layout must be 'separate' or 'shared', got {cfg.food_layout!r}")
         idx = np.indices(self.shape)

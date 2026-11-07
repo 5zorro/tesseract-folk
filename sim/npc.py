@@ -16,6 +16,7 @@ DAMAGE_CAUSES = ["nutrient_starve", "body_starve", "stink", "smite", "elder"]
 
 # Actions Config.actions_off may switch off (moves, eating and poop stay).
 OPTIONAL_ACTIONS = ("stay", "pick_up", "give", "mate", "pray", "worship", "share")
+MAX_EXTRA_STAY = 256
 
 
 def build_actions(dims: int, two_eat_actions: bool = False, off: str = "", extra_stay: int = 0) -> list[str]:
@@ -33,8 +34,8 @@ def build_actions(dims: int, two_eat_actions: bool = False, off: str = "", extra
     unknown = drop - set(OPTIONAL_ACTIONS)
     if unknown:
         raise ValueError(f"actions_off can only name {', '.join(OPTIONAL_ACTIONS)}; got {sorted(unknown)}")
-    if extra_stay < 0:
-        raise ValueError(f"extra_stay_actions must be >= 0, got {extra_stay}")
+    if not 0 <= extra_stay <= MAX_EXTRA_STAY:      # a shared snapshot's config sizes the arrays
+        raise ValueError(f"extra_stay_actions must be within 0-{MAX_EXTRA_STAY}, got {extra_stay}")
     return moves + [a for a in base if a not in drop] + [f"stay{i}" for i in range(1, extra_stay + 1)]
 
 

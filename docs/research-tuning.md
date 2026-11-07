@@ -136,6 +136,29 @@ either parent. Births are rare in nurseries, so this matters for play worlds
   behavior, that's this. Brains can't do it without memory of a heading; the
   memory stack (slice 4a) or recurrent units would allow it.
 
+## Relationships we measured (laws and hints, with evidence)
+5zorro's standing priority: relationships and formulas over single results.
+"Law" = repeated across dimensions or runs; "hint" = one run or noisy; the
+plan section holds the table and the command. CSVs aren't published (`runs/` is
+gitignored). The plan tables are the record; to check one, rerun its script.
+
+| Relationship | Status | Evidence |
+|---|---|---|
+| Search time per extra dimension grows ~0.7 x width / target size | law | plan-m2 R6; section 4b above |
+| Ticks for a nursery to reach its knee ~ weights^0.5 (same in 2D and 3D) | law (2 dims, 5 sizes; single points noisy) | plan-m2 R7 "Brain size vs ideal training length"; `long_nursery.py --arms h4..h64` |
+| 4D nurseries peak at 100-200k ticks, then decay (16, 32, 64 units) | law for 4D (3 sizes); cause untested | plan-m2 R7 "4D, 700,000-tick baseline"; `long_nursery.py` |
+| 4D's peak is 3-6x the 3D knee at similar size: dimension adds its own factor | hint | same two sections |
+| The more ticks at full pressure, the better the nursery (thermostat < ramp < fixed) | hint (one budget, 10 runs per row) | plan-m2 R7 anneal and ramp tables |
+| Lowering hunger only by nutrient decay doesn't spare 4D bodies (body burn is the other hunger) | finding | plan-m2 R7 anneal design notes |
+| Mates within reach ~ 1 - (1 - (1 + 2d) / cells)^(N - 1), about N (1 + 2d) / cells; NPCs sit as if scattered at random | law (matches measured 2D-4D) | plan-m2 R9; `scripts/probe_mating.py` |
+| Births are rare in every dimension; most mate attempts come from NPCs too young, thin or unwell | finding | plan-m2 R9 |
+| The senses carry enough for the diet goals in 2D-4D (a sense-only forager passes) | finding | plan-m2 R8; `scripts/probe_senses.py` |
+| A policy right 30% of the time still passes 4D: the action draw isn't the limit | finding | plan-m2 R8 diagnostic; `probe_senses.py --follow` |
+| The forager's move *and* eat rules are products (need x what's there): no linear brain can do it | finding | plan-m2 R8 diagnostic; `scripts/probe_handbrain.py` |
+| Collapses vs hidden width at 20k ticks are U-shaped, best at 4 | superseded: a short-budget artifact (4 units plateau, 16+ keep learning) | plan-m2 R7 width sweep, then the 4D nursery-length table |
+| Training time vs number of outputs | no law: 2D k ~ 0.5-0.7, 3D k ~ 0-0.1 with dummy outputs, which are cheap | plan-m2 R7 "Outputs vs training time" |
+| float32 + exact transfers + plug keep verdicts; drift ~1e-12 at plug ticks | law | docs/plan-gpu-backend.md |
+
 ## Similar projects
 - **Polyworld** (Larry Yaeger, 1990s–2010s): agents with vision and
   neural-network brains (Hebbian learning) evolving in an ecology; foraging,
