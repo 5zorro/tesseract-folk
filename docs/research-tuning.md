@@ -157,6 +157,8 @@ gitignored). The plan tables are the record; to check one, rerun its script.
 | At equal hunger distance, fertility lines up across dimensions but collapse pressure falls with dimension (scratch 2D 1.5, 3D 0.4, 4D 0.2 at 0.14 clocks) | hint (3 seeds) | plan-m2 R12; `sweep.py` |
 | Travel is required in the travel-time worlds: a never-moving NPC collapses 3-15x more than a random wanderer and eats 0.1-0.5 food types per life in 3D/4D | finding | plan-m2 R12; `sweep.py --variant controller=still` |
 | Diet diversity needs hunger: lowering hunger to the fertile edge lowers it (3D 0.93 -> 0.85, 4D 0.81 -> 0.75) | hint (2 nurseries x 5 seeds) | plan-m2 R12; `ladder.py --set` |
+| 3D diet diversity falls ~0.04 per 0.1x of hunger below 1x (0.93, 0.89, 0.85 at 1x, 0.85x, 0.75x) | hint (3 levels, 2 nurseries x 5 seeds each) | plan-m2 R12 |
+| Populations are bistable (Allee effect): 3D worlds at 0.85x either boom to the 250 cap or stay at the 30 floor, none in between | hint (10 worlds) | plan-m2 R12; follows from mate reach ~ N |
 | Hunger isn't 4D's M2 lever: food types 1.96 at 1x, 2.11 at 0.36x (goal 2.5) | finding | plan-m2 R12 |
 | Diagonal (king) steps cut the food-to-food walk 1.4x / 1.75x / 1.9x in 2D / 3D / 4D (theory for an open grid: 2d/3) | finding (random walker) | plan-m2 R12; `probe_random_walk.py --diagonal` |
 | Collapses rise linearly with hunger past the fertile range: ~3.4 per 1x in 2D/3D, ~4.6 in 4D | hint | plan-m2 R11 |

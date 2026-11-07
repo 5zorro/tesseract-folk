@@ -1351,6 +1351,7 @@ seeks diet.
 | 2D | 1x | 0.45 (1.23) | 0.51 | 0.95 | 2.96 | 87 vs 113 | all |
 | 2D | 1.05x | 0.79 (1.50) | 0.48 | 0.95 | 2.97 | 110 vs 99 | all |
 | 3D | 1x | 0.68 (1.19) | 0.44 | 0.93 | 2.83 | 43 vs 147 | all |
+| 3D | 0.85x | 0.45 (0.64) | 0.45 | **0.89** | 2.87 | **673 vs 42** (pop 122) | all but diet (by 0.01) |
 | 3D | 0.75x | 0.56 (0.41) | 0.45 | **0.85** | 2.72 | **1,042 vs 14** (pop 179) | not collapses, diet |
 | 4D | 1x | 2.50 (3.82) | **0.30** | 0.81 | 1.96 | 1 vs 283 | collapses, seeks |
 | 4D | 0.36x | 0.03 (0.15) | 0.72 | **0.75** | 2.11 | 50 vs 98 | not diet, types |
@@ -1362,6 +1363,14 @@ seeks diet.
 - **3D at 0.75x is M3-like:** nursery worlds grow to 179 NPCs on births (1,042
   births vs 14 top-ups), but they lose the collapse goal to scratch (confounded:
   scratch worlds stay at 32 NPCs) and the diet goal.
+- **3D at 0.85x (5zorro: try the middle) misses only diet, by 0.01:** 0.89 vs
+  the 0.9 goal (runs 0.87-0.92), with births 16x top-ups. 3D diet falls about
+  0.04 per 0.1x of hunger (0.93, 0.89, 0.85), so it should cross 0.9 near 0.9x.
+- **Populations are bistable (an Allee effect):** of the 10 3D 0.85x worlds, 5
+  boomed to 215-249 NPCs (the cap is 250) and 4 stayed at the floor of 30 (one
+  at 38); none settled in between. Mates in reach grow with N (R9), so births
+  per NPC grow with N: a world that gets dense stays dense. Diet diversity is
+  the same in both kinds (0.87-0.92), so crowding isn't what lowers it.
 - **The 1x baseline still stands:** 2D and 3D pass every goal at 1x; 3D's births
   there are a quarter of replacements.
 - Diagonals (5zorro's question): king steps cut the median food-to-food walk
