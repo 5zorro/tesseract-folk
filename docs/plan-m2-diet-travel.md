@@ -1419,6 +1419,19 @@ The ladder now prints each trial nursery's admitted / rejected / expired counts
   bodies can't mate, R9). Untested split: nutrient decay at 1x, body burn low.
   (R7's anneal notes: lowering nutrient decay alone didn't spare 4D bodies; the
   reverse hasn't been tried.)
+- **Split hunger, tested (5zorro: "a ladder of split hunger"):** nutrient decay at
+  1x, body burn scaled (`hunger_search.py --dims 4 --keys metabolism_rate --levels
+  0.25 0.5 0.75`, `runs/hunger-search-4d-body.log`):
+  | Body burn | Collapses (scratch) | Nutrient | Diet | Types | Births vs top-ups |
+  |---|---|---|---|---|---|
+  | 0.25x | 2.60 (3.24) | 0.30 | 0.82 | 1.71 | 6 vs 283 |
+  | 0.5x | 2.61 (3.37) | 0.30 | 0.81 | 1.78 | 3 vs 286 |
+  | 0.75x | 2.57 (3.51) | 0.30 | 0.82 | 1.78 | 2 vs 284 |
+  | 1x (R12) | 2.50 (3.82) | 0.30 | 0.81 | 1.96 | 1 vs 283 |
+  Body burn isn't what blocks 4D births: with nutrient decay at 1x, births stay
+  ~0 at any body burn, and collapses stay at 1x's level. Nutrient pressure blocks
+  both births and (when low) diet selection, so one setting can't give both.
+  That's the case for testing brains harsher than they breed (the arena, next).
 - Trials stay built and off. Their premise (a noisy life score) holds where
   lives do collapse; a 4D test at a hunger with collapse pressure, or a longer
   nursery, is still open.

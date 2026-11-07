@@ -163,6 +163,7 @@ gitignored). The plan tables are the record; to check one, rerun its script.
 | Hall-of-fame trials lose in 4D at 0.36x hunger: food types 1.75-1.80 vs 2.03 (every trial nursery below every base one), collapses 2x | finding (4 nurseries x 5 seeds per arm, 20k ticks) | plan-m2 R13 |
 | Trials halve a nursery's generations at a fixed tick budget (clones take most top-ups) | finding | plan-m2 R13 |
 | At 0.36x hunger 4D nurseries barely collapse (0-0.06 per 1,000 ticks, nursery rules): collapse-based merit has no signal there | finding | plan-m2 R13 |
+| 4D births are blocked by nutrient pressure, not body burn: with nutrient decay at 1x, births stay ~0 (2-6 vs ~285 top-ups) at body burn 0.25-1x | finding (2 nurseries x 5 seeds per level) | plan-m2 R13; `hunger_search.py --keys metabolism_rate` |
 | Hunger isn't 4D's M2 lever: food types 1.96 at 1x, 2.11 at 0.36x (goal 2.5) | finding | plan-m2 R12 |
 | Diagonal (king) steps cut the food-to-food walk 1.4x / 1.75x / 1.9x in 2D / 3D / 4D (theory for an open grid: 2d/3) | finding (random walker) | plan-m2 R12; `probe_random_walk.py --diagonal` |
 | The kids rules (birth weight + child credit) raise births only where births are possible: 2D 12x at 1.25x hunger, 4D 5x at 0.25x; the finish line moves at most one step | hint (2 seeds) | plan-m2 R11 |
