@@ -1296,6 +1296,24 @@ at the floor of 30 even there.
 - **What kills shifts in 4D:** body starvation (not enough food at all) goes from
   19% of collapses at 1x to 80% at 6x; 2D and 3D stay 85-95% nutrient
   starvation (wrong food). 4D runs out of mass reachable per tick first.
+- **Hunger distance (5zorro's question, 2026-11-06): one number fits every
+  dimension.** Interpolating where births fall to 10% of peak gives the fertile
+  limit h* (2D 1.04 / 1.19, 3D 0.62 / 0.64, 4D 0.42 / 0.36, off / kids). Times the
+  median random walk from one food's core to another's
+  (`probe_random_walk.py`: 40, 56, 116 ticks) that's 41-48, 35-36, 42-49: births
+  stop when that walk costs **~0.14 of a hunger clock** (300 ticks at 1x; range
+  0.12-0.16), while h* itself varies 3x. Mate reach (cells / (N (1 + 2d)) at the
+  floor) doesn't collapse the data (h* x it = 7-8 in 2D/3D, 13-16 in 4D). So the
+  dimension effect on fertility runs through the walk between foods; the
+  "halving" above is ~0.6x per dimension once interpolated. Caveats: scratch
+  brains, a random walker rather than NPC movement, 2 seeds, 3 dimensions.
+  Design rule it suggests: set each dimension's hunger so walk x hunger is
+  equal (e.g. 0.10 clocks: 2D 0.75x, 3D 0.54x, 4D 0.26x). Untested: whether M2
+  passes in 4D at such a hunger.
+- **At 0.25x, 4D lives full lives and the kids rules make births most of the
+  replacements:** ~0.01 collapses per 1,000 ticks; births 9-12 vs top-ups 4-7
+  per 1,000 ticks (off arm: 1-3 vs 12-14). Scratch brains: with no collapses
+  there's little left to select on.
 - **Other behaviors fade with hunger (5zorro's point):** gives per NPC per 1,000
   ticks fall ~30x in 2D from 0.25x to 1x (13 -> 0.4) and stay under 1 in 3D/4D;
   worship is ~0 everywhere; prayer falls in 4D (45 -> 0.3 by 1x).

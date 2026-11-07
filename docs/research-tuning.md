@@ -151,7 +151,8 @@ gitignored). The plan tables are the record; to check one, rerun its script.
 | Freezing the hall of fame holds the 4D peak (2.1 vs 2.4) but stops evolution | finding | plan-m2 R10 test 2; `probe_decay.py freeze` |
 | Squared weight norm = start + mutations/child x scale^2 x generations (neutral drift; 4D r = 1.000 at 3 sizes) | law in 4D; 2D grows at ~half that, 3D near it (hint: harder world, more neutral drift) | plan-m2 R10; `probe_decay.py hof` |
 | The hall of fame turns over completely between 4D checkpoints (1.1 lives per entry) | finding | plan-m2 R10 |
-| The last fertile hunger halves per dimension: 2D ~1.0x, 3D ~0.5x, 4D ~0.25x; today's 1x is past it in 3D and 4D | hint (2 seeds) | plan-m2 R11; `scripts/hunger_ladder.py` |
+| The last fertile hunger falls ~0.6x per dimension (interpolated: 2D 1.0-1.2x, 3D 0.6x, 4D 0.35-0.4x); today's 1x is past it in 3D and 4D | hint (2 seeds) | plan-m2 R11; `scripts/hunger_ladder.py` |
+| **Hunger distance:** births stop when the median random walk from one food to another costs ~0.14 of a hunger clock (0.12-0.16 in 2D-4D, both arms), while the fertile hunger itself varies 3x; mate reach doesn't fit (7-15) | hint (3 dims, 2 seeds, scratch brains, a random walker) | plan-m2 R11 "Hunger distance"; `hunger_ladder.py`, `probe_random_walk.py` |
 | 4D births are density-limited (30 NPCs in 10,000 cells even at 0.25x hunger) | finding | plan-m2 R11, R9 |
 | Collapses rise linearly with hunger past the fertile range: ~3.4 per 1x in 2D/3D, ~4.6 in 4D | hint | plan-m2 R11 |
 | In 4D, body starvation's share of collapses rises with hunger (19% at 1x, 80% at 6x); 2D/3D stay nutrient starvation | finding | plan-m2 R11 |
