@@ -71,6 +71,26 @@ def as_entry(candidate: dict) -> dict:
     return {k: v for k, v in candidate.items() if k not in TRIAL_KEYS}
 
 
+def limit(cfg) -> int:
+    """Most candidates that may wait at once. Clones are spawned only at top-ups,
+    so a world above its population floor (births) would otherwise collect a
+    candidate per finished life forever."""
+    return max(8, 4 * cfg.hall_of_fame_size)
+
+
+def make_room(cfg, candidates: list[dict]) -> int:
+    """Before a new candidate joins: drop the oldest ones (lowest id) with no
+    clone alive, until there's room. Returns how many were dropped."""
+    dropped = 0
+    while len(candidates) >= limit(cfg):
+        idle = [c for c in candidates if c["out"] == c["to_spawn"]]     # no clone alive
+        if not idle:
+            break
+        candidates.remove(min(idle, key=lambda c: c["id"]))
+        dropped += 1
+    return dropped
+
+
 def next_to_spawn(candidates: list[dict]) -> dict | None:
     """The candidate whose clone the next top-up is: lowest id first."""
     return min((c for c in candidates if c["to_spawn"] > 0), key=lambda c: c["id"], default=None)

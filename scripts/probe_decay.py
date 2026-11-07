@@ -25,6 +25,7 @@ import csv
 import json
 import math
 import os
+import shutil
 import sys
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
@@ -148,6 +149,7 @@ def freeze_one(job: tuple) -> str:
     (tmp / "state.json").write_text(json.dumps(state))
     (tmp / "world.npz").write_bytes((src / "world.npz").read_bytes())
     sim = load_snapshot(tmp, log_every=1000)
+    shutil.rmtree(tmp)                                  # only the start copy; the run keeps going
     done = start
     for end in ends:
         sim.run(end - done)
@@ -161,14 +163,13 @@ def freeze(out: Path, dst: Path, arm: str, nseeds, starts, ends, seeds, play_tic
     with ProcessPoolExecutor(min(workers, len(jobs))) as pool:
         for fut in as_completed([pool.submit(freeze_one, j) for j in jobs]):
             print("  ", fut.result(), flush=True)
-    plays = [(4, arm, e, [n], seeds, play_ticks, dst / f"from{s // 1000}k")
+    plays = [(s, (4, arm, e, [n], seeds, play_ticks, dst / f"from{s // 1000}k"))
              for s in starts for e in ends if e > s for n in nseeds]
     rows = []
     with ProcessPoolExecutor(min(workers, len(plays))) as pool:
-        futs = {pool.submit(play, j): j for j in plays}
+        futs = {pool.submit(play, j): s for s, j in plays}
         for fut in as_completed(futs):
-            start = int(str(futs[fut][6]).rsplit("from", 1)[1][:-1]) * 1000
-            rows.extend({**r, "frozen_from": start} for r in fut.result())
+            rows.extend({**r, "frozen_from": futs[fut]} for r in fut.result())
             print(f"  play {len(rows)}", flush=True)
     write(csv_path, rows)
 

@@ -95,3 +95,14 @@ def test_candidates_survive_a_snapshot(tmp_path):
 def test_bad_trial_settings_are_refused(kw):
     with pytest.raises(ValueError, match=next(iter(kw))):
         Simulation(Config(size=8, **{**dict(hall_of_fame_trials=2), **kw}), log_every=10**9)
+
+
+def test_waiting_candidates_are_capped():
+    """Above the population floor no top-ups spawn clones; old candidates expire."""
+    from sim import trials
+    sim = world(hall_of_fame_size=2)
+    for _ in range(trials.limit(sim.cfg) + 5):
+        sim._record_hall_of_fame(life(sim, 0))
+    assert len(sim.trials) == trials.limit(sim.cfg)
+    assert sim.stats.window["trial_expired"] == 5
+    assert min(c["id"] for c in sim.trials) > 0          # the oldest went first

@@ -20,6 +20,7 @@ from .npc import NPC
 from .nursery import entry_to_dict, hall_of_fame_entry
 from .simulation import Simulation
 from .trials import MAX_TRIALS, TRIAL_KEYS
+from .trials import limit as trial_limit
 
 ARRAYS = ("soil", "food", "poop", "stink", "scent", "capacity", "profiles", "zones", "pheromone")
 FORMAT = 4   # 2 added food scent (M1 slice 6); 3 added the zone map (M2);
@@ -119,7 +120,10 @@ def load_snapshot(path: str | Path, log_every: int = 100) -> Simulation:
     sim.deity.load_dict(state["deity"])
     npcs = [NPC.from_dict(n) for n in state["npcs"]]
     hall_of_fame = [hall_of_fame_entry(e) for e in state["hall_of_fame"]]
-    candidates = [trial_candidate(c) for c in state.get("trials", [])]    # absent before trials
+    saved = state.get("trials", [])                                       # absent before trials
+    if len(saved) > trial_limit(sim.cfg) + MAX_TRIALS:                   # + clones of the newest
+        raise ValueError(f"{len(saved)} hall-of-fame candidates is more than this world allows")
+    candidates = [trial_candidate(c) for c in saved]
     for brain in [n.brain for n in npcs] + [e["brain"] for e in hall_of_fame + candidates]:
         brain.check(sim.n_inputs, sim.cfg.hidden_units, sim.n_outputs)   # before they're stored
     sim.npcs, sim.hall_of_fame, sim.trials = npcs, hall_of_fame, candidates

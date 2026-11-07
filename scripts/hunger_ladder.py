@@ -131,6 +131,8 @@ def main() -> None:
     ap.add_argument("--jobs", type=int, default=os.cpu_count() or 1)
     ap.add_argument("--report-only", action="store_true")
     args = ap.parse_args()
+    if args.hold is not None and args.hold < 2 * LOG_EVERY:
+        ap.error(f"--hold must be at least {2 * LOG_EVERY} (each level is scored on its second half)")
     path = Path(args.csv)
     if not args.report_only:
         jobs = [(d, a, s, sorted(args.levels), args.hold or HOLD[d], args.out)

@@ -1352,6 +1352,20 @@ nursery after a rule change:
 - The pheromone field is allocated (and saved) even with `mate_sense` off; one
   float per cell, but it's in every snapshot.
 
+## Known gaps from the 2026-11-06 hall-of-fame rules (review)
+- Child credit: an entry's `kids_alive` drops only when a child's death is
+  recorded, so a child removed any other way would keep its parents protected
+  forever (nothing removes NPCs that way today). The hall of fame can exceed
+  `hall_of_fame_size` by the number of dead parents with living children.
+- A trial clone's own children can't credit anyone (clone ids never become
+  entries); trials and child credit together lose those credits
+  (`child_credit_lost`).
+- `Simulation._living_merit` isn't called by the array engine (its top-up scores
+  living NPCs vectorized); only the reference uses its own copy. Keep the two
+  formulas in step by hand, or delete the array one.
+- Trials are untested in a nursery: whether they beat their cost (a third of
+  the search rate) is open.
+
 ## Known gaps carried from M1 (not M2's pass criteria)
 - Body starvation is about a third of collapses: nutrients stay up but mass
   intake doesn't. Travel between zones may help or hurt this; watch it.

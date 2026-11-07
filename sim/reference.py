@@ -698,6 +698,9 @@ class ReferenceSimulation:
                 return
             trials.add_life(candidate, excess, passed, had_kids)
         else:
+            expired = trials.make_room(cfg, self.trials)
+            if expired:
+                self.stats.count("trial_expired", expired)
             candidate = trials.start(cfg, entry, passed, had_kids)
             self.trials.append(candidate)
         result = trials.verdict(cfg, candidate)

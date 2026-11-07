@@ -232,6 +232,28 @@ Traps that already bit us, by area. Add to this when something surprises you.
 - **The rounding plug needs soil to post into:** after a population boom most
   soil cells are empty; it now posts to the median of the cells that can absorb
   the entry (a negative entry in an empty cell broke growth's soil / (soil + k)).
-- **4D nurseries peak, then decay** (100-200k ticks), so "train longer" isn't
-  free: score checkpoints (`scripts/long_nursery.py`) instead of one end point.
+- **4D nurseries peak, then decay** (50-200k ticks; plan-m2 R10), so "train
+  longer" isn't free: score checkpoints (`scripts/long_nursery.py`) instead of one
+  end point, and expect a single nursery's curve to wander +-0.3 between them.
+- **Run Python from the venv:** `.venv\Scripts\python.exe` (`python` on PATH is a
+  system Python without pytest).
+- **A checkpoint's own NPCs don't show a nursery's quality.** The collapse rate of
+  the ~30 NPCs alive at a checkpoint is too noisy (it looked flat while fresh
+  worlds from the same checkpoints decayed). Score fresh worlds from it.
+- **Freezing the hall of fame stops evolution too** (`hall_of_fame_frozen`):
+  top-ups copy the frozen entries, so generations and weights barely move. It
+  can't tell hall-of-fame churn from weight drift.
+- **Trials spend top-ups.** With `hall_of_fame_trials=2`, about 2 of every 3
+  top-ups are exact clones under test, so mutated copies (the search) run at a
+  third of the rate. Clones spawn only at top-ups: a world above its floor
+  doesn't test candidates, and waiting ones expire oldest first past
+  `trials.limit` (4 x hall_of_fame_size; stat `trial_expired`).
+- **`sim/trials.py` is shared by both engines,** so `tests/test_engines.py` can't
+  catch a bug inside it; `tests/test_trials.py` is its only check.
+- **Births are the line, not extinction:** top-ups keep every world at its floor,
+  so nothing dies out. Today's 1x hunger is already past 3D's and 4D's fertile
+  range (plan-m2 R11), so 3D and 4D nursery selection is top-ups only.
+- **Editing `sim/` during a background pool run** is safe only once every worker
+  has spawned (they import at spawn); a pool the script opens later (e.g. its
+  play phase) imports the edited code.
 
