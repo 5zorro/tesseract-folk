@@ -90,3 +90,17 @@ def test_the_fit_finds_a_known_curve():
     assert f["y_inf"] == pytest.approx(2.4, abs=0.01)
     assert f["tau"] == pytest.approx(30_000, rel=0.05)
     assert not f["edge"]
+
+
+def test_persist_marks_kept_entries_raced_and_adds_up_their_races():
+    sim = Simulation(Config(**BASE, seed=0))
+    sim.hall_of_fame = [{"id": 0, "brain": None, "lives": 4.0, "excess_sum": -2.0, "generation": 0, "raced": 1.0},
+                        {"id": 1, "brain": None, "lives": 9.0, "excess_sum": 9.0, "generation": 0}]
+    records = [{"stage": 2, "excess": [-1.0, -1.0]}, {"stage": 1, "excess": [0.5]}]
+    arena.write_back(sim, records, keep=2, persist=True)
+    first, second = sim.hall_of_fame
+    assert first["raced"] == second["raced"] == 1.0
+    assert (first["lives"], first["excess_sum"]) == (6.0, -4.0)      # raced before: this race adds on
+    assert (second["lives"], second["excess_sum"]) == (1.0, 0.5)     # new to the race: its record
+    arena.write_back(sim, records, keep=2)                            # the arena arm: unchanged rules
+    assert "raced" in sim.hall_of_fame[0] and sim.hall_of_fame[0]["lives"] == 2.0

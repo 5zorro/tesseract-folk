@@ -204,3 +204,26 @@ def test_births_record_both_parents():
             assert n.parent1 >= 0 and n.parent2 >= 0 and n.parent1 != n.parent2
         living_kids = sum(1 for n in born for p in (n.parent1, n.parent2) if p in ids)
         assert sum(n.kids_alive for n in sim.npcs) == living_kids
+
+
+@pytest.mark.parametrize("engine", ["arrays", "reference"])
+def test_a_raced_entry_keeps_its_race_record_and_its_place(engine, tmp_path):
+    """scripts/arena.py's persist arm (R14): copies' lives don't join a raced
+    entry's record, the floor can't drop it, and newcomers can't push it out."""
+    from sim.reference import ReferenceSimulation
+    cls = Simulation if engine == "arrays" else ReferenceSimulation
+    sim = cls(Config(**{**SMALL, "hall_of_fame_min_copies": 3, "hall_of_fame_size": 2}), log_every=10**9)
+    for n in sim.npcs:
+        n.lifetime, n.collapses = 1000, 2
+    raced = {**entry(sim, 999, lives=8, excess_sum=4.0), "raced": 1.0}   # a race loser, merit < 0
+    sim.hall_of_fame = [raced]
+    for _ in range(4):
+        sim._record_hall_of_fame(finished_life(sim, 999, collapses=4))   # bad copies, +2 each
+    for _ in range(3):
+        sim._record_hall_of_fame(finished_life(sim, -1, collapses=0))    # good newcomers
+    kept = [e for e in sim.hall_of_fame if e["id"] == 999]
+    assert kept and sim.hall_of_fame[0]["id"] == 999 and len(sim.hall_of_fame) == 2
+    assert (kept[0]["lives"], kept[0]["excess_sum"], kept[0]["copies"]) == (8, 4.0, 0.0)
+    if engine == "arrays":
+        save_snapshot(sim, tmp_path / "s")
+        assert load_snapshot(tmp_path / "s").hall_of_fame[0]["raced"] == 1.0

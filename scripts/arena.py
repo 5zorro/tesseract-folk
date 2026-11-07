@@ -60,7 +60,8 @@ from sim.snapshot import load_snapshot, save_snapshot  # noqa: E402
 from ladder import LATE_FROM, LOG_EVERY, NURSERY_RULES, WORLD_SETS, verdicts, world  # noqa: E402
 from sweep import run_batch  # noqa: E402
 
-ARMS = ("plain", "arena")
+ARMS = ("plain", "arena", "persist")
+RACED = ("arena", "persist")    # arms that race; persist keeps the verdicts (R14)
 TEST_RULES = {"collapse_age_penalty": 0, "initial_npcs": 30}
 METRICS = ("collapse_rate", "min_nutrient", "diet_diversity", "zone_types_per_life", "approach_excess")
 
@@ -126,13 +127,21 @@ def ranked(records: list[dict]) -> list[int]:
     return sorted(range(len(records)), key=lambda i: (-records[i]["stage"], np.mean(records[i]["excess"])))
 
 
-def write_back(sim, records: list[dict], keep: int) -> dict:
+def write_back(sim, records: list[dict], keep: int, persist: bool = False) -> dict:
+    """Keep the race's top `keep` with their race records. `persist` (arm
+    persist): mark them raced, so nursery copies' lives don't join their record,
+    the 5-copies floor can't drop them and newcomers can't push them out
+    (sim._rank_hall_of_fame); an entry raced before adds this race to its record."""
     order = ranked(records)[:keep]
     kept = []
     for i in order:
         entry = dict(sim.hall_of_fame[i])
-        entry["lives"] = float(len(records[i]["excess"]))
-        entry["excess_sum"] = float(np.sum(records[i]["excess"]))
+        lives, excess = float(len(records[i]["excess"])), float(np.sum(records[i]["excess"]))
+        if persist and entry.get("raced"):
+            lives, excess = entry["lives"] + lives, entry["excess_sum"] + excess
+        entry["lives"], entry["excess_sum"] = lives, excess
+        if persist:
+            entry["raced"] = 1.0
         kept.append(entry)
     before = len(sim.hall_of_fame)
     sim.hall_of_fame = kept
@@ -174,11 +183,11 @@ def nursery(job: tuple) -> list[str]:
     for rnd in range(start + 1, args["rounds"] + 1):
         sim.run(args["round_ticks"])
         note, log = "", None
-        if arm == "arena" and sim.hall_of_fame:
+        if arm in RACED and sim.hall_of_fame:
             grids: list = []
             records = race(sim.hall_of_fame, test, args["stages"], args["test_ticks"], nseed, rnd, grids)
             log = race_log(sim, records, grids, args["keep"])
-            info = write_back(sim, records, args["keep"])
+            info = write_back(sim, records, args["keep"], persist=arm == "persist")
             note = f" (raced {info['raced']}, kept {info['kept']}, best excess {info['best_excess']:+.2f})"
         path = checkpoint(out, arm, nseed, rnd)
         save_snapshot(sim, path)
@@ -438,7 +447,7 @@ def main() -> None:
         return
     if not a.report_only:
         jobs = [(arm, n, args) for arm in a.arms for n in a.nursery_seeds]
-        jobs.sort(key=lambda j: j[0] != "arena")          # the slower arm first
+        jobs.sort(key=lambda j: j[0] not in RACED)        # the slower arms first
         with ProcessPoolExecutor(min(a.jobs, len(jobs))) as pool:
             for fut in as_completed([pool.submit(nursery, j) for j in jobs]):
                 for msg in fut.result():

@@ -32,6 +32,8 @@ def hall_of_fame_entry(data: dict) -> dict:
              **{k: float(data.get(k, v)) for k, v in TRACK_FIELDS.items()},
              "brain": Brain.from_dict(data["brain"])}
     entry["id"] = int(entry["id"])
+    if data.get("raced"):                     # scripts/arena.py: the record is a race's
+        entry["raced"] = float(data["raced"])
     numbers = [v for k, v in entry.items() if k != "brain"]
     if (not all(math.isfinite(v) for v in numbers) or entry["lives"] < 0 or entry["copies"] < 0
             or entry["kids"] < 0 or entry["kids_alive"] < 0):

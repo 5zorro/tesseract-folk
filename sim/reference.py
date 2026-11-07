@@ -713,8 +713,9 @@ class ReferenceSimulation:
             self._rank_hall_of_fame()
 
     def _rank_hall_of_fame(self) -> None:
-        key = self._merit if self.cfg.hall_of_fame_track_record else (lambda e: e["fitness"])
-        self.hall_of_fame.sort(key=key, reverse=True)
+        score = self._merit if self.cfg.hall_of_fame_track_record else (lambda e: e["fitness"])
+        # Raced entries (scripts/arena.py) rank above the rest, so newcomers can't push them out.
+        self.hall_of_fame.sort(key=lambda e: (e.get("raced", 0.0), score(e)), reverse=True)
         size = self.cfg.hall_of_fame_size
         if self.cfg.hall_of_fame_child_credit:      # parents stay while their children's proof is out
             self.hall_of_fame[:] = [e for i, e in enumerate(self.hall_of_fame)
@@ -774,6 +775,8 @@ class ReferenceSimulation:
         for i, entry in enumerate(self.hall_of_fame):
             if entry.get("id", -1) != source:
                 continue
+            if entry.get("raced", 0.0):      # its record is the race's: copies' lives don't join it
+                return
             entry["lives"] += 1
             entry["excess_sum"] += excess
             entry["copies"] += 1
