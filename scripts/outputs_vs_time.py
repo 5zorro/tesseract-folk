@@ -38,8 +38,10 @@ from sim.snapshot import save_snapshot  # noqa: E402
 from ladder import NURSERY_RULES, NURSERY_SEEDS, WORLD_SETS, read_csv, world  # noqa: E402
 from sweep import run_batch  # noqa: E402
 
-OPTIONAL = "pick_up+give+pray+worship+share"
-ARMS = {"off5": dict(actions_off=OPTIONAL), "base": {}, "plus8": dict(extra_stay_actions=8),
+# pick_up stays: carried food is eaten when the ground is bare, so dropping it
+# changed the task (first 2D run: that arm never learned at all).
+OPTIONAL = "give+pray+worship+share"
+ARMS = {"off4": dict(actions_off=OPTIONAL), "off5": dict(actions_off="pick_up+" + OPTIONAL), "base": {}, "plus8": dict(extra_stay_actions=8),
         "plus16": dict(extra_stay_actions=16), "plus32": dict(extra_stay_actions=32)}
 CHECKPOINTS = (2_500, 5_000, 10_000, 20_000, 40_000)
 
@@ -126,7 +128,7 @@ def report(rows: list[dict]) -> None:
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--dims", type=int, default=2)
-    ap.add_argument("--arms", nargs="+", default=list(ARMS))
+    ap.add_argument("--arms", nargs="+", default=[a for a in ARMS if a != "off5"])
     ap.add_argument("--seeds", type=int, default=5)
     ap.add_argument("--ticks", type=int, default=5_000)
     ap.add_argument("--out", default="snapshots/outputs")

@@ -127,7 +127,12 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
      **4D nursery length (5zorro):** at 16 units 4D improves steadily from
      20,000 to 120,000 ticks (types 1.96 -> 2.23, still failing); at 4 units it
      plateaus and worsens. **Mating sense with a pheromone call** built
-     (`mate_sense`, off), untested. Open with 5zorro: a second hidden layer.
+     (`mate_sense`, off); no births in any 4D nursery with it. **Brain size vs
+     training length:** ticks to the knee ~ sqrt(weights) in 2D and 3D.
+     **4D 700k baseline peaks at 100-200k ticks, then decays** (cause untested).
+     Outputs vs training time: no clean law (dummy outputs are cheap). 64-unit
+     4D arm still running. Open with 5zorro: a second hidden layer; directional
+     movement (5zorro plans to test).
    - **4D Miner targets (5zorro, 2026-11-04):** land walkers on 3D surfaces, 4D fish
      and birds in full 4D. Both 3D and 4D must pass.
    - Speed: ticks 27-39% faster (bit-identical); `scripts/fingerprint.py` checks

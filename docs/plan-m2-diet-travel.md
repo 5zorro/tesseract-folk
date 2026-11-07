@@ -1105,6 +1105,57 @@ Why mate attempts fail (share of attempts; "partner ready" was 0% everywhere):
     Rerun with only give, pray, worship and share off, 8 seeds, then 3D.
   - Every arm ends near the same place given time (0.44-0.75 at 40k): more
     outputs cost time, not the final score, over this range.
+
+  Rerun (only give, pray, worship, share off; 2D 8 seeds, 3D 5;
+  `runs/outputs-vs-time-{2d,3d}.csv`). Fit of ticks to close each arm's own
+  gap (its scratch -> its best) against outputs: **2D k = 0.50 (50% of the gap)
+  / 0.72 (70%); 3D k = 0.03 / 0.14.** Not one relationship. Reading: a
+  do-nothing output is learned away by lowering one bias, so dummy outputs
+  understate what a real action costs; this method can't price real outputs.
+  Fewer actions: in 3D the off4 arm learns best (0.48 at 40k); in 2D it peaks at
+  10k (0.94) and slips. Kept as data; not a formula.
+
+- **Brain size vs ideal training length (5zorro: "what was the ideal training
+  tick size for each brain size? I want that relationship to be down").**
+  `scripts/long_nursery.py --arms h4 h8 h16 h32 h64`, snapshots 2.5k-160k,
+  today's senses, 2 nurseries x 5 seeds per point (`runs/sizes-{2d,3d}.csv`).
+
+  | Hidden | Weights 2D | Best 2D (at ticks) | Knee 2D | Weights 3D | Best 3D (at ticks) | Knee 3D |
+  |---|---|---|---|---|---|---|
+  | 4 | 272 | 0.74 (80k) | 9.7k | 318 | 0.37 (20k) | 12.7k |
+  | 8 | 528 | 0.65 (20k) | 9.9k | 618 | 0.46 (20k) | 12.5k |
+  | 16 | 1,040 | **0.28** (80k) | 35k | 1,218 | 0.45 (40k) | 32k |
+  | 32 | 2,064 | 0.60 (10k) | 8.4k | 2,418 | 0.60 (80k) | 53k |
+  | 64 | 4,112 | 0.43 (160k, still improving) | 63k | 4,818 | 0.46 (80k) | 36k |
+
+  (Knee = ticks to first get within 10% of the way from scratch to that size's
+  best, in collapses.) **Ticks to the knee ~ weights^0.53 (2D) and ^0.52 (3D):
+  training length grows as the square root of the brain's weight count**, the
+  same exponent in both dimensions. Single points are noisy (2D 32 units).
+  The best score doesn't simply improve with size.
+
+- **4D, 700,000-tick baseline (5zorro: "use that as the baseline and take
+  snapshots"; `runs/long-nursery-4d.csv`):**
+
+  | 4D nursery ticks | 0 | 50k | 100k | 200k | 350k | 500k | 700k |
+  |---|---|---|---|---|---|---|---|
+  | 16 units, collapses | 3.82 | 2.33 | 2.09 | **2.07** | 2.41 | 2.41 | 2.78 |
+  | 16 units, food types | 1.40 | 2.01 | 2.22 | **2.30** | 2.24 | 2.24 | 2.04 |
+  | 32 + both senses, collapses | 4.16 | 2.11 | **1.94** | 2.41 | 2.70 | 2.80 | 2.85 |
+  | 32 + both senses, food types | 1.27 | 2.18 | 2.18 | 1.95 | 1.90 | 1.94 | 1.82 |
+
+  - **Nurseries peak, then get worse.** 16 units peak at 100-200k ticks, 32
+    units with the new senses at ~100k; by 700k both are worse than at 50k.
+    Longer isn't better past the peak, so 4D's goals aren't 700k ticks away by
+    training alone (the 2026-11-06 extrapolation was wrong).
+  - 4D's peak (100-200k at ~1,400 weights) is 3-6x the 3D knee for the same
+    size (~32k), so dimension adds its own factor on top of sqrt(weights).
+  - **Why they decay: not tested.** Candidates: brains fit the nursery's
+    harsher rules (collapse penalty 600) rather than play's; the hall of fame
+    or lineage-adaptive mutation drifts over a long run; or selection noise
+    (R3) accumulates. Checking the nursery's own scores along the run, and
+    play scores of nursery-rules worlds, would split these.
+  - The 64-unit arm (both senses) is still running.
 - **Directional movement (5zorro, 2026-11-06):** plans to test diagonal /
   directional movement per dimension ("plenty of games allow it"). The outputs
   curve above predicts what 3^dims - 1 move actions would cost in training.
