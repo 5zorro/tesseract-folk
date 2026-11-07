@@ -112,7 +112,13 @@ def train(jobs: list[tuple]) -> list[str]:
         Batch([sim for sim, _ in todo]).run(jobs[0][2])
         for sim, path in todo:
             save_snapshot(sim, path)
-            msgs.append(f"trained {path.name}")
+            msg = f"trained {path.name}"
+            if sim.cfg.hall_of_fame_trials:      # trial outcomes over the whole nursery
+                total = {k: sum(h.get(f"trial_{k}", 0) for h in sim.stats.history)
+                         for k in ("admit", "reject", "expired")}
+                msg += (f" (trials: {total['admit']} admitted, {total['reject']} rejected, "
+                        f"{total['expired']} expired; hall of fame {len(sim.hall_of_fame)})")
+            msgs.append(msg)
     return msgs
 
 
