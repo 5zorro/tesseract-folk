@@ -19,6 +19,7 @@ from .config import Config
 from .npc import NPC
 from .nursery import entry_to_dict, hall_of_fame_entry
 from .simulation import Simulation
+from .trials import MAX_TRIALS, TRIAL_KEYS
 
 ARRAYS = ("soil", "food", "poop", "stink", "scent", "capacity", "profiles", "zones", "pheromone")
 FORMAT = 4   # 2 added food scent (M1 slice 6); 3 added the zone map (M2);
@@ -39,12 +40,24 @@ LEGACY = {
     "hall_of_fame_frozen": False,         # 2026-11-06
     "hall_of_fame_birth_weight": 0.0,     # 2026-11-06
     "hall_of_fame_child_credit": False,   # 2026-11-06
+    "hall_of_fame_trials": 0,             # 2026-11-06
     "craving_sense": False,               # 2026-11-06; old brains lack its inputs
     "mate_sense": False,                  # 2026-11-06; old brains lack its inputs
     "actions_off": "",                    # 2026-11-06
     "extra_stay_actions": 0,              # 2026-11-06
     "precision": "float64",               # 2026-11-06; research scripts default to float32
 }
+
+
+def trial_candidate(data: dict) -> dict:
+    """A hall-of-fame candidate on trial from saved JSON (untrusted, like entries)."""
+    candidate = hall_of_fame_entry(data)
+    for key in TRIAL_KEYS:
+        value = data.get(key)
+        if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= MAX_TRIALS + 1:
+            raise ValueError(f"a hall-of-fame candidate's {key} must be a whole number within 0-{MAX_TRIALS + 1}")
+        candidate[key] = value
+    return candidate
 
 
 def save_snapshot(sim: Simulation, path: str | Path) -> Path:
@@ -61,6 +74,7 @@ def save_snapshot(sim: Simulation, path: str | Path) -> Path:
         "deity": sim.deity.to_dict(),
         "npcs": [n.to_dict() for n in sim.npcs],
         "hall_of_fame": [entry_to_dict(e) for e in sim.hall_of_fame],
+        "trials": [entry_to_dict(c) for c in sim.trials],
     }
     (path / "state.json").write_text(json.dumps(state))
     return path
@@ -105,7 +119,8 @@ def load_snapshot(path: str | Path, log_every: int = 100) -> Simulation:
     sim.deity.load_dict(state["deity"])
     npcs = [NPC.from_dict(n) for n in state["npcs"]]
     hall_of_fame = [hall_of_fame_entry(e) for e in state["hall_of_fame"]]
-    for brain in [n.brain for n in npcs] + [e["brain"] for e in hall_of_fame]:
+    candidates = [trial_candidate(c) for c in state.get("trials", [])]    # absent before trials
+    for brain in [n.brain for n in npcs] + [e["brain"] for e in hall_of_fame + candidates]:
         brain.check(sim.n_inputs, sim.cfg.hidden_units, sim.n_outputs)   # before they're stored
-    sim.npcs, sim.hall_of_fame = npcs, hall_of_fame
+    sim.npcs, sim.hall_of_fame, sim.trials = npcs, hall_of_fame, candidates
     return sim

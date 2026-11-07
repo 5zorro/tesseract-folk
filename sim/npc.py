@@ -106,6 +106,7 @@ class NPC:
     kids_alive: int = 0
     kid_lives: float = 0.0
     kid_excess_sum: float = 0.0
+    trial_of: int = -1        # the hall-of-fame candidate this clone is a trial of (Config.hall_of_fame_trials)
 
     def __post_init__(self):
         if self.eaten is None:

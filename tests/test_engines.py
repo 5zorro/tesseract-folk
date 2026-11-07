@@ -35,6 +35,9 @@ CASES = {
     "birth bonus": dict(hall_of_fame_birth_weight=5.0, hall_of_fame_min_copies=2),
     "child credit": dict(hall_of_fame_child_credit=True, hall_of_fame_birth_weight=5.0,
                          hall_of_fame_min_copies=2, hall_of_fame_size=4),
+    "trials": dict(hall_of_fame_trials=2, hall_of_fame_birth_weight=5.0),
+    "trials, absolute": dict(hall_of_fame_trials=1, hall_of_fame_trial_passes=1,
+                             hall_of_fame_trial_max_collapses=1, hall_of_fame_trial_parents=1),
 }
 
 

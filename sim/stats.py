@@ -47,6 +47,7 @@ class Stats:
             "approach_moves": npc.approach_moves,
             "origin": npc.origin, "mutations": npc.mutations, "parent_rate": npc.parent_rate,
             "rate": npc.collapse_rate(), "lineage": npc.lineage, "source": npc.source,
+            "collapses": npc.collapses, "offspring": npc.offspring,
         })
 
     def travel_summary(self, since_tick: int = 0, min_lifetime: int = 500) -> dict:

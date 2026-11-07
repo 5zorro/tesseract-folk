@@ -176,6 +176,15 @@ class Config:
     # tally, carried into its entry, or its entry if it died), and an entry with
     # children still alive can't be pushed out of the hall of fame or dropped.
     hall_of_fame_child_credit: bool = False
+    # Trials (5zorro, 2026-11-06; sim/trials.py): a finished life is re-run as
+    # this many exact clones (top-ups) before it may enter the hall of fame, and
+    # enters only if `hall_of_fame_trial_passes` of its lives passed (at most
+    # `hall_of_fame_trial_max_collapses` collapses; -1 = a collapse rate below the
+    # population's) and `hall_of_fame_trial_parents` had children. 0 = off.
+    hall_of_fame_trials: int = 0
+    hall_of_fame_trial_passes: int = 2
+    hall_of_fame_trial_max_collapses: int = -1
+    hall_of_fame_trial_parents: int = 0
     # Crossover top-ups (5zorro, 2026-11-06): a top-up is the child of two
     # tournament winners (crossover, then mutation, as a birth), not a mutated
     # copy of one, so top-ups can combine good brains instead of only exploring

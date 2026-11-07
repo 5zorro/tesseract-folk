@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from . import trials
 from .brain import Brain
 from .clock import SimClock
 from .config import Config
@@ -71,12 +72,14 @@ class ReferenceSimulation:
             raise ValueError(f"hall_of_fame_prior_lives must be a number >= 0, got {c.hall_of_fame_prior_lives!r}")
         if not (np.isfinite(c.mutation_lineage_max) and c.mutation_lineage_max >= 1):
             raise ValueError(f"mutation_lineage_max must be a number >= 1, got {c.mutation_lineage_max!r}")
+        trials.check(c)
         if not (np.isfinite(c.hall_of_fame_birth_weight) and c.hall_of_fame_birth_weight >= 0):
             raise ValueError(f"hall_of_fame_birth_weight must be a number >= 0, got {c.hall_of_fame_birth_weight!r}")
         self._shrine_cache: dict = {}
         self._shrines_cached: list = []
         self.npcs: list[NPC] = []
         self.hall_of_fame: list[dict] = []   # see nursery.hall_of_fame_entry for the fields
+        self.trials: list[dict] = []         # hall-of-fame candidates on trial (sim/trials.py)
         self.overrides: dict[int, object] = {}  # npc id -> controller (see controllers.py)
         self.tick = 0
         self.next_id = 0
@@ -677,8 +680,34 @@ class ReferenceSimulation:
             self._credit_parents(npc, excess)
             entry.update(lives=1.0 + npc.kid_lives, excess_sum=excess + npc.kid_excess_sum,
                          kids=float(npc.kid_lives), kids_alive=float(npc.kids_alive))
+        if cfg.hall_of_fame_trials:
+            self._trial_life(npc, entry, excess, population)
+            return
         self.hall_of_fame.append(entry)
         self._rank_hall_of_fame()
+
+    def _trial_life(self, npc, entry: dict, excess: float, population: float) -> None:
+        """Config.hall_of_fame_trials: a first life becomes a candidate; a trial
+        clone's life joins its candidate, which enters or is dropped once judged."""
+        cfg = self.cfg
+        passed = trials.life_passes(cfg, npc.collapses, npc.collapse_rate(), population)
+        had_kids = npc.offspring > 0
+        if npc.trial_of >= 0:
+            candidate = next((c for c in self.trials if c["id"] == npc.trial_of), None)
+            if candidate is None:                      # already judged (rejected early)
+                return
+            trials.add_life(candidate, excess, passed, had_kids)
+        else:
+            candidate = trials.start(cfg, entry, passed, had_kids)
+            self.trials.append(candidate)
+        result = trials.verdict(cfg, candidate)
+        if result is None:
+            return
+        self.trials.remove(candidate)
+        self.stats.count(f"trial_{result}")
+        if result == "admit":
+            self.hall_of_fame.append(trials.as_entry(candidate))
+            self._rank_hall_of_fame()
 
     def _rank_hall_of_fame(self) -> None:
         key = self._merit if self.cfg.hall_of_fame_track_record else (lambda e: e["fitness"])
@@ -773,7 +802,13 @@ class ReferenceSimulation:
                            for n in sorted(self.npcs, key=lambda n: n.id)]   # by id, not list order
             origin, mutations, parent_rate, lineage, source, source2 = "", -1.0, -1.0, -1.0, -1, -1
             draw = self.keys.stream(self.tick, self.next_id, keyed.SPAWN)
-            if candidates:
+            trial_of = -1
+            candidate = trials.next_to_spawn(self.trials)
+            if candidate is not None:                   # an exact clone: the candidate's next trial
+                candidate["to_spawn"] -= 1
+                brain, gen, origin, trial_of = candidate["brain"], candidate["generation"], "trial", candidate["id"]
+                mutations, parent_rate, lineage = 0.0, candidate.get("rate", -1.0), candidate.get("lineage", -1.0)
+            elif candidates:
                 picks = [int(draw.integers(len(candidates))) for _ in range(3)]
                 best = max(picks, key=lambda i: candidates[i][0])   # the first best
                 _, gen, brain, parent_rate, parent_lineage, source = candidates[best]
@@ -796,6 +831,7 @@ class ReferenceSimulation:
             npc = self._spawn(brain, self.world.random_cell(draw), body, gen)
             npc.origin, npc.mutations, npc.parent_rate = origin, mutations, parent_rate
             npc.lineage, npc.source, npc.source2 = lineage, source, source2
+            npc.trial_of = trial_of
             self.stats.count("spawns")
 
     # ============================================================== helpers
