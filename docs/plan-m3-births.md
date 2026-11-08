@@ -1,7 +1,10 @@
 # Plan: M3 Stable population from real births
 
-Status (2026-11-08): **started.** The goal was rewritten with 5zorro the same
-day (`docs/ROADMAP.md`). Slice S1 (the baseline) is next.
+Status (2026-11-08, end): S1 baseline, S1b probe and S3 (births race, cross
+entry) done; no world passes. Worlds that breed boom, then starve as the rich
+food cores lose their soil. **Next: slice S3b, poop and soil diffusion**
+(approved by 5zorro), then S3c (re-pick hunger with mating as an axis).
+The goal was rewritten with 5zorro on 2026-11-08 (`docs/ROADMAP.md`).
 Open decisions (bottom) are 5zorro's.
 
 **For a new session:** read `handoff.md`, `gotchas.md` and this file. M2's plan
@@ -138,6 +141,11 @@ The nursery scores the proxy (collapses); M3 needs lineages. Arms in
   the nursery, before M3.
 - both together.
 Scored with `m3_ladder.py` (and M2's goals, which must still hold).
+Why scoring births doesn't break rule 6: having children is what fitness
+means in evolution; rule 6 forbids rewarding social behaviors (trading,
+sharing) whose emergence is the experiment. Scoring only collapses was the
+proxy, "rewarding B while hoping for A" (5zorro's management-accounting
+framing, Kerr 1975).
 
 **Built (2026-11-08):** `arena.py --arms births cross births-cross`.
 - **Signal check first** (4D, 5 hall-of-fame brains x 4 scenarios, 1,200
@@ -210,6 +218,49 @@ in both engines, off by default until 5zorro approves a re-baseline):
 Then rerun `m3_ladder.py` on the births arms (kept: `snapshots/s3/births-*-r35`,
 `births-cross-*-r35`, which fail M2's types goal; see open decision 5).
 
+### Slice S3b (next, approved by 5zorro 2026-11-08): poop and soil diffusion
+5zorro: "yes, poop diffusion sounds like it would prevent concentration of
+plants over time, lets implement." Spec:
+- `Config.poop_diffusion` and `Config.soil_diffusion` (default 0.0: fingerprints
+  unchanged): each tick a fraction of each cell's poop / soil moves toward its
+  neighbors' mean, like stink (`stink_diffusion`).
+- **Why both:** poop lasts ~100 ticks (`poop_decompose_rate` 0.01), so poop
+  diffusion alone moves mass only a few cells, and it lands where NPCs walk,
+  which includes the cores. Soil diffusion is what carries mass back into a
+  mined core, at a rate set by the gradient. Measure each alone and together.
+- **Rule 1 (mass):** diffusion must conserve mass exactly. Use pairwise
+  fluxes along each axis (what leaves one cell enters its neighbor) with the
+  exact-transfer pattern, not `x += D * (mean - x)` (stink's form, which only
+  conserves up to rounding); `mass_plug_every` must stay quiet. Test at dims=4.
+- **Both engines (rule 7):** `sim/world.py` `World.step` (the reference engine
+  runs it, line ~153) and `sim/simulation.py` `Batch._world_step_part`
+  (stacked worlds, line ~791); `tests/test_engines.py` compares them.
+  Range-check the new fields in `sim/config.py` like the other diffusions
+  (`world.py` line ~64 checks them).
+- **Then:** trace the births-n101 world again (core soil, food, population
+  per 1,000 ticks; the S3 table) at a few rates, and rerun `m3_ladder.py` on
+  the births and births-cross r35 nurseries. A default change needs 5zorro's
+  re-baseline approval (old and new fingerprints recorded here).
+
+### Slice S3c (after S3b): re-pick hunger with mating as a survival axis
+5zorro: "in a resource constrained environment... adding another constraint
+without changing anything can cause collapse. Perhaps there is a law here.
+perhaps we need to re-evaluate the .36 after adding the mating survival
+constraint?"
+- **Hypothesis (budget law):** a hunger level gives a fixed food budget per
+  lifetime, shared by the survival axes (two nutrients, calories, stink, and
+  now mating, whose child costs each parent 0.3 body). 0.36x was picked where
+  the old axes fit with slack; mating takes from the same budget, so the old
+  axes drop (measured: types 2.67 -> 2.31, nutrient 0.88 -> 0.57 in the births
+  arms) and booms mine the food. Known neighbors, cited from memory: life
+  history's cost of reproduction (Williams 1966; Stearns 1992), Liebig's law
+  of the minimum, and Pareto fronts (one more objective moves the optimum).
+- **Test:** `hunger_search.py`-style ladder over hunger (e.g. 0.25-0.5x) with
+  births-race nurseries, goals = M2's and M3's together. For the law, add a
+  `child_mass` ladder (the new axis's cost) and fit how the goal-meeting
+  hunger window moves with it: relationship, not just a pick.
+- After S3b, because today's boom-and-crash would swamp any hunger effect.
+
 ### Slice S4 (proposed): survival axes x brain size, for a law
 5zorro: "survival has 3 axis... i don't think we have down the optimal brain
 structure law". A grid of axes switched on (nutrients 1-3, mating on/off) x
@@ -224,6 +275,26 @@ Candidates, each measured before it's adopted:
 - **4D** (density): a world sized so 30-250 NPCs can meet (fewer cells per
   NPC), `mate_sense` (built, off by default), or breeding for births in the
   nursery. A pure world-size change is the cleanest test of the R9 law.
+
+## Known gaps (review 2026-11-08, before compaction)
+- **Luck in M3's scoring:** 5 seeds per nursery, every world must pass; the
+  2D/3D nurseries (`snapshots/hdist`) were never raced, so n100 vs n101 may be
+  partly nursery luck. Only 4D's were raced, and on collapses until S3.
+- **Raced vs nursery merit are in different units** in one top-up tournament
+  (gotchas.md, raced entries): still unmeasured. The births arms widen it
+  (score = collapses - 5 x births).
+- **Hunger is computed in three places:** `hunger_search.run_level`,
+  `m3_ladder.hunger_rules`, and the `H` / `HUNGER_036` strings in
+  `arena.py` commands and `variation_ladder.py`. One helper would keep them
+  from drifting.
+- **Untested:** `m3_ladder` main (the settings guard, `--nurseries`), and
+  `probe_births` (a probe; it now refuses `topup_crossover`, which would
+  mislabel parent distances).
+- **Cross seeds:** fixed in review: `arena.py` refuses nursery seeds 5 or 10
+  apart, which would share scenario seeds (crosses use round + 500,
+  measure-only races round + 1000). The S3 run used 100-103: unaffected.
+- **The births weight (5) is a choice;** ladder it (0, 2, 5, 10) once a
+  world can hold a population.
 
 ## Open decisions (5zorro)
 1. **Per world or on average?** Proposed: every world must pass, since a mean

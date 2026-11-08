@@ -86,6 +86,14 @@ def scenario_seed(nseed: int, rnd: int, index: int) -> int:
     return 50_000_000 + 100_000 * nseed + 1_000 * rnd + index
 
 
+def seed_clash(nseeds) -> bool:
+    """Whether two nurseries' scenario seeds can coincide (review 2026-11-08):
+    100,000 x nursery seed + 1,000 x round repeats when one nursery's round +
+    500 (crosses) or + 1000 (measure-only) equals another's round, i.e. for
+    nursery seeds 5 or 10 apart."""
+    return any(abs(x - y) in (5, 10) for i, x in enumerate(nseeds) for y in nseeds[i + 1:])
+
+
 def play_scenarios(brains: list, base: dict, seeds: list[int], ticks: int, births: bool = False) -> np.ndarray:
     """Founders' collapses per 1,000 ticks (or, with `births`, births per 1,000
     founder-ticks), one row per brain, one column per seed."""
@@ -512,6 +520,9 @@ def main() -> None:
                 "birth_weight": a.birth_weight}
     except ValueError as e:
         ap.error(str(e))
+    if seed_clash(a.nursery_seeds):
+        ap.error(f"--nursery-seeds {a.nursery_seeds}: two seeds 5 or 10 apart would share race scenarios "
+                 "(scenario_seed: crosses use round + 500, measure-only races round + 1000)")
     if a.rounds >= CROSS_SALT:
         ap.error(f"--rounds must be below {CROSS_SALT} (the crosses' races use rounds + {CROSS_SALT})")
     if not 0 <= a.start_round < a.rounds or a.play_every < 1 or a.measure_scenarios < 2:

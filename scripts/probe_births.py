@@ -50,6 +50,8 @@ def job(task: tuple) -> dict:
     dims, source, seed, ticks = task
     cfg = Config(**{**world((dims, *WORLD_SETS["time"][dims], HIDDEN, ())), **hunger_rules(HUNGER[dims]),
                     "seed": seed})
+    if cfg.topup_crossover:     # its crossovers would be taken for births' (the pending list below)
+        raise ValueError("probe_births assumes topup_crossover is off")
     sim = Simulation(cfg, log_every=250)
     if source != "scratch":
         seed_brains(sim, load_brain_pool(ROOT / source))

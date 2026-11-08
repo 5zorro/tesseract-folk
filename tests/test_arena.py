@@ -180,3 +180,11 @@ def test_s3_arms_run_a_round_and_keep_raced_entries(arm, tmp_path, monkeypatch):
     sim = arena.load_snapshot(arena.checkpoint(tmp_path, arm, 100, 1))
     assert len(sim.hall_of_fame) == 2 and all(e.get("raced") == 1.0 for e in sim.hall_of_fame)
     assert ("crosses kept" in msgs[0]) == (arm in arena.CROSS)
+
+
+def test_nursery_seeds_that_would_share_scenarios_are_refused():
+    """Review 2026-11-08: seeds 5 or 10 apart repeat each other's scenario seeds."""
+    assert not arena.seed_clash([100, 101, 102, 103])
+    assert arena.seed_clash([100, 105]) and arena.seed_clash([100, 110])
+    clash = [arena.scenario_seed(100, r + arena.CROSS_SALT, 0) for r in range(1, 36)]
+    assert set(clash) & {arena.scenario_seed(105, r, 0) for r in range(1, 36)}      # why it's refused

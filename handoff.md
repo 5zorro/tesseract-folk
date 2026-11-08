@@ -78,6 +78,9 @@ births, 5zorro's cross-entry idea) or S4 (axes x brain size), 5zorro's pick.
 births per play world), but worlds boom to the cap, then starve: the rich food
 cores lose their soil (eaten there, pooped everywhere, nothing carries it
 back). M3 needs a soil rule first (plan-m3 S3 result, open decision 6).
+**Next: plan-m3 slice S3b** (poop and soil diffusion, off by default, both
+engines, exact mass transfers; approved by 5zorro), then S3c (re-pick hunger
+with mating as a survival axis; 5zorro's budget-law idea).
 
 0. **State at 2026-11-06 (end):** results of the day are in
    `docs/plan-m2-diet-travel.md` slices R7-R9 and the laws table in
