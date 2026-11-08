@@ -7,10 +7,11 @@ crash, they sit at the population cap (250) instead. 5zorro (2026-11-08):
 soil diffusion should be the default, hunger may move, every world should
 pass M3, and fix M2's 4D diet goal too if the map was the cause.
 `soil_diffusion` 0.1 is the default since 2026-11-08 (re-baseline below).
-S3c's first scan: no world passes; worlds are bistable (each sits at the
-floor or the cap), and only 2D at 0.8x is off both rails (but cycles).
-**Next: measure carrying capacity against hunger with the cap lifted (S3c),
-then the M2 recheck (S3e) and the meals rule (S3d, 5zorro's idea).**
+S3c: with the cap at 250 every world sits on a rail; with it lifted, 4D's
+births worlds pass M3 at 0.6-0.75x, settling at 800-1,500 NPCs held by
+stink. M3's 30-250 band is below 4D's viable density (~0.08 NPCs per cell).
+**Next: 5zorro's call on the 4D world shape or a density-based band (open
+decision 3), then 2D's cycles, S3e (M2 recheck), S3d (meals).**
 The goal was rewritten with 5zorro on 2026-11-08 (`docs/ROADMAP.md`).
 Open decisions (bottom) are 5zorro's.
 
@@ -402,6 +403,92 @@ where each world's population settles. That gives the law (K against
 hunger and dims) and says whether any hunger puts K inside 30-250. Then
 retrain at that hunger (nurseries that breed: the births race), or change
 the world (S3d's meals, density, caps; open decision 3) if no hunger does.
+
+**S3c capacity scan (2026-11-08, 5zorro: "lets go with your proposed lift
+first"):** the same worlds with `max_population` 2,000 (`--set`), births
+brains in 4D, M2 nurseries in 2D/3D (`runs/m3-kscan-{2,3,4}d.log`, ~73 min,
+67 of them 4D). **4D births worlds pass M3 at 0.6x (12 of 12 worlds) and
+0.75x (10 of 12)** once the cap is out of the way: the population settles
+where the world holds it (cv 0.02-0.05), on births alone.
+| 4D hunger | Pop (per cell) | Pass | Deaths (collapse causes) | nutr / diet / types |
+|---|---|---|---|---|
+| 0.36 | 2,000 (cap) | 0/12 | stink 64%, nutrient 30% | 0.58 / 0.74 / 2.49 |
+| 0.5 | ~1,920 (0.19), 3-13% at cap | 6/12 | stink 69% | 0.48 / 0.79 / 2.60 |
+| 0.6 | ~1,500 (0.15) | **12/12** | stink 56%, nutrient 40% | 0.44 / 0.80 / 2.57 |
+| 0.75 | ~770 (0.08) | **10/12** | nutrient 76%, stink 22% | 0.41 / 0.81 / 2.50 |
+| 0.85 | 30-220: most worlds fall | 1/12 | nutrient 97% | 0.40 / 0.84 / 2.39 |
+| 1.0 | 30 (floor) | 0/12 | nutrient 99% | 0.34 / 0.86 / 2.15 |
+2D and 3D never reached the old cap, so lifting it changes nothing there:
+| | Hunger | Pop (per cell) | cv | Deaths |
+|---|---|---|---|---|
+| 2D | 0.6 / 0.8 / 1.0 | 81 / 67 / 38 (0.08 / 0.07 / 0.04) | 0.37-0.41 / 0.23-0.28 / 0.02-0.13 | stink 94% / 75% / 20% |
+| 3D | 0.6 / 0.75 / 0.9 | 95 / 118 / 114 (0.035-0.043) | 0.02-0.68 (seeds disagree) | stink 48-59% |
+| 3D | 1.05 | 31 (floor) | ~0 | nutrient 99% |
+- **Stink regulates the population.** Where worlds hold steady, most
+  collapses are from stink, and stink rises with density (more poop per
+  cell): the density dependence that holds K. As hunger rises, starvation
+  takes over and the population falls to the floor.
+- **The Allee edge:** 4D holds ~770 NPCs (0.08 per cell) at 0.75x, but at
+  0.85x most worlds fall to the floor instead of settling at a smaller K. A
+  smaller steady population doesn't exist: below some density, NPCs can't
+  find mates and births stop (the fold of a strong Allee effect). The
+  lowest steady densities seen: 2D 0.065 (cycling), 3D ~0.04, 4D ~0.08 NPCs
+  per cell.
+- **So M3's band (30-250 NPCs) is below 4D's viable density.** 250 NPCs on
+  10,000 cells is 0.025 per cell, under the ~0.08 where 4D holds; in 2D,
+  250 is 0.24 per cell, far above. The "time" world shape matched 2D's
+  total food and trip time (M2 slice 3e), not NPC density, which births
+  need.
+- **2D has a K inside the band but cycles** (cv 0.23-0.41): stink responds
+  to density with a lag (poop builds up, then decays).
+- **M2 measures of the passing 4D worlds** (births brains, not retrained):
+  nutrient 0.41-0.44, diet 0.80-0.81, types 2.50-2.57 meet M2's 4D goals,
+  but collapses (0.84-1.2 per 1k) are above scratch's, which sits on the
+  floor in another regime, so M2's collapses goal isn't comparable here.
+- **Cost:** 4D worlds of ~1,500 NPCs take ~10x longer per tick than at the
+  floor.
+
+**Where NPCs are** (5zorro: "is there a higher density along these routes
+and low density on the rest of the map, or is there an even density?";
+`trace_soil.py`, births-n101 and persist-n101, 2 seeds x 12k ticks, positions
+every 10 ticks over the second half; `runs/density-*.txt`): uneven, but not
+by the food. Half the NPC-ticks fall on 21-31% of cells (50% if even; the
+spread evens out as the population grows: 21% at ~300 NPCs, 31% at ~1,250).
+Yet by steps to the nearest food core, NPCs sit almost exactly where cells
+are: 3-4% of NPCs on the 3% of core cells, 69-74% on the 75% of cells 3+
+steps away, for every brain and hunger tried. So the crowding isn't at the
+patches; it's somewhere the core distance doesn't see (routes between
+patches, or NPCs clumping together). Not yet separated: a route measure
+(cells between patches of different types) would tell them apart.
+
+**Why mating fails near the floor** (5zorro: is it "an increase age kind of
+problem" or "250 fat people, let them breed"? `probe_births.py --hunger
+0.85 --set max_population=2000`, 4 births and 4 persist nurseries, 2 seeds x
+15k; `runs/probe-floor-4d-h0.85.txt`):
+| Brains | Mate tries per 1k NPC-ticks | Why tries fail | Reach adult age | Life (ticks) | Children per life |
+|---|---|---|---|---|---|
+| Persist (4 axes) | 1.3-6.4 (n100: 39) | no one in reach 41-58%, too young 21-29% | 100% | 1,380-1,690 | 0.00-0.01 (n100 0.26-0.44) |
+| Births (5 axes) | 105-202 | no one in reach 13-37%, unwell 15-25%, too young 19-28%, too thin 8-27% | 100% | 1,060-1,320 | 0.5-2.1 (n101's born NPCs 2.08) |
+- **Age isn't what stops them:** every NPC reaches adult age (300) and lives
+  1,100-1,700 ticks, so ~1,000 fertile ticks each. Replacement needs ~2
+  children per life.
+- **Persist brains are the fat ones that don't breed:** well fed, but they
+  barely try (mating was selected away, S1b), and most tries find no one in
+  reach. Longer lives wouldn't help.
+- **Births brains near the edge** try often; their tries fail about equally
+  on hunger (unwell or too thin, 35-45%) and on density (no one in reach,
+  13-37%). Only n101's born NPCs make 2 children per life, and only n101
+  held a population at 0.85x (221). So at the edge, births per life cross
+  2 because of both hunger and density: lower hunger and a denser world
+  both move it. A longer life would too (more fertile ticks), but that is a
+  rule change, not a measurement.
+
+**What it means for M3 (5zorro's open decision 3, the 4D world shape):**
+either the 4D world shrinks so that 30-250 NPCs is a viable density (at
+~0.08 per cell, 250 NPCs fills ~3,000 cells: size 7 is 2,401 cells, size 8
+is 4,096), or the 4D cap rises (M3's band stated per dimension; worlds of
+~1,500 NPCs are ~10x slower). Then 2D's cycles and 3D's split seeds are the remaining
+problems.
 
 ### Slice S3d (proposed, 5zorro's idea 2026-11-08): plants that grow whole meals
 5zorro: "in order to make the world easier for npcs, we should have a mature
