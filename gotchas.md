@@ -275,3 +275,7 @@ Traps that already bit us, by area. Add to this when something surprises you.
   `arena.py --start-round` refuses a `--dims`, `--hidden` or `--breed` that
   differs from the checkpoint's. Anything else that differs (e.g. `ladder.py`
   defaults changed between runs) is still reused silently: delete the CSV.
+- **10,000-tick play worlds can't see a boom-and-crash.** M2's ladders and the
+  arena score 10k ticks; a births-arm 4D world hits the cap at 2k and starves
+  to the floor by 15k as its food cores lose their soil (plan-m3 S3). Judge
+  population claims with `scripts/m3_ladder.py` (30k ticks, second half).

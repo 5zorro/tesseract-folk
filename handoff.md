@@ -74,6 +74,10 @@ than scratch (0-10 vs 35). S1b (`probe_births.py`): a steady world needs ~2
 children per life, most sources have 0.3-1.2; 3 of 4 4D nurseries stopped
 trying to mate; children of distant parents collapse more. Next: S3 (race for
 births, 5zorro's cross-entry idea) or S4 (axes x brain size), 5zorro's pick.
+**S3 done (2026-11-08):** scoring births in the race restores 4D mating (~1,100
+births per play world), but worlds boom to the cap, then starve: the rich food
+cores lose their soil (eaten there, pooped everywhere, nothing carries it
+back). M3 needs a soil rule first (plan-m3 S3 result, open decision 6).
 
 0. **State at 2026-11-06 (end):** results of the day are in
    `docs/plan-m2-diet-travel.md` slices R7-R9 and the laws table in
