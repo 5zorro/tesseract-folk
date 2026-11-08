@@ -8,8 +8,15 @@ dimension's M2 world at its M2 hunger) under each variant, and reports per
 type's zone) and outside, core food as a share of capacity, population,
 births and top-ups.
 
+Also where NPCs are (5zorro, 2026-11-08: "is there a higher density along
+these routes and low density on the rest of the map, or is there an even
+density?"): NPC positions every 10 ticks over the second half of the run,
+binned by steps to the nearest core cell (0 = in a core). Each bin's share of
+NPC-ticks against its share of cells (an even spread gives equal shares), and
+the fewest cells holding half the NPC-ticks (50% of cells if even).
+
     python scripts/trace_soil.py                                   # births-n101, variants below
-    python scripts/trace_soil.py --variant off --variant soil_diffusion=0.1 --seeds 2
+    python scripts/trace_soil.py --variant default --variant soil_diffusion=0 --seeds 2
 """
 from __future__ import annotations
 
@@ -30,14 +37,30 @@ from ladder import WORLD_SETS, world  # noqa: E402
 from m3_ladder import HIDDEN, HUNGER, LOG_EVERY, ROOT, hunger_rules  # noqa: E402
 from sweep import RESEARCH_DEFAULTS  # noqa: E402
 
-VARIANTS = ["off", "poop_diffusion=0.3", "soil_diffusion=0.01", "soil_diffusion=0.03",
+VARIANTS = ["soil_diffusion=0", "poop_diffusion=0.3,soil_diffusion=0", "soil_diffusion=0.01", "soil_diffusion=0.03",
             "soil_diffusion=0.1", "soil_diffusion=0.3", "poop_diffusion=0.3,soil_diffusion=0.1"]
 EVERY = 1000
+SAMPLE = 10                 # ticks between position samples
+BINS = 4                    # steps to the nearest core: 0, 1, 2, 3 or more
+
+
+def steps_to(mask: np.ndarray) -> np.ndarray:
+    """Each cell's steps (axis moves, wrapping) to the nearest True cell, capped at BINS - 1."""
+    out = np.full(mask.shape, BINS - 1)
+    reached = mask.copy()
+    for d in range(BINS - 1):
+        out[reached & (out == BINS - 1)] = d
+        grown = reached.copy()
+        for axis in range(mask.ndim):
+            grown |= np.roll(reached, 1, axis) | np.roll(reached, -1, axis)
+        reached = grown
+    out[mask] = 0
+    return out
 
 
 def job(task: tuple) -> dict:
     dims, source, variant, seed, ticks = task
-    extra = {} if variant == "off" else parse_overrides(variant)
+    extra = {} if variant == "default" else parse_overrides(variant)
     cfg = Config(**{**RESEARCH_DEFAULTS, **world((dims, *WORLD_SETS["time"][dims], HIDDEN, ())),
                     **hunger_rules(HUNGER[dims]), **extra, "seed": seed})
     sim = Simulation(cfg, log_every=LOG_EVERY)
@@ -46,15 +69,26 @@ def job(task: tuple) -> dict:
     w = sim.world
     core = (w.zones >= 0).any(axis=0)
     cap = w.capacity.sum(axis=0)
+    dist = steps_to(core).ravel()
+    visits = np.zeros(core.size)
     rows = []
     for t in range(EVERY, ticks + 1, EVERY):
-        sim.batch.run(EVERY)
+        for _ in range(EVERY // SAMPLE):
+            sim.batch.run(SAMPLE)
+            if sim.tick > ticks // 2:
+                pos = sim.pop.pos[sim.pop.live(sim.index)]
+                if len(pos):
+                    visits += np.bincount(np.ravel_multi_index(tuple(pos.T), w.shape), minlength=core.size)
         late = [h for h in sim.stats.history if t - EVERY < h["tick"] <= t]
         rows.append({"tick": t, "core soil": float(w.soil[core].mean()), "outside soil": float(w.soil[~core].mean()),
                      "core food": float(w.food.sum(axis=0)[core].sum() / cap[core].sum()),
                      "pop": len(sim.npcs), "births": sum(h.get("births", 0) for h in late),
                      "top-ups": sum(h.get("spawns", 0) for h in late)})
-    return {"variant": variant, "seed": seed, "rows": rows, "core cells": int(core.sum())}
+    total = max(visits.sum(), 1.0)
+    density = {"cells": [float(np.mean(dist == b)) for b in range(BINS)],
+               "npcs": [float(visits[dist == b].sum() / total) for b in range(BINS)],
+               "half": float(np.searchsorted(np.cumsum(np.sort(visits)[::-1]), total / 2) + 1) / core.size}
+    return {"variant": variant, "seed": seed, "rows": rows, "core cells": int(core.sum()), "density": density}
 
 
 def report(results: list[dict], show: list[int]) -> None:
@@ -71,20 +105,27 @@ def report(results: list[dict], show: list[int]) -> None:
             m = {k: np.mean([r["rows"][i][k] for r in rs]) for k in keys}
             print(f"{row['tick']:>7} " + " ".join(f"{m[k]:12.3f}" if k.endswith(("soil", "food"))
                                                   else f"{m[k]:12.1f}" for k in keys))
+        cells = np.mean([r["density"]["cells"] for r in rs], axis=0)
+        npcs = np.mean([r["density"]["npcs"] for r in rs], axis=0)
+        half = np.mean([r["density"]["half"] for r in rs])
+        bins = [f"{b} step{'s' if b != 1 else ''}" for b in range(BINS - 1)] + [f"{BINS - 1}+ steps"]
+        print("  where NPCs are (second half), by steps to the nearest core: "
+              + ", ".join(f"{b}: {n:.0%} of NPCs on {c:.0%} of cells" for b, n, c in zip(bins, npcs, cells)))
+        print(f"  half the NPC-ticks fall on {half:.1%} of cells (50% if even)")
 
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--dims", type=int, default=4, choices=sorted(HUNGER))
     ap.add_argument("--source", default="snapshots/s3/births-n101-r35", help="nursery folder, or scratch")
-    ap.add_argument("--variant", action="append", default=None, help="'off' or K=V,... (repeatable)")
+    ap.add_argument("--variant", action="append", default=None, help="'default' (today's rules) or K=V,... (repeatable)")
     ap.add_argument("--seeds", type=int, default=3)
     ap.add_argument("--ticks", type=int, default=30_000)
     ap.add_argument("--jobs", type=int, default=None)
     a = ap.parse_args()
     variants = a.variant or VARIANTS
     for v in variants:
-        if v != "off":
+        if v != "default":
             parse_overrides(v)                      # fail before the pool starts
     if a.source != "scratch" and not (ROOT / a.source / "state.json").exists():
         ap.error(f"no nursery at {a.source}")

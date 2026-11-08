@@ -17,6 +17,8 @@ scratch, at its M2 hunger) and reports per source:
 
     python scripts/probe_births.py                      # 2D-4D, 3 seeds x 15,000 ticks
     python scripts/probe_births.py --dims 4 --seeds 2 --ticks 8000
+    python scripts/probe_births.py --dims 4 --hunger 1.0 --source "snapshots/s3/births-n10*-r35" \
+        --set max_population=2000          # another hunger, other nurseries, other rules
 """
 from __future__ import annotations
 
@@ -32,6 +34,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from sim import Config, Simulation  # noqa: E402
+from sim.config import parse_overrides  # noqa: E402
 from sim.brain import Brain  # noqa: E402
 from sim.nursery import load_brain_pool, seed_brains  # noqa: E402
 from sim.simulation import Batch  # noqa: E402
@@ -47,8 +50,8 @@ def flat(brain: Brain) -> np.ndarray:
 
 def job(task: tuple) -> dict:
     """One world: counts, finished lives (with ids) and each child's parent distance."""
-    dims, source, seed, ticks = task
-    cfg = Config(**{**world((dims, *WORLD_SETS["time"][dims], HIDDEN, ())), **hunger_rules(HUNGER[dims]),
+    dims, source, seed, ticks, level, extra = task
+    cfg = Config(**{**world((dims, *WORLD_SETS["time"][dims], HIDDEN, ())), **hunger_rules(level), **extra,
                     "seed": seed})
     if cfg.topup_crossover:     # its crossovers would be taken for births' (the pending list below)
         raise ValueError("probe_births assumes topup_crossover is off")
@@ -182,8 +185,21 @@ def main() -> None:
     ap.add_argument("--seeds", type=int, default=3)
     ap.add_argument("--ticks", type=int, default=15_000)
     ap.add_argument("--jobs", type=int, default=None)
+    ap.add_argument("--hunger", type=float, default=None, help="hunger level (default: M2's pick per dimension)")
+    ap.add_argument("--source", action="append", default=None, metavar="GLOB",
+                    help="nursery folders (repeatable; 'scratch' too) instead of M3's defaults")
+    ap.add_argument("--set", default="", metavar="K=V,...", help="Config overrides for every world")
     a = ap.parse_args()
-    tasks = [(d, s, seed, a.ticks) for d in a.dims for s in sources(d) for seed in range(a.seeds)]
+    extra = parse_overrides(a.set)
+    picked = None
+    if a.source:
+        picked = [s for g in a.source for s in
+                  (["scratch"] if g == "scratch" else
+                   sorted(str(p.relative_to(ROOT)).replace("\\", "/") for p in ROOT.glob(g) if p.is_dir()))]
+        if not picked:
+            ap.error(f"--source {a.source}: no nursery folders match")
+    tasks = [(d, s, seed, a.ticks, a.hunger or HUNGER[d], extra) for d in a.dims
+             for s in (picked or sources(d)) for seed in range(a.seeds)]
     tasks.sort(key=lambda t: -t[0])
     with ProcessPoolExecutor(a.jobs) as pool:
         results = list(pool.map(job, tasks))

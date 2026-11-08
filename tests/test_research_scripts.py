@@ -97,3 +97,13 @@ def test_m3_short_labels_keep_nursery_and_round():
     assert m3.short("births-cross-n100-r35") == "bc-n100-r35"
     assert m3.short("persist-n100-r35") == "persist-n100-r35"
     assert m3.short("d2-s32-r4-h16-metabolism_rate0.01-nutrient_decay0.003-n100") == "n100"
+
+
+def test_trace_soil_steps_to_the_nearest_core_wrap_and_cap():
+    import numpy as np
+    import scripts.trace_soil as tr
+    core = np.zeros((10, 10), dtype=bool)
+    core[0, 0] = True
+    d = tr.steps_to(core)
+    assert d[0, 0] == 0 and d[0, 1] == 1 and d[9, 9] == 2          # around the wrap
+    assert d.max() == tr.BINS - 1 and d[5, 5] == tr.BINS - 1        # capped
