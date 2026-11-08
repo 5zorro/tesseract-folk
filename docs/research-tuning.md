@@ -195,6 +195,9 @@ gitignored). The plan tables are the record; to check one, rerun its script.
 | **Replacement:** with lives ending only at old age, a steady population needs ~2 children per life; only sources near 2 (3D n100: 1.9-2.0) hold off the floor | finding (11 sources, 3 seeds) | plan-m3 S1, S1b; `scripts/probe_births.py` |
 | A nursery that rewards not collapsing selects mating away where a child costs body: 3 of 4 4D nurseries try to mate 20-60x less than scratch brains | finding (4 nurseries) | plan-m3 S1b |
 | Children of more different parents collapse more (within a nursery, far vs near third: 2D 3x, 3D 1.5x) | hint (correlation; causal test is plan-m3 S3 cross entry) | plan-m3 S1b |
+| Scoring births in the race (at the breed hunger, common random numbers) restores mating in 4D: ~1,100 births vs ~1 top-up per 10k-tick play world (persist: 22 vs 112), at a cost in food types (2.3 vs 2.67) | finding (4 nurseries per arm) | plan-m3 S3 |
+| Crossing-only entry doesn't restore mating; it gives the best 4D foraging so far (types 2.71, diet 0.86) | hint (one run of 4 nurseries) | plan-m3 S3 |
+| **Soil mining:** NPCs eat in rich cores and poop everywhere, and food grows only from its own cell's soil, so cores (10% of cells, 57% of food capacity) lose their soil: booming worlds in ~3k ticks, scratch worlds over ~30k. Populations boom to the cap, then starve to the floor | finding (traced worlds; mechanism from the growth rule) | plan-m3 S3 |
 | The senses carry enough for the diet goals in 2D-4D (a sense-only forager passes) | finding | plan-m2 R8; `scripts/probe_senses.py` |
 | A policy right 30% of the time still passes 4D: the action draw isn't the limit | finding | plan-m2 R8 diagnostic; `probe_senses.py --follow` |
 | The forager's move *and* eat rules are products (need x what's there): no linear brain can do it | finding | plan-m2 R8 diagnostic; `scripts/probe_handbrain.py` |

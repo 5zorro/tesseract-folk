@@ -165,6 +165,51 @@ Scored with `m3_ladder.py` (and M2's goals, which must still hold).
   runs/s3-4d.csv` (H as in R15), compared with persist
   (`runs/arena-4d-persist-fixed.csv`, `runs/m3-baseline.csv`).
 
+**Result (2026-11-08, `runs/s3-4d.log`, `runs/m3-s3-*.log`).**
+Arena play worlds (10,000 ticks, 0.36x, round 35; persist from
+`runs/arena-4d-persist-fixed.csv`):
+| Arm | Births | Top-ups | Pop (end) | Types | Diet | Nutrient | M2 goals |
+|---|---|---|---|---|---|---|---|
+| persist | 22 | 112 | 30 | 2.67 | 0.86 | 0.91 | all |
+| births | 1,105 | 1.5 | 169 | 2.31 | 0.82 | 0.57 | not types |
+| cross | 0.8 | 121 | 30 | 2.71 | 0.86 | 0.90 | all (rounds 20, 25, 35) |
+| births-cross | 1,111 | 0.0 | 178 | 2.33 | 0.83 | 0.57 | not types |
+- **Scoring births brings mating back** in all 4 nurseries (births per play
+  world 963-1,162 from round 20 on), at a cost: food types ~2.3 (< 2.5).
+- **Cross entry alone doesn't:** without births in the score, mating fades as
+  in persist (0.8 births). It forages best of any 4D run so far (types 2.71,
+  diet 0.86), but that's one run of 4 nurseries.
+- **M3 ladder (30,000 ticks, judged 15-30k): no world passes in any arm.**
+  births 55-176 births vs 125-180 top-ups, pop 31-43; births-cross similar;
+  cross 0-4 births. The 10,000-tick play worlds saw only the boom.
+
+**Why: boom, then the food cores are mined out** (one births-n101 world,
+seed 0, traced every 1,000 ticks):
+| Tick | 1k | 2k | 5k | 8k | 10k | 12k | 15k | 30k |
+|---|---|---|---|---|---|---|---|---|
+| Population | 162 | 250 (cap) | 247 | 194 | 107 | 44 | 30 (floor) | 30 |
+| Food | 1,289 | 791 | 313 | 223 | 229 | 244 | 234 | 197 |
+| Body per NPC | 2.99 | 2.72 | 1.26 | 1.09 | 1.15 | 1.32 | 1.21 | 1.24 |
+Body falls below the 1.2 needed to mate, births stop, the population ages
+out. Food never recovers because **the richest 10% of cells (57% of all food
+capacity) lose their soil**: 1.0 per cell at the start, 0.067 at 3k, 0.004 at
+15k, while the rest of the world gains it (1.0 -> 1.18). NPCs eat in the cores
+and poop wherever they walk; food grows only from its own cell's soil and
+nothing carries soil back. Scratch worlds drift the same way, slower (core
+soil 0.40 at 3k, 0.07 at 30k; food 1,658 -> 829), so this likely also drives
+the S1 baseline's decline. In ecology this is nutrient export by animals
+(e.g. lateral transport from feeding to resting grounds; Doughty et al. 2016
+on megafauna, cited from memory). The poop-fertilizer loop the original M3
+text relied on doesn't close in space.
+
+**So M3 needs a world rule before more brain work.** Candidates (each a rule
+in both engines, off by default until 5zorro approves a re-baseline):
+- soil diffusion (soil spreads slowly to neighbors, mass conserved);
+- food growth drawing on soil within a radius, not just its own cell;
+- poop decomposing into nearby cells (runoff).
+Then rerun `m3_ladder.py` on the births arms (kept: `snapshots/s3/births-*-r35`,
+`births-cross-*-r35`, which fail M2's types goal; see open decision 5).
+
 ### Slice S4 (proposed): survival axes x brain size, for a law
 5zorro: "survival has 3 axis... i don't think we have down the optimal brain
 structure law". A grid of axes switched on (nutrients 1-3, mating on/off) x
@@ -188,3 +233,8 @@ Candidates, each measured before it's adopted:
    that 4D Miner's own world sets the real density later?
 4. **Run length:** proposed 30,000 ticks per world, judged on the second half
    (`Config.old_age` is 1,500 ticks, so the judged half spans ~10 lifetimes).
+5. **Keep the births-arm snapshots?** They fail M2 (types ~2.3), so the
+   snapshot rule says delete; kept for now (8 folders, ~13 MB) because the
+   soil-rule test needs them and they take ~3 hours to rebuild.
+6. **The soil rule** (S3 result): which candidate, and whether it becomes a
+   default (a re-baseline of the fingerprints).
