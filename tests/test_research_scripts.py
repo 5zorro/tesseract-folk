@@ -53,3 +53,27 @@ def test_hunger_search_bisects_between_the_lowest_pass_and_the_fail_below():
     assert hunger_search.next_level(rows((0.5, False), (1.0, False)), 0.02) is None        # nothing passes
     assert hunger_search.next_level(rows((0.75, True), (1.0, True)), 0.02) is None         # no fail below
     assert hunger_search.next_level(rows((0.74, False), (0.75, True)), 0.02) is None       # gap under min_gap
+
+
+def test_late_population_judges_only_the_late_samples():
+    import math
+    from scripts.sweep import late_population
+    from sim import Config
+    cfg = Config(min_population=30, max_population=250)
+    hist = [{"tick": t, "population": p, "births": b, "spawns": s}
+            for t, p, b, s in [(250, 30, 0, 9), (500, 30, 1, 5), (750, 40, 4, 0), (1000, 250, 6, 0)]]
+    out = late_population(hist, 500, cfg)
+    assert (out["late_births"], out["late_spawns"]) == (10, 0)
+    assert out["pop_mean"] == 145.0 and (out["at_floor"], out["at_cap"]) == (0.0, 0.5)
+    assert math.isnan(late_population(hist, 1000, cfg)["pop_mean"])
+
+
+def test_m3_verdict_needs_births_off_rails_and_steady():
+    import scripts.m3_ladder as m3
+    a = SimpleNamespace(max_spawn_fraction=0.1, rail_share=0.05, max_cv=0.15)
+    good = {"late_births": 100, "late_spawns": 10, "at_floor": 0.0, "at_cap": 0.05, "pop_cv": 0.1}
+    assert all(m3.verdict(good, a).values())
+    assert not m3.verdict({**good, "late_spawns": 11}, a)["births"]
+    assert not m3.verdict({**good, "late_births": 0, "late_spawns": 0}, a)["births"]
+    assert not m3.verdict({**good, "at_cap": 0.2}, a)["off rails"]
+    assert not m3.verdict({**good, "pop_cv": 0.15}, a)["steady"]

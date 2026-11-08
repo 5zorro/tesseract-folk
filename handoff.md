@@ -34,6 +34,7 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
   4D recipe and the hints for revisiting 4D diet: plan-m2 slice R15.
 - `--until-stable` honestly fails (top-ups, population on the floor) and prints
   why. Expect that until M3.
+- **M3 started (2026-11-08):** `docs/plan-m3-births.md`.
 - **Smiting is off** (`Config.smiting = False`, 5zorro 2026-11-02) until a snapshot
   survives hunger. Piety and smiting return in M5.
 - **Decided (5zorro):** play-world hunger stays easy (`nutrient_decay` 0.003);
@@ -64,6 +65,11 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
     every food, and foraging is trivial (`gotchas.md`).
 
 ## Where to pick up
+**Now (2026-11-08): M3, stable population from real births.** Plan:
+`docs/plan-m3-births.md` (goal rewritten with 5zorro: births 10x top-ups, off
+the floor and the cap, cv < 0.15, in 2D/3D/4D at each dimension's M2 hunger).
+Next: slice S1, the baseline (`scripts/m3_ladder.py`).
+
 0. **State at 2026-11-06 (end):** results of the day are in
    `docs/plan-m2-diet-travel.md` slices R7-R9 and the laws table in
    `docs/research-tuning.md` ("Relationships we measured"). 2D and 3D pass M2

@@ -188,11 +188,29 @@ class Run:
         out["distance"] = float(np.mean(self.moved)) if self.moved else math.nan
         out["births"] = total("births")
         out["spawns"] = total("spawns")
+        out.update(late_population(stats.history, self.late_start, sim.cfg))
         out["max_generation"] = max((n.generation for n in sim.npcs), default=0)
         out["population"] = len(sim.npcs)
         out["stable"] = float(sim.is_stable())
         out["mass_plugged"] = stats.mass_plugged / sim.total_mass()   # rounding posted to soil, net
         return out
+
+
+def late_population(history: list[dict], since_tick: int, cfg) -> dict:
+    """M3's measures over samples after `since_tick`: births and top-ups, the
+    population's mean and cv (std / mean), and the share of samples on the
+    top-up floor (<= min_population) or at the cap (>= max_population)."""
+    late = [h for h in history if h["tick"] > since_tick]
+    pops = np.array([h["population"] for h in late], dtype=float)
+    if not len(pops):
+        return {"late_births": 0, "late_spawns": 0, "pop_mean": math.nan, "pop_cv": math.nan,
+                "at_floor": math.nan, "at_cap": math.nan}
+    mean = float(pops.mean())
+    return {"late_births": sum(h.get("births", 0) for h in late),
+            "late_spawns": sum(h.get("spawns", 0) for h in late),
+            "pop_mean": mean, "pop_cv": float(pops.std() / mean) if mean > 0 else math.nan,
+            "at_floor": float(np.mean(pops <= cfg.min_population)),
+            "at_cap": float(np.mean(pops >= cfg.max_population))}
 
 
 def run_batch(jobs: list) -> list[dict]:

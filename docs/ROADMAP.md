@@ -26,9 +26,20 @@ Passed in 2D, 3D and 4D (4D's diet goal is 0.8, 5zorro 2026-11-07); see
 (add a metric: distinct food zones visited per lifetime).
 
 ## M3: Stable population from real births
-**Pass:** `run_headless.py --until-stable` stabilizes with births > 0 and
-few top-ups (`spawn` near 0). The poop-fertilizer loop keeps it from booming
-and crashing.
+Rewritten 2026-11-08 (5zorro: "m3 was written a long time ago. is it still
+relevant?"); plan: `docs/plan-m3-births.md`.
+**Pass,** in 2D, 3D and 4D, play worlds started from each dimension's M2
+nursery at its M2 hunger (2D 1x, 3D 0.9x, 4D 0.36x), several seeds, judged
+over the second half of each run:
+- births outnumber top-ups at least 10 to 1 (`stable_max_spawn_fraction` 0.1);
+- the population stays off the top-up floor (`min_population`) and off the
+  `max_population` cap (a cap holds a population as surely as the floor does);
+- the population varies little (std / mean below `stable_max_cv`, 0.15).
+
+What holds it steady (food, poop and fertilizer, stink, crowding, aging) is
+measured and reported, not required (rule 6). The original pass was one
+`run_headless.py --until-stable` run, with "the poop-fertilizer loop keeps it
+from booming and crashing"; that loop is now a candidate explanation.
 
 ## M4: Trade emerges
 **Pass:** gives happen well above the random-brain baseline, and gifts flow
