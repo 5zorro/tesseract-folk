@@ -192,6 +192,9 @@ gitignored). The plan tables are the record; to check one, rerun its script.
 | Lowering hunger only by nutrient decay doesn't spare 4D bodies (body burn is the other hunger) | finding | plan-m2 R7 anneal design notes |
 | Mates within reach ~ 1 - (1 - (1 + 2d) / cells)^(N - 1), about N (1 + 2d) / cells; NPCs sit as if scattered at random | law (matches measured 2D-4D) | plan-m2 R9; `scripts/probe_mating.py` |
 | Births are rare in every dimension; most mate attempts come from NPCs too young, thin or unwell | finding | plan-m2 R9 |
+| **Replacement:** with lives ending only at old age, a steady population needs ~2 children per life; only sources near 2 (3D n100: 1.9-2.0) hold off the floor | finding (11 sources, 3 seeds) | plan-m3 S1, S1b; `scripts/probe_births.py` |
+| A nursery that rewards not collapsing selects mating away where a child costs body: 3 of 4 4D nurseries try to mate 20-60x less than scratch brains | finding (4 nurseries) | plan-m3 S1b |
+| Children of more different parents collapse more (within a nursery, far vs near third: 2D 3x, 3D 1.5x) | hint (correlation; causal test is plan-m3 S3 cross entry) | plan-m3 S1b |
 | The senses carry enough for the diet goals in 2D-4D (a sense-only forager passes) | finding | plan-m2 R8; `scripts/probe_senses.py` |
 | A policy right 30% of the time still passes 4D: the action draw isn't the limit | finding | plan-m2 R8 diagnostic; `probe_senses.py --follow` |
 | The forager's move *and* eat rules are products (need x what's there): no linear brain can do it | finding | plan-m2 R8 diagnostic; `scripts/probe_handbrain.py` |

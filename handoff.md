@@ -70,7 +70,10 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
 the floor and the cap, cv < 0.15, in 2D/3D/4D at each dimension's M2 hunger).
 S1 baseline done: 3 of 55 worlds pass (all 3D, nursery n100); most worlds fall
 from 60 to the 30 floor over 30k ticks; 4D's trained brains have fewer births
-than scratch (0-10 vs 35). Next: why (mate attempts per source), plan S1/S2.
+than scratch (0-10 vs 35). S1b (`probe_births.py`): a steady world needs ~2
+children per life, most sources have 0.3-1.2; 3 of 4 4D nurseries stopped
+trying to mate; children of distant parents collapse more. Next: S3 (race for
+births, 5zorro's cross-entry idea) or S4 (axes x brain size), 5zorro's pick.
 
 0. **State at 2026-11-06 (end):** results of the day are in
    `docs/plan-m2-diet-travel.md` slices R7-R9 and the laws table in
