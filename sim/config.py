@@ -39,6 +39,13 @@ class Config:
     initial_soil_per_cell: float = 1.0
     initial_food_fraction: float = 0.5
     poop_decompose_rate: float = 0.01
+    # Poop and soil spread to neighbor cells (plan-m3 slice S3b, 5zorro
+    # 2026-11-08): NPCs eat in the rich patch cores and poop everywhere, so the
+    # cores lose their soil and food stops regrowing there (the boom-and-crash
+    # in plan-m3 S3). 0-1, the same mix with the neighbor mean as stink's, but
+    # moved as pairwise exact transfers so mass is conserved. 0 = off.
+    poop_diffusion: float = 0.0
+    soil_diffusion: float = 0.0
 
     # --- stink (a signal, not mass) ----------------------------------------
     stink_emission: float = 0.2           # per unit of poop per tick

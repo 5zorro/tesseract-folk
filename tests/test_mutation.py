@@ -62,7 +62,8 @@ def test_simulation_runs_with_mutations_per_birth():
     assert sim.npcs
 
 
-@pytest.mark.parametrize("field", ["scent_diffusion", "stink_diffusion"])
+@pytest.mark.parametrize("field", ["scent_diffusion", "stink_diffusion",
+                                   "poop_diffusion", "soil_diffusion"])
 @pytest.mark.parametrize("bad", [1.5, -0.1, float("nan")])
 def test_diffusion_must_be_a_mix(field, bad):
     with pytest.raises(ValueError, match=field):

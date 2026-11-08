@@ -23,6 +23,38 @@ def wrapped_delta(a: Pos, b: Pos, size: int) -> np.ndarray:
     return (d + size // 2) % size - size // 2
 
 
+def diffuse_mass(field: np.ndarray, rate, dims: int, first_axis: int) -> None:
+    """Spread a mass field to its neighbors in place, conserving mass.
+
+    Each neighbor pair along each axis exchanges rate / (2 * dims) of their
+    difference, the same first-order mix with the neighbor mean as stink's
+    `x += rate * (mean - x)`. The pairs are taken in three disjoint passes per
+    axis (even-left pairs, odd-left pairs, then the wrap pair), so each pass is
+    a set of separate transfers, and each uses the exact-transfer pattern: the
+    right cell takes the flux, the left cell gives exactly what the right cell
+    gained after rounding. `rate` is a number, or (World vs Batch) an array
+    that broadcasts over the leading axes. Both engines call this, so they
+    do the same operations in the same order.
+    """
+    k = rate / (2 * dims)
+    for axis in range(first_axis, first_axis + dims):
+        size = field.shape[axis]
+        if size < 2:
+            continue
+        for left, right in ((slice(0, size - 1, 2), slice(1, size, 2)),
+                            (slice(1, size - 1, 2), slice(2, size, 2)),
+                            (slice(size - 1, size), slice(0, 1))):
+            li, ri = [slice(None)] * field.ndim, [slice(None)] * field.ndim
+            li[axis], ri[axis] = left, right
+            li, ri = tuple(li), tuple(ri)
+            a, b = field[li], field[ri]            # views; the two never overlap
+            if a.size == 0:
+                continue
+            before = b.copy()
+            b += k * (a - b)
+            a -= b - before
+
+
 class World:
     def __init__(self, cfg: Config, rng: np.random.Generator):
         self.cfg = cfg
@@ -61,7 +93,8 @@ class World:
         cfg = self.cfg
         if not (np.isfinite(cfg.scent_min_food) and cfg.scent_min_food >= 0):
             raise ValueError(f"scent_min_food must be a number >= 0, got {cfg.scent_min_food!r}")
-        for name in ("scent_diffusion", "stink_diffusion", "pheromone_diffusion"):
+        for name in ("scent_diffusion", "stink_diffusion", "pheromone_diffusion",
+                     "poop_diffusion", "soil_diffusion"):
             value = getattr(cfg, name)
             if not (np.isfinite(value) and 0 <= value <= 1):   # a mix with the neighbor mean
                 raise ValueError(f"{name} must be within 0-1, got {value!r}")
@@ -155,6 +188,12 @@ class World:
         self.soil += decomposed
         self.poop -= self.soil - before
         self.stink += self.poop * cfg.stink_emission
+
+        # Poop and soil spread to neighbors (mass: exact pairwise transfers).
+        if cfg.poop_diffusion:
+            diffuse_mass(self.poop, cfg.poop_diffusion, cfg.dims, 0)
+        if cfg.soil_diffusion:
+            diffuse_mass(self.soil, cfg.soil_diffusion, cfg.dims, 0)
 
         # Stink spreads to neighbors and fades.
         self.stink += cfg.stink_diffusion * (self._neighbor_mean(self.stink) - self.stink)

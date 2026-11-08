@@ -45,7 +45,7 @@ from .deity import Deity
 from .npc import NPC, build_actions
 from .population import NPCView, Population
 from .stats import Stats
-from .world import World, wrapped_delta
+from .world import World, diffuse_mass, wrapped_delta
 
 # Rule 2's phases, in the order they resolve. "stay" and anything unlisted go last.
 N_PHASES = 4
@@ -793,6 +793,11 @@ class Batch:
         soil += decomposed
         poop -= soil - before
         stink += poop * sp("stink_emission")
+
+        # Poop and soil spread to neighbors (mass: exact pairwise transfers).
+        for field, name in ((poop, "poop_diffusion"), (soil, "soil_diffusion")):
+            if self.par[name][part].any():
+                diffuse_mass(field, sp(name), d, 1)
 
         # Stink spreads to neighbors and fades.
         stink += sp("stink_diffusion") * (self._neighbor_mean(stink, 1) - stink)

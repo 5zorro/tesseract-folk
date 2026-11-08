@@ -28,6 +28,8 @@ CASES = {
     "craving sense": dict(craving_sense=True, dims=3, size=6),
     "craving, no scent": dict(craving_sense=True, food_scent=False),
     "mate sense": dict(mate_sense=True),
+    "poop and soil diffusion": dict(poop_diffusion=0.4, soil_diffusion=0.2),
+    "diffusion, 4d": dict(dims=4, size=5, poop_diffusion=0.4, soil_diffusion=0.05, food_growth_rate=0.005),
     "fewer actions": dict(actions_off="pick_up+give+pray+worship+share"),
     "extra stay actions": dict(extra_stay_actions=5),
     "mate sense, 3d": dict(mate_sense=True, dims=3, size=6),
@@ -109,7 +111,8 @@ from sim.simulation import Batch  # noqa: E402
 
 MIXED = [dict(seed=1), dict(seed=2), dict(seed=1, metabolism_rate=0.012, bite_size=0.3),
          dict(seed=3, smiting=True, piety_threshold=0.1, stink_decay=0.05),
-         dict(seed=4, hall_of_fame_track_record=True, food_growth_rate=0.01, old_age=200)]
+         dict(seed=4, hall_of_fame_track_record=True, food_growth_rate=0.01, old_age=200),
+         dict(seed=5, poop_diffusion=0.3, soil_diffusion=0.3)]       # beside worlds without it
 
 
 @pytest.mark.parametrize("extra", [{}, dict(dims=4, size=5), dict(two_eat_actions=True, food_scent=False)])
