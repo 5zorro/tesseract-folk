@@ -7,9 +7,10 @@ crash, they sit at the population cap (250) instead. 5zorro (2026-11-08):
 soil diffusion should be the default, hunger may move, every world should
 pass M3, and fix M2's 4D diet goal too if the map was the cause.
 `soil_diffusion` 0.1 is the default since 2026-11-08 (re-baseline below).
-**Next: S3c (re-measure hunger under the new physics, for M2's axes and
-with mating), the M2 recheck (S3e), and the meals rule (S3d, 5zorro's
-idea).**
+S3c's first scan: no world passes; worlds are bistable (each sits at the
+floor or the cap), and only 2D at 0.8x is off both rails (but cycles).
+**Next: measure carrying capacity against hunger with the cap lifted (S3c),
+then the M2 recheck (S3e) and the meals rule (S3d, 5zorro's idea).**
 The goal was rewritten with 5zorro on 2026-11-08 (`docs/ROADMAP.md`).
 Open decisions (bottom) are 5zorro's.
 
@@ -328,6 +329,79 @@ constraint?"
   `child_mass` ladder (the new axis's cost) and fit how the goal-meeting
   hunger window moves with it: relationship, not just a pick.
 - After S3b, because today's boom-and-crash would swamp any hunger effect.
+
+**S3c scan (2026-11-08):** existing brains under soil diffusion 0.1, M3
+worlds (30k ticks, 3 seeds, judged on the second half), a hunger grid per
+dimension (`m3_ladder.py --hunger ...`; `runs/m3-hscan-{2,3,4}d.log`, ~41 min
+in all). The brains were trained before the soil change at M2's hunger, so
+this maps the worlds, not a retrained pick. **No world passes M3.**
+
+4D, means over 4 nurseries x 3 seeds (M2 columns over the whole run; M2's
+4D goals: nutrient >= 0.4, diet >= 0.8, types >= 2.5):
+| Hunger | Births brains (5 axes): pop / at cap / births | nutr / diet / types | Persist brains (4 axes): pop / at floor | nutr / diet / types |
+|---|---|---|---|---|
+| 0.3 | 250 / 86% / ~1,930 | 0.67 / 0.66 / 1.91 | 30 / 100%* | 0.93 / 0.86 / 2.74* |
+| 0.36 | 250 / 87% / ~1,950 | 0.64 / 0.69 / 2.04 | 30 / 100%* | 0.91 / 0.86 / 2.74* |
+| 0.5 | 250 / 87% / ~2,040 | 0.58 / 0.74 / 2.25 | 30 / 100% | 0.84 / 0.86 / 2.75 |
+| 0.6 | 250 / 86% / ~2,170 | 0.52 / 0.77 / 2.33 | 30 / 100% | 0.75 / 0.86 / 2.74 |
+| 0.75 | 177-249 / 55%, floor 9% | 0.42 / 0.81 / 2.40 | 30 / 100% | 0.55 / 0.87 / 2.72 |
+| 1.0 | 30 / floor 89% / ~40 | 0.34 / 0.86 / 2.15 | 30 / 99% | 0.35 / 0.88 / 2.33 |
+\* n101-n103; n100's worlds breed at 0.3-0.36x (some seeds to the cap) and
+forage worse (types 2.1-2.4).
+- **Each world sits on one rail** (cv ~0.00-0.03 per world). Hunger moves a
+  world from the cap to the floor, with almost nothing in between: where the
+  mean population is 177, some seeds are at the cap and some at the floor.
+  The 4D switch for the births brains is between 0.75x and 1.0x.
+- **4-axis brains don't breed at any hunger** (mating was selected away,
+  S1b), so M3 can't pass with them. **5-axis brains breed to the cap** at
+  every hunger up to 0.6x, and their foraging improves as hunger rises
+  (diet 0.66 -> 0.86, types 1.9 -> 2.4) while nutrient and collapses worsen.
+- **M2's window under the new physics, untrained brains:** 4-axis brains
+  meet nutrient, diet and types from 0.36x to 0.75x (diet 0.86-0.87, up
+  from 0.83-0.86 before soil diffusion, still under the old 0.9). 5-axis
+  brains miss types everywhere (best 2.40 at 0.75x, goal 2.5) and diet below
+  0.75x. So M2's window for 5 axes sits higher than for 4, if it exists, as
+  5zorro predicted (S3c, "stability at a lower hunger at only 4 survival
+  axis vs 5"). Retrained brains are needed to say more.
+
+2D and 3D (M2's nurseries and scratch; 2D's M2 pick is 1x, 3D's 0.9x):
+| | Hunger | Pop | At floor / cap | cv | Births / top-ups |
+|---|---|---|---|---|---|
+| 2D | 0.8 | 62-72 | 0-12% / 0% | 0.23-0.28 | ~800 / 0-37 |
+| 2D | 1.0 | 30-47 | 38-79% / 0% | 0.02-0.13 | 48-352 / 104-201 |
+| 2D | 1.2 or more | 30 | 86-100% / 0% | ~0 | ~0 / 260+ |
+| 3D | 0.75 | 102-222 | 0-49% / 15-36% | 0.02-0.16 | 950-2,540 / 0-111 |
+| 3D | 0.9 | 32-167 | 24-53% / 0-22% | 0.03-0.08 | 146-1,783 / 64-140 |
+| 3D | 1.05 or more | 30 | 57-100% / 0% | ~0 | <130 / 170+ |
+- **2D at 0.8x is the only world off both rails:** 2 of 3 n101 worlds and
+  all scratch worlds meet births and rails. It fails on steadiness: the
+  population cycles (cv ~0.25, mean ~70) instead of settling. Food limits it
+  well below the cap, so 2D has density dependence that 4D lacks.
+- **3D is bistable** at 0.75-0.9x (seeds split between the floor and the
+  cap), as S1 found before the soil change.
+
+**What this says (hypotheses, to test):**
+1. **An Allee effect plus a far ceiling.** A small population (the 30
+   floor) can't find mates (4D: 55 tries per 1k NPC-ticks for scratch vs
+   1-2 for the nurseries, S1b), so it stays small. A large one breeds
+   freely, and the food can feed more than 250, so it grows to the cap. With
+   no stable state between them, worlds are bistable. This is the known
+   "strong Allee effect" (Allee 1931; Courchamp, Clutton-Brock & Grenfell
+   1999, cited from memory). M3 needs the food-limited carrying capacity
+   (K) between 30 and 250, and a population that starts above the Allee
+   threshold.
+2. **2D's cycles are delayed density dependence:** births respond to food
+   with a lag of about an adult age (Nicholson's blowflies; May 1974's delay
+   models, cited from memory).
+3. **Hunger alone can't make a 4D window:** the switch from cap to floor is
+   sharp (0.75-1.0x), and on the far side births stop.
+
+**Next measurement (proposed):** K(hunger). Lift the cap (`max_population`
+e.g. 2,000) for the births brains in 4D and the 2D/3D nurseries, and record
+where each world's population settles. That gives the law (K against
+hunger and dims) and says whether any hunger puts K inside 30-250. Then
+retrain at that hunger (nurseries that breed: the births race), or change
+the world (S3d's meals, density, caps; open decision 3) if no hunger does.
 
 ### Slice S3d (proposed, 5zorro's idea 2026-11-08): plants that grow whole meals
 5zorro: "in order to make the world easier for npcs, we should have a mature

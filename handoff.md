@@ -85,9 +85,10 @@ the cap (250) instead of crashing. 5zorro: soil diffusion as the default,
 hunger may move, every world should pass M3, fix M2's 4D diet goal if the map
 caused it. `soil_diffusion` 0.1 is the default since 2026-11-08 (re-baseline
 in plan-m3 S3b; every earlier M2/M3 number was measured with soil mining).
-**Next:** plan-m3 S3c (re-measure hunger under the new physics, 4 axes and 5
-with mating), S3e (M2 4D diet recheck), S3d (5zorro's whole-meal plants, a
-draft to agree).
+**S3c scan (2026-11-08):** no world passes; each sits at the floor or the cap
+(bistable: Allee effect + food feeding more than the cap), only 2D at 0.8x is
+off both rails (it cycles). **Next:** carrying capacity vs hunger with the cap
+lifted (plan-m3 S3c), then S3e (M2 4D diet recheck), S3d (whole-meal plants).
 
 0. **State at 2026-11-06 (end):** results of the day are in
    `docs/plan-m2-diet-travel.md` slices R7-R9 and the laws table in
