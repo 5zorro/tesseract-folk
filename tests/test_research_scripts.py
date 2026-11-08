@@ -81,14 +81,19 @@ def test_m3_verdict_needs_births_off_rails_and_steady():
 
 def test_m3_settings_record_overrides_only_when_given():
     import scripts.m3_ladder as m3
-    a = SimpleNamespace(seeds=2, ticks=2000, dims=[4], set="")
+    a = SimpleNamespace(seeds=2, ticks=2000, dims=[4], set="", hunger=None)
     assert "set" not in m3.settings(a)                    # older sidecars still match
-    a.set = "soil_diffusion=0.1"
-    assert m3.settings(a)["set"] == {"soil_diffusion": 0.1}
+    assert m3.settings(a)["hunger"] == {"4": 0.36}
+    assert m3.settings(a)["physics"] == {"soil_diffusion": 0.1}    # files from before 0.1 don't match
+    a.set = "poop_diffusion=0.1"
+    assert m3.settings(a)["set"] == {"poop_diffusion": 0.1}
+    a.hunger = [0.5, 0.75]
+    assert m3.settings(a)["hunger"] == {"4": [0.5, 0.75]} and m3.levels(a, 4) == [0.5, 0.75]
 
 
 def test_m3_short_labels_keep_nursery_and_round():
     import scripts.m3_ladder as m3
     assert m3.short("snapshots-x") == "snapshots-x"
-    assert m3.short("births-cross-n100-r35") == "n100-r35"
+    assert m3.short("births-cross-n100-r35") == "bc-n100-r35"
+    assert m3.short("persist-n100-r35") == "persist-n100-r35"
     assert m3.short("d2-s32-r4-h16-metabolism_rate0.01-nutrient_decay0.003-n100") == "n100"
