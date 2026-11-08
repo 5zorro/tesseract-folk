@@ -139,6 +139,32 @@ The nursery scores the proxy (collapses); M3 needs lineages. Arms in
 - both together.
 Scored with `m3_ladder.py` (and M2's goals, which must still hold).
 
+**Built (2026-11-08):** `arena.py --arms births cross births-cross`.
+- **Signal check first** (4D, 5 hall-of-fame brains x 4 scenarios, 1,200
+  ticks): births per scenario, persist n100 vs n101 (lost mating):
+  | Scenario rules | n100 | n101 |
+  |---|---|---|
+  | 1x hunger, 30 founders | 2.2 (0.8-3.8 per brain) | 0.0 |
+  | 0.36x hunger, 30 founders | 10.7 (8.0-13.5) | 0.0 |
+  | 0.36x hunger, 60 founders | 34.8 (20-48) | 0.0 |
+  So births are scored at the breed hunger (`--birth-test`, default the
+  nursery's rules), 30 founders as in every race, while collapses stay scored
+  at 1x (`--test`), keeping the harsher test that raised diet in R14.
+- **Score** per scenario pair (same seed, two rule sets): collapses per 1,000
+  founder-ticks at 1x - `--birth-weight` (5) x births per 1,000 founder-ticks
+  at 0.36x. At 5, the spread in births between brains (~0.2-0.4 per 1,000
+  founder-ticks) is worth about as much as typical collapse differences; the
+  weight is a choice, a candidate for a ladder (0, 2, 5, 10) if S3 shows an
+  effect.
+- **Cross entry:** after the race and write-back, the 10 picks are crossed in
+  20 random pairs (uniform crossover, no mutation, keyed on nursery seed and
+  round), the 20 crosses race on their own seeds (round + 500), and only the
+  best 10 crosses enter (marked raced). Parents leave the hall of fame.
+- **Run:** `arena.py --dims 4 --breed H --play H --arms births cross
+  births-cross --rounds 35 --play-every 5 --out snapshots/s3 --csv
+  runs/s3-4d.csv` (H as in R15), compared with persist
+  (`runs/arena-4d-persist-fixed.csv`, `runs/m3-baseline.csv`).
+
 ### Slice S4 (proposed): survival axes x brain size, for a law
 5zorro: "survival has 3 axis... i don't think we have down the optimal brain
 structure law". A grid of axes switched on (nutrients 1-3, mating on/off) x

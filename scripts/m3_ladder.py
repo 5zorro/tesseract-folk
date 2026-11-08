@@ -13,6 +13,7 @@ over the second half of its run, on M3's three criteria:
     python scripts/m3_ladder.py                    # 2D-4D, 5 seeds x 30,000 ticks
     python scripts/m3_ladder.py --dims 4 --seeds 3
     python scripts/m3_ladder.py --report-only
+    python scripts/m3_ladder.py --dims 4 --nurseries "4=snapshots/s3/births-n*-r35" --csv runs/m3-s3-births.csv
 
 Results go to `--csv` (default runs/m3-baseline.csv) with the settings beside it
 (.json); a rerun reuses them only if the settings match (the 2026-11-08 review's
@@ -135,8 +136,16 @@ def main() -> None:
                     help="share of judged samples allowed on the floor or at the cap")
     ap.add_argument("--csv", default="runs/m3-baseline.csv")
     ap.add_argument("--jobs", type=int, default=os.cpu_count() or 1)
+    ap.add_argument("--nurseries", nargs="+", default=[], metavar="DIMS=GLOB",
+                    help="score other nursery folders for a dimension (e.g. 4=snapshots/s3/births-n*-r35)")
     ap.add_argument("--report-only", action="store_true")
     a = ap.parse_args()
+    for spec in a.nurseries:
+        dims, _, pattern = spec.partition("=")
+        found = sorted(str(p.relative_to(ROOT)).replace("\\", "/") for p in ROOT.glob(pattern) if p.is_dir())
+        if not dims.isdigit() or int(dims) not in NURSERIES or not found:
+            ap.error(f"--nurseries {spec}: want DIMS=GLOB matching nursery folders")
+        NURSERIES[int(dims)] = found
     if a.seeds < 1 or a.ticks < 4 * LOG_EVERY:
         ap.error("--seeds must be >= 1 and --ticks >= 4 samples")
     path, meta = Path(a.csv), Path(a.csv).with_suffix(".json")

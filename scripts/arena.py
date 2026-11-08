@@ -26,7 +26,16 @@ of fame as usual, then every entry is raced on *shared scenarios*:
   rest are dropped. The nursery then runs on and refills; the next race
   re-tests everyone on new scenarios.
 
-Arms: `arena` (race after every round) and `plain` (same nursery seeds, no race).
+Arms: `arena` (race after every round) and `plain` (same nursery seeds, no race);
+`persist` (R14: the race's picks keep their place) and plan-m3 slice S3's, all
+persisting:
+- `births`: each scenario is played twice, at `--test` rules for collapses and
+  at `--birth-test` rules (default: the nursery's own) for births, and a brain
+  scores collapses - `--birth-weight` x births, both per 1,000 founder-ticks;
+- `cross` (5zorro's idea 1): after the race, its picks are crossed in random
+  pairs (no mutation) and only the crosses enter the hall of fame, picked by a
+  race of their own, so brains that cross badly fail in the nursery;
+- `births-cross`: both.
 Each round's checkpoint is scored on fresh play worlds (`--play` rules, the M2
 goals), and each arm's curve is fitted to y = y_inf + (y0 - y_inf) exp(-t / tau)
 to project the time to equilibrium (~3 tau).
@@ -54,14 +63,19 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from sim import Config, Simulation  # noqa: E402
+from sim.brain import Brain  # noqa: E402
 from sim.config import parse_overrides  # noqa: E402
 from sim.simulation import Batch  # noqa: E402
 from sim.snapshot import load_snapshot, save_snapshot  # noqa: E402
 from ladder import LATE_FROM, LOG_EVERY, NURSERY_RULES, WORLD_SETS, verdicts, world  # noqa: E402
 from sweep import run_batch  # noqa: E402
 
-ARMS = ("plain", "arena", "persist")
-RACED = ("arena", "persist")    # arms that race; persist keeps the verdicts (R14)
+ARMS = ("plain", "arena", "persist", "births", "cross", "births-cross")
+RACED = ARMS[1:]                # arms that race; all but arena keep the verdicts (R14)
+PERSIST = ARMS[2:]
+BIRTHS = ("births", "births-cross")     # plan-m3 S3: scenarios score births too
+CROSS = ("cross", "births-cross")       # plan-m3 S3: only crosses of the picks enter
+CROSS_SALT = 500                        # the crosses' race uses rounds + this (other seeds)
 TEST_RULES = {"collapse_age_penalty": 0, "initial_npcs": 30}
 METRICS = ("collapse_rate", "min_nutrient", "diet_diversity", "zone_types_per_life", "approach_excess")
 
@@ -72,8 +86,9 @@ def scenario_seed(nseed: int, rnd: int, index: int) -> int:
     return 50_000_000 + 100_000 * nseed + 1_000 * rnd + index
 
 
-def play_scenarios(brains: list, base: dict, seeds: list[int], ticks: int) -> np.ndarray:
-    """Founders' collapses per 1,000 ticks, one row per brain, one column per seed."""
+def play_scenarios(brains: list, base: dict, seeds: list[int], ticks: int, births: bool = False) -> np.ndarray:
+    """Founders' collapses per 1,000 ticks (or, with `births`, births per 1,000
+    founder-ticks), one row per brain, one column per seed."""
     sims = []
     for brain in brains:
         for seed in seeds:
@@ -89,15 +104,31 @@ def play_scenarios(brains: list, base: dict, seeds: list[int], ticks: int) -> np
         if len(founders) != sim.cfg.initial_npcs:
             raise RuntimeError(f"a scenario lost founders ({len(founders)} of {sim.cfg.initial_npcs}); "
                                "shorten --test-ticks below old_age")
-        rates[i] = 1000.0 * sum(n.collapses for n in founders) / max(sum(n.lifetime for n in founders), 1)
+        events = scenario_births(sim) if births else sum(n.collapses for n in founders)
+        rates[i] = 1000.0 * events / max(sum(n.lifetime for n in founders), 1)
     return rates.reshape(len(brains), len(seeds))
 
 
+def scenario_births(sim) -> int:
+    """Births in a scenario (all by founders: children can't mate before adult_age)."""
+    return sum(h.get("births", 0) for h in sim.stats.history) + sim.stats.window.get("births", 0)
+
+
+def scorer(arm: str, test: dict, birth_test: dict, ticks: int, weight: float):
+    """The race's raw score for an arm (lower is better): collapses, or for the
+    births arms collapses - weight x births, scenario by scenario."""
+    if arm not in BIRTHS:
+        return None                                   # race's default: play_scenarios at `test`
+    return lambda brains, seeds: (play_scenarios(brains, test, seeds, ticks)
+                                  - weight * play_scenarios(brains, birth_test, seeds, ticks, births=True))
+
+
 def race(entries: list[dict], base: dict, stages: list[int], ticks: int, nseed: int, rnd: int,
-         log: list | None = None) -> list[dict]:
+         log: list | None = None, score=None) -> list[dict]:
     """Successive halving on shared scenarios. Returns one record per entry:
     {"stage", "excess": [per scenario]}, in the entries' order. `log` collects
-    each stage's raw grid (players x scenarios) for the luck analysis."""
+    each stage's raw grid (players x scenarios) for the luck analysis. `score`
+    (brains, seeds) -> raw grid replaces collapses at `base` (scorer())."""
     records = [{"stage": 0, "excess": []} for _ in entries]
     alive = list(range(len(entries)))
     index = 0
@@ -106,7 +137,8 @@ def race(entries: list[dict], base: dict, stages: list[int], ticks: int, nseed: 
             break
         seeds = [scenario_seed(nseed, rnd, index + k) for k in range(count)]
         index += count
-        raw = play_scenarios([entries[i]["brain"] for i in alive], base, seeds, ticks)
+        brains = [entries[i]["brain"] for i in alive]
+        raw = score(brains, seeds) if score else play_scenarios(brains, base, seeds, ticks)
         if log is not None:
             log.append({"players": list(alive), "seeds": seeds, "raw": raw.tolist()})
         # The field's mean on a later scenario is estimated from its players'
@@ -147,6 +179,25 @@ def write_back(sim, records: list[dict], keep: int, persist: bool = False) -> di
     sim.hall_of_fame = kept
     return {"raced": before, "kept": len(kept),
             "best_excess": float(np.mean(records[order[0]]["excess"])) if order else math.nan}
+
+
+def crosses(sim, parents: list[dict], n: int, nseed: int, rnd: int) -> list[dict]:
+    """`n` unmutated crosses of random pairs of `parents` (5zorro's idea 1), as
+    fresh hall-of-fame entries (no record yet, new ids). Keyed on the nursery
+    seed and round, so runs repeat."""
+    rng = np.random.default_rng(scenario_seed(nseed, rnd + CROSS_SALT, 999))
+    out = []
+    for _ in range(n):
+        i, j = rng.choice(len(parents), 2, replace=False)
+        a, b = parents[int(i)], parents[int(j)]
+        entry = {k: v for k, v in a.items() if k != "raced"}
+        entry.update(brain=Brain.crossover(a["brain"], b["brain"], rng), id=sim.next_id,
+                     generation=max(int(a["generation"]), int(b["generation"])) + 1,
+                     rate=(a.get("rate", -1.0) + b.get("rate", -1.0)) / 2, fitness=0.0, lives=0.0,
+                     excess_sum=0.0, copies=0.0, copy_excess_sum=0.0, kids=0.0, kids_alive=0.0)
+        sim.next_id += 1
+        out.append(entry)
+    return out
 
 
 # ============================================================== nurseries
@@ -192,16 +243,24 @@ def nursery(job: tuple) -> list[str]:
     else:
         sim = Simulation(Config(**{**base, **NURSERY_RULES, **args["breed"], "seed": nseed}), log_every=1000)
     test = {**base, **args["test"], **TEST_RULES}
+    birth_test = {**base, **(args["birth_test"] if args["birth_test"] is not None else args["breed"]), **TEST_RULES}
+    score = scorer(arm, test, birth_test, args["test_ticks"], args["birth_weight"])
     msgs = []
     for rnd in range(start + 1, args["rounds"] + 1):
         sim.run(args["round_ticks"])
         note, log = "", None
         if arm in RACED and sim.hall_of_fame:
             grids: list = []
-            records = race(sim.hall_of_fame, test, args["stages"], args["test_ticks"], nseed, rnd, grids)
+            records = race(sim.hall_of_fame, test, args["stages"], args["test_ticks"], nseed, rnd, grids, score)
             log = race_log(sim, records, grids, args["keep"])
-            info = write_back(sim, records, args["keep"], persist=arm == "persist")
+            info = write_back(sim, records, args["keep"], persist=arm in PERSIST)
             note = f" (raced {info['raced']}, kept {info['kept']}, best excess {info['best_excess']:+.2f})"
+            if arm in CROSS and len(sim.hall_of_fame) >= 2:
+                sim.hall_of_fame = crosses(sim, sim.hall_of_fame, 2 * args["keep"], nseed, rnd)
+                kids = race(sim.hall_of_fame, test, args["stages"], args["test_ticks"], nseed,
+                            rnd + CROSS_SALT, None, score)
+                info = write_back(sim, kids, args["keep"], persist=True)
+                note += f"; crosses kept {info['kept']}, best excess {info['best_excess']:+.2f}"
         path = checkpoint(out, arm, nseed, rnd)
         save_snapshot(sim, path)
         if log:
@@ -422,7 +481,12 @@ def main() -> None:
     ap.add_argument("--test-ticks", type=int, default=1200, help="scenario length (below old_age)")
     ap.add_argument("--play-seeds", type=int, default=3)
     ap.add_argument("--play-ticks", type=int, default=10_000)
-    ap.add_argument("--arms", nargs="+", choices=ARMS, default=list(ARMS))
+    ap.add_argument("--arms", nargs="+", choices=ARMS, default=list(ARMS[:3]),
+                    help="default plain, arena, persist (R14); S3 adds births, cross, births-cross")
+    ap.add_argument("--birth-test", default=None,
+                    help="births arms: rules of the births scenarios (default: --breed, where births happen)")
+    ap.add_argument("--birth-weight", type=float, default=5.0,
+                    help="births arms: one birth per 1,000 founder-ticks counts as this many collapses")
     ap.add_argument("--out", default="snapshots/arena")
     ap.add_argument("--csv", default=None, help="default runs/arena-{dims}d.csv")
     ap.add_argument("--jobs", type=int, default=os.cpu_count() or 1)
@@ -443,9 +507,13 @@ def main() -> None:
                 "play": rules(a.play), "rounds": a.rounds, "round_ticks": a.round_ticks, "stages": a.stages,
                 "keep": a.keep, "test_ticks": a.test_ticks, "play_seeds": a.play_seeds,
                 "play_ticks": a.play_ticks, "out": a.out, "start_round": a.start_round,
-                "measure_scenarios": a.measure_scenarios}
+                "measure_scenarios": a.measure_scenarios,
+                "birth_test": rules(a.birth_test) if a.birth_test is not None else None,
+                "birth_weight": a.birth_weight}
     except ValueError as e:
         ap.error(str(e))
+    if a.rounds >= CROSS_SALT:
+        ap.error(f"--rounds must be below {CROSS_SALT} (the crosses' races use rounds + {CROSS_SALT})")
     if not 0 <= a.start_round < a.rounds or a.play_every < 1 or a.measure_scenarios < 2:
         ap.error("--start-round must be below --rounds; --play-every >= 1; --measure-scenarios >= 2")
     path = Path(a.csv or f"runs/arena-{a.dims}d.csv")

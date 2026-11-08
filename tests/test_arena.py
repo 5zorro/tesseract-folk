@@ -127,3 +127,56 @@ def test_the_luck_report_reads_every_racing_arm(tmp_path):
         (tmp_path / folder).mkdir()
         (tmp_path / folder / name).write_text(json.dumps(log))
     assert sorted(r["kind"] for r in arena.luck_rows(tmp_path)) == ["arena", "persist", "untested"]
+
+
+def test_births_arms_score_collapses_minus_weighted_births(monkeypatch):
+    """plan-m3 S3: collapses at the test rules, births at the birth-test rules."""
+    seen = []
+
+    def play(brains, base, seeds, ticks, births=False):
+        seen.append((base["tag"], births))
+        return np.full((len(brains), len(seeds)), 0.2 if births else 1.0)
+    monkeypatch.setattr(arena, "play_scenarios", play)
+    assert arena.scorer("persist", {"tag": "t"}, {"tag": "b"}, 100, 5.0) is None
+    score = arena.scorer("births", {"tag": "t"}, {"tag": "b"}, 100, 5.0)
+    assert np.allclose(score(["x", "y"], [1, 2, 3]), 1.0 - 5.0 * 0.2)
+    assert seen == [("t", False), ("b", True)]
+
+
+def test_crosses_are_unmutated_fresh_entries_of_two_parents():
+    sim = Simulation(Config(**BASE, seed=0))
+    parents = [{"id": k, "brain": sim.npcs[k].brain, "generation": k, "lives": 8.0, "excess_sum": -1.0,
+                "raced": 1.0, "rate": 0.5, "fitness": 3.0} for k in range(3)]
+    first_id = sim.next_id
+    kids = arena.crosses(sim, parents, 6, nseed=100, rnd=2)
+    assert [k["id"] for k in kids] == list(range(first_id, first_id + 6)) and sim.next_id == first_id + 6
+    flat = lambda b: np.concatenate([x.ravel() for x in b._arrays()])        # noqa: E731
+    pool = [flat(p["brain"]) for p in parents]
+    for kid in kids:
+        w = flat(kid["brain"])
+        from_parent = np.array([np.isclose(w, p) for p in pool])            # each weight is some parent's
+        assert from_parent.any(axis=0).all()
+        assert "raced" not in kid and kid["lives"] == 0.0 and kid["excess_sum"] == 0.0
+        assert kid["generation"] >= 1
+    again = arena.crosses(Simulation(Config(**BASE, seed=0)), parents, 6, nseed=100, rnd=2)
+    assert all(np.array_equal(flat(a["brain"]), flat(b["brain"])) for a, b in zip(kids, again))
+
+
+def test_scenarios_count_births_per_founder_tick():
+    base = {**BASE, "initial_npcs": 6}
+    brain = Simulation(Config(**BASE, seed=0)).npcs[0].brain
+    births = arena.play_scenarios([brain], base, [7, 8], 400, births=True)
+    assert births.shape == (1, 2) and (births >= 0).all()
+    assert np.array_equal(births, arena.play_scenarios([brain], base, [7, 8], 400, births=True))
+
+
+@pytest.mark.parametrize("arm", ["births", "cross", "births-cross"])
+def test_s3_arms_run_a_round_and_keep_raced_entries(arm, tmp_path, monkeypatch):
+    monkeypatch.setattr(arena, "world", lambda shape: dict(BASE))
+    args = {"dims": 2, "hidden": 4, "breed": {"old_age": 150}, "test": {}, "birth_test": {}, "birth_weight": 5.0,
+            "rounds": 1, "round_ticks": 800, "stages": [1, 1], "keep": 2, "test_ticks": 200,
+            "out": str(tmp_path), "start_round": 0}
+    msgs = arena.nursery((arm, 100, args))
+    sim = arena.load_snapshot(arena.checkpoint(tmp_path, arm, 100, 1))
+    assert len(sim.hall_of_fame) == 2 and all(e.get("raced") == 1.0 for e in sim.hall_of_fame)
+    assert ("crosses kept" in msgs[0]) == (arm in arena.CROSS)
