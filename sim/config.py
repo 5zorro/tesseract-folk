@@ -45,7 +45,7 @@ class Config:
     # in plan-m3 S3). 0-1, the same mix with the neighbor mean as stink's, but
     # moved as pairwise exact transfers so mass is conserved. 0 = off.
     poop_diffusion: float = 0.0
-    soil_diffusion: float = 0.0
+    soil_diffusion: float = 0.1          # default since 2026-11-08 (5zorro; plan-m3 S3b)
 
     # --- stink (a signal, not mass) ----------------------------------------
     stink_emission: float = 0.2           # per unit of poop per tick

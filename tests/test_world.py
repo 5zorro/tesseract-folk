@@ -102,3 +102,18 @@ def test_soil_diffusion_refills_a_mined_cell():
         for _ in range(50):
             w.step()
     assert off.soil[8, 8] == 0.0 and on.soil[8, 8] > 0.9
+
+
+def test_soil_diffusion_is_on_by_default_but_old_snapshots_keep_mining(tmp_path):
+    """Default 0.1 since 2026-11-08; a snapshot saved before then resumes without it."""
+    import json
+    from sim import Simulation
+    from sim.snapshot import load_snapshot, save_snapshot
+    assert Config().soil_diffusion == 0.1 and Config().poop_diffusion == 0.0
+    sim = Simulation(Config(size=8, initial_npcs=5, min_population=2), log_every=1000)
+    path = save_snapshot(sim, tmp_path / "now")
+    assert load_snapshot(path, log_every=1000).cfg.soil_diffusion == 0.1
+    state = json.loads((path / "state.json").read_text())
+    del state["config"]["soil_diffusion"], state["config"]["poop_diffusion"]
+    (path / "state.json").write_text(json.dumps(state))
+    assert load_snapshot(path, log_every=1000).cfg.soil_diffusion == 0.0

@@ -5,10 +5,11 @@ entry) and S3b (poop and soil diffusion, built, off by default) done; no world
 passes yet. Soil diffusion ends the soil mining: births-race worlds no longer
 crash, they sit at the population cap (250) instead. 5zorro (2026-11-08):
 soil diffusion should be the default, hunger may move, every world should
-pass M3, and fix M2's 4D diet goal too if the map was the cause. **Next:
-make soil diffusion the default (re-baseline, rate pending), then S3c
-(re-pick hunger: upward now), the M2 recheck (S3e), and the meals rule
-(S3d, 5zorro's idea).**
+pass M3, and fix M2's 4D diet goal too if the map was the cause.
+`soil_diffusion` 0.1 is the default since 2026-11-08 (re-baseline below).
+**Next: S3c (re-measure hunger under the new physics, for M2's axes and
+with mating), the M2 recheck (S3e), and the meals rule (S3d, 5zorro's
+idea).**
 The goal was rewritten with 5zorro on 2026-11-08 (`docs/ROADMAP.md`).
 Open decisions (bottom) are 5zorro's.
 
@@ -277,15 +278,38 @@ Core = cells in any food type's zone (273 of 10,000):
   map, once it keeps its soil, feeds far more than 250 NPCs. So the M3
   ladder on these worlds would fail "off rails" in every world; not run.
 
+**Re-baseline (5zorro, 2026-11-08: "go ahead and do .1 as the soil diffusion
+rate"):** `Config.soil_diffusion` defaults to 0.1 (`poop_diffusion` stays 0).
+Snapshots saved without the fields load with both 0 (`snapshot.py` LEGACY),
+so they resume as saved; worlds seeded from them (`brains_from`) get 0.1.
+`scripts/fingerprint.py`, 600 ticks:
+| World | Before (soil mining) | After (soil 0.1) |
+|---|---|---|
+| 2D float64 | 3426bd65dc54b903 | b78a2617357eea99 |
+| 3D float64 | dcde46a3c61d5393 | 569944fb5d71ae59 |
+| 4D float64 | 1447aa17ab5ffa6c | 90d126743283c0b7 |
+| 2D float32 | c25bebb90a9a550a | e35c2916e621d048 |
+| 3D float32 | c5977561ea6614b6 | 69fa688efb5f01c4 |
+| 4D float32 | 82286d860933f3b2 | 31b99dfb70416d09 |
+Every earlier M2 and M3 number was measured with soil mining. `ladder.py`
+nurseries trained before the change now count as other settings and are
+retrained. The kept M2 snapshots still hold their M2 scores as measured, but
+their play worlds now run the new physics (S3e re-scores them).
+
 ### Slice S3c (next, after the soil default): re-pick hunger with mating as a survival axis
-**Update after S3b:** the budget-law reading below was confounded by soil
-mining. With the cores kept fertile, 0.36x is too easy: the births-race
-worlds fill the cap. So hunger must now move *up* until food, not the cap,
-stops growth, while M2's goals still hold (5zorro: "if we are adding a
-survival axis, then hunger probably must move unless we uncover and fix
-something about the maps"). The law test still stands: the steady
-population (carrying capacity) as a function of hunger and `child_mass`,
-and where it falls between the floor (30) and the cap (250).
+**Update after S3b:** the budget law still holds for fixed world physics;
+S3b changed the physics, so hunger must be re-measured (5zorro: "that idea is
+perfectly valid if we don't change the world physics. As we are changing the
+world physics, then we have to re-measure hunger (and it probably has
+stability at a lower hunger at only 4 survival axis vs 5 survival axis)").
+With fertile cores, 0.36x feeds the births-race worlds past the cap, so for
+M3 the window likely sits higher than 0.36x, where food, not the cap, stops
+growth. **Test both axis counts under the new physics:** M2's four axes
+(two nutrients, calories, stink; no births scored) and five (plus mating),
+each a hunger ladder, to compare the windows as 5zorro's prediction says.
+The law: the steady population (carrying capacity) as a function of hunger
+and `child_mass`, and where it falls between the floor (30) and the cap
+(250).
 
 5zorro: "in a resource constrained environment... adding another constraint
 without changing anything can cause collapse. Perhaps there is a law here.
@@ -390,8 +414,5 @@ Candidates, each measured before it's adopted:
 5. **Keep the births-arm snapshots?** They fail M2 (types ~2.3), so the
    snapshot rule says delete; kept for now (8 folders, ~13 MB) because the
    soil-rule test needs them and they take ~3 hours to rebuild.
-6. **The soil rule:** answered (5zorro, 2026-11-08: "soil makes more sense
-   as a default"): soil diffusion, not poop. Pending: the rate (S3b: 0.03
-   holds core soil ~0.6, 0.1 ~0.75, higher changes little) and the
-   re-baseline itself, recorded here with old and new fingerprints. Old
-   snapshots must then load with their own rate (0), like `food_scent`.
+6. **The soil rule:** answered (5zorro, 2026-11-08): soil diffusion at 0.1
+   is the default (re-baseline in S3b, fingerprints recorded there).

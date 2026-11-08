@@ -47,6 +47,8 @@ LEGACY = {
     "actions_off": "",                    # 2026-11-06
     "extra_stay_actions": 0,              # 2026-11-06
     "precision": "float64",               # 2026-11-06; research scripts default to float32
+    "poop_diffusion": 0.0,                # 2026-11-08 (plan-m3 S3b)
+    "soil_diffusion": 0.0,                # 2026-11-08: default 0.1 since; older worlds mined their soil
 }
 
 

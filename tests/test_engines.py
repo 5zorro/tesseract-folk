@@ -16,7 +16,8 @@ BUSY = dict(size=12, initial_npcs=30, min_population=24, max_population=60, seed
 
 CASES = {
     "2d": {},
-    "4d": dict(dims=4, size=5),
+    "4d": dict(dims=4, size=5, food_growth_rate=0.005),        # deaths need scarcer food since soil diffusion
+    "4d, soil mining (before 2026-11-08)": dict(dims=4, size=5, soil_diffusion=0.0),
     "1d": dict(dims=1, size=60),
         "track record": dict(hall_of_fame_track_record=True, hall_of_fame_min_copies=2),
     "smiting": dict(smiting=True, smite_damage=0.2, piety_threshold=0.1),

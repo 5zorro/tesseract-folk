@@ -83,9 +83,11 @@ default; `scripts/trace_soil.py`). Soil diffusion (0.03 or more) keeps the
 cores fertile; poop diffusion doesn't help. The births-race worlds now sit at
 the cap (250) instead of crashing. 5zorro: soil diffusion as the default,
 hunger may move, every world should pass M3, fix M2's 4D diet goal if the map
-caused it. **Next:** soil default (rate + re-baseline, open decision 6), then
-plan-m3 S3c (hunger up until food, not the cap, limits growth), S3e (M2 4D
-diet recheck), S3d (5zorro's whole-meal plants, a draft to agree).
+caused it. `soil_diffusion` 0.1 is the default since 2026-11-08 (re-baseline
+in plan-m3 S3b; every earlier M2/M3 number was measured with soil mining).
+**Next:** plan-m3 S3c (re-measure hunger under the new physics, 4 axes and 5
+with mating), S3e (M2 4D diet recheck), S3d (5zorro's whole-meal plants, a
+draft to agree).
 
 0. **State at 2026-11-06 (end):** results of the day are in
    `docs/plan-m2-diet-travel.md` slices R7-R9 and the laws table in

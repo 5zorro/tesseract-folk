@@ -279,3 +279,9 @@ Traps that already bit us, by area. Add to this when something surprises you.
   arena score 10k ticks; a births-arm 4D world hits the cap at 2k and starves
   to the floor by 15k as its food cores lose their soil (plan-m3 S3). Judge
   population claims with `scripts/m3_ladder.py` (30k ticks, second half).
+- **Soil diffusion is on since 2026-11-08 (`soil_diffusion` 0.1).** Before it,
+  rich patch cores lost their soil (eaten there, pooped everywhere): food
+  stopped regrowing there within ~3k ticks in breeding worlds and over ~30k in
+  scratch ones (plan-m3 S3, S3b). Every M2 number and M3's S1-S3 were measured
+  that way. Snapshots without the field resume with 0 (LEGACY); worlds seeded
+  from them get 0.1. Ladder nurseries from before count as other settings.
