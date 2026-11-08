@@ -1,9 +1,14 @@
 # Plan: M3 Stable population from real births
 
-Status (2026-11-08, end): S1 baseline, S1b probe and S3 (births race, cross
-entry) done; no world passes. Worlds that breed boom, then starve as the rich
-food cores lose their soil. **Next: slice S3b, poop and soil diffusion**
-(approved by 5zorro), then S3c (re-pick hunger with mating as an axis).
+Status (2026-11-08, late): S1 baseline, S1b probe, S3 (births race, cross
+entry) and S3b (poop and soil diffusion, built, off by default) done; no world
+passes yet. Soil diffusion ends the soil mining: births-race worlds no longer
+crash, they sit at the population cap (250) instead. 5zorro (2026-11-08):
+soil diffusion should be the default, hunger may move, every world should
+pass M3, and fix M2's 4D diet goal too if the map was the cause. **Next:
+make soil diffusion the default (re-baseline, rate pending), then S3c
+(re-pick hunger: upward now), the M2 recheck (S3e), and the meals rule
+(S3d, 5zorro's idea).**
 The goal was rewritten with 5zorro on 2026-11-08 (`docs/ROADMAP.md`).
 Open decisions (bottom) are 5zorro's.
 
@@ -218,7 +223,7 @@ in both engines, off by default until 5zorro approves a re-baseline):
 Then rerun `m3_ladder.py` on the births arms (kept: `snapshots/s3/births-*-r35`,
 `births-cross-*-r35`, which fail M2's types goal; see open decision 5).
 
-### Slice S3b (next, approved by 5zorro 2026-11-08): poop and soil diffusion
+### Slice S3b (done 2026-11-08): poop and soil diffusion
 5zorro: "yes, poop diffusion sounds like it would prevent concentration of
 plants over time, lets implement." Spec:
 - `Config.poop_diffusion` and `Config.soil_diffusion` (default 0.0: fingerprints
@@ -242,7 +247,46 @@ plants over time, lets implement." Spec:
   the births and births-cross r35 nurseries. A default change needs 5zorro's
   re-baseline approval (old and new fingerprints recorded here).
 
-### Slice S3c (after S3b): re-pick hunger with mating as a survival axis
+**Built** (commit fc314ea): `sim/world.py` `diffuse_mass`, called by both
+engines after poop decomposes (poop, then soil). Three disjoint passes of
+neighbor pairs per axis (even-left, odd-left, the wrap pair), each pair an
+exact transfer; first-order equal to stink's neighbor mix. Total mass drifts
+at rounding level (~1e-13, the same as with it off), and fingerprints are
+unchanged with both rates 0.
+
+**Result** (`python scripts/trace_soil.py`, births-n101-r35 nursery, 4D M3
+world at 0.36x, 3 seeds x 30,000 ticks; `runs/trace-soil-births-n101.txt`).
+Core = cells in any food type's zone (273 of 10,000):
+| Variant | Core soil 3k / 10k / 30k | Core food (share of capacity) 30k | Population 10k / 30k | Top-ups per 1k ticks, 30k |
+|---|---|---|---|---|
+| off | 0.066 / 0.004 / 0.002 | 0.03 | 202 / 31 (floor) | 7 |
+| poop 0.3 | 0.046 / 0.002 / 0.000 | 0.02 | 165 / 31 (floor) | 10 |
+| soil 0.01 | 0.25 / 0.26 / 0.32 | 0.74 | 250 / 250 (cap) | 0 |
+| soil 0.03 | 0.57 / 0.60 / 0.67 | 0.94 | 250 / 250 (cap) | 0 |
+| soil 0.1 | 0.74 / 0.75 / 0.78 | 0.95 | 250 / 250 (cap) | 0 |
+| soil 0.3 | 0.79 / 0.80 / 0.82 | 0.97 | 250 / 250 (cap) | 0 |
+| poop 0.3 + soil 0.1 | 0.73 / 0.74 / 0.76 | 0.95 | 250 / 250 (cap) | 0 |
+- **Soil diffusion ends the mining; poop diffusion doesn't help** (slightly
+  worse). As predicted, poop lasts too short to carry mass back; soil's
+  gradient does.
+- **Equilibrium:** core soil settles where diffusion's inflow balances what
+  food draws out. A rate of 0.03 already holds the cores at ~0.6 and their
+  food at ~0.9 of capacity; above 0.1 it barely changes.
+- **The world now fails M3 at the other rail:** births run ~130 per 1,000
+  ticks and the population sits at the cap with no top-ups. At 0.36x the
+  map, once it keeps its soil, feeds far more than 250 NPCs. So the M3
+  ladder on these worlds would fail "off rails" in every world; not run.
+
+### Slice S3c (next, after the soil default): re-pick hunger with mating as a survival axis
+**Update after S3b:** the budget-law reading below was confounded by soil
+mining. With the cores kept fertile, 0.36x is too easy: the births-race
+worlds fill the cap. So hunger must now move *up* until food, not the cap,
+stops growth, while M2's goals still hold (5zorro: "if we are adding a
+survival axis, then hunger probably must move unless we uncover and fix
+something about the maps"). The law test still stands: the steady
+population (carrying capacity) as a function of hunger and `child_mass`,
+and where it falls between the floor (30) and the cap (250).
+
 5zorro: "in a resource constrained environment... adding another constraint
 without changing anything can cause collapse. Perhaps there is a law here.
 perhaps we need to re-evaluate the .36 after adding the mating survival
@@ -260,6 +304,41 @@ constraint?"
   `child_mass` ladder (the new axis's cost) and fit how the goal-meeting
   hunger window moves with it: relationship, not just a pick.
 - After S3b, because today's boom-and-crash would swamp any hunger effect.
+
+### Slice S3d (proposed, 5zorro's idea 2026-11-08): plants that grow whole meals
+5zorro: "in order to make the world easier for npcs, we should have a mature
+plant grow from a radius of soil and make 'complete meals', and that might
+make it so that the npcs aren't eating crumbs." Draft, to be agreed before
+building (both engines, Rule 1 exact transfers, tested at dims=4):
+- **Why:** M2 found crumb grazing is 4D's main diet loss: patches are
+  Gaussians whose tails never reach zero, so crumbs grow almost everywhere
+  and 91% of 4D bites are under a quarter of a bite (M2 slices 3e/3f). The
+  meal scent and `eat_most` only partly fixed it.
+- **Roots:** a plant draws soil from every cell within `root_radius`
+  (weighted, never more than a cell holds), not only its own cell. This
+  overlaps with soil diffusion; with diffusion as the default, roots may
+  only be needed for the meals.
+- **Meals:** food grows as a plant that is only edible when mature: it gains
+  mass until it reaches `meal_size` (e.g. a full stomach), then holds there.
+  Eating a mature plant takes it whole or in bites (to agree); an immature
+  plant can't be eaten, so there are no crumbs.
+- **Changes the senses' meaning,** not their shape: food gradients and scent
+  would come from mature plants only (as the meal scent does).
+- **Test:** the M2 crumb probe (`scripts/probe_crumbs.py`) and the M2 and M3
+  ladders, against the soil default alone.
+
+### Slice S3e (after S3c, 5zorro): did soil mining move M2's 4D goalpost?
+5zorro: "If we are able to figure out the issue in the map that caused us to
+need to move the goalposts with m2, then that would be great too to fix m2 as
+well." M2 lowered 4D's diet goal from 0.9 to 0.8 (and hunger to 0.36x).
+**Hypothesis:** the cores were mined out in M2's 4D runs too (nurseries run
+for 700k ticks), so the rich foods were mostly crumbs at the patch tails and
+diet suffered. The S3 trace already showed scratch worlds drifting the same
+way, slower. **Test:** trace core soil in a 4D M2 nursery and its play worlds
+(`trace_soil.py --source snapshots/arena-fixed/persist-n101-r35`). Then rerun
+M2's 4D ladder with soil diffusion on, scoring diet against the original 0.9,
+and retrain with the persist recipe (~1 hour) if the nurseries need it. If
+diet reaches 0.9, restoring that goal is 5zorro's call.
 
 ### Slice S4 (proposed): survival axes x brain size, for a law
 5zorro: "survival has 3 axis... i don't think we have down the optimal brain
@@ -295,11 +374,15 @@ Candidates, each measured before it's adopted:
   measure-only races round + 1000). The S3 run used 100-103: unaffected.
 - **The births weight (5) is a choice;** ladder it (0, 2, 5, 10) once a
   world can hold a population.
+- **`probe_births` runs float64 without the mass plug,** unlike the ladders
+  (`sweep.RESEARCH_DEFAULTS`: float32, plug every 100). Its counts are a
+  probe, not M3 scores; `trace_soil.py` uses the research defaults.
 
 ## Open decisions (5zorro)
-1. **Per world or on average?** Proposed: every world must pass, since a mean
-   hides bistable worlds. Alternative: a share of worlds (e.g. 80%).
-2. **May hunger move again for M3?** Only where every M2 goal still holds.
+1. **Per world or on average?** Answered (5zorro, 2026-11-08): "i want
+   everything to pass m3 if possible": every world.
+2. **May hunger move again for M3?** Answered: yes ("hunger probably must
+   move"), where every M2 goal still holds.
 3. **May the 4D world change shape** (size, initial NPCs, caps) for M3, given
    that 4D Miner's own world sets the real density later?
 4. **Run length:** proposed 30,000 ticks per world, judged on the second half
@@ -307,5 +390,8 @@ Candidates, each measured before it's adopted:
 5. **Keep the births-arm snapshots?** They fail M2 (types ~2.3), so the
    snapshot rule says delete; kept for now (8 folders, ~13 MB) because the
    soil-rule test needs them and they take ~3 hours to rebuild.
-6. **The soil rule** (S3 result): which candidate, and whether it becomes a
-   default (a re-baseline of the fingerprints).
+6. **The soil rule:** answered (5zorro, 2026-11-08: "soil makes more sense
+   as a default"): soil diffusion, not poop. Pending: the rate (S3b: 0.03
+   holds core soil ~0.6, 0.1 ~0.75, higher changes little) and the
+   re-baseline itself, recorded here with old and new fingerprints. Old
+   snapshots must then load with their own rate (0), like `food_scent`.

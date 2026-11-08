@@ -14,6 +14,7 @@ over the second half of its run, on M3's three criteria:
     python scripts/m3_ladder.py --dims 4 --seeds 3
     python scripts/m3_ladder.py --report-only
     python scripts/m3_ladder.py --dims 4 --nurseries "4=snapshots/s3/births-n*-r35" --csv runs/m3-s3-births.csv
+    python scripts/m3_ladder.py --dims 4 --set soil_diffusion=0.1 --csv runs/m3-soil0.1.csv
 
 Results go to `--csv` (default runs/m3-baseline.csv) with the settings beside it
 (.json); a rerun reuses them only if the settings match (the 2026-11-08 review's
@@ -26,6 +27,7 @@ import csv
 import json
 import math
 import os
+import re
 import sys
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
@@ -36,6 +38,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import numpy as np  # noqa: E402
 
 from sim import Config  # noqa: E402
+from sim.config import parse_overrides  # noqa: E402
 from ladder import WORLD_SETS, world  # noqa: E402
 from sweep import run_batch  # noqa: E402
 
@@ -62,8 +65,8 @@ def sources(dims: int) -> list[str]:
 
 def job(task: tuple) -> list[dict]:
     """One source's worlds (every seed in one batch)."""
-    dims, source, seeds, ticks = task
-    overrides = {**world((dims, *WORLD_SETS["time"][dims], HIDDEN, ())), **hunger_rules(HUNGER[dims])}
+    dims, source, seeds, ticks, extra = task
+    overrides = {**world((dims, *WORLD_SETS["time"][dims], HIDDEN, ())), **hunger_rules(HUNGER[dims]), **extra}
     if source != "scratch":
         overrides["brains_from"] = str(ROOT / source)
     rows = run_batch([(dict(overrides), s, ticks, 0.5, LOG_EVERY) for s in seeds])
@@ -80,8 +83,19 @@ def verdict(row: dict, a) -> dict:
 
 
 def settings(a) -> dict:
-    return {"seeds": a.seeds, "ticks": a.ticks, "hunger": {str(d): HUNGER[d] for d in a.dims},
-            "sources": {str(d): sources(d) for d in a.dims}, "hidden": HIDDEN, "log_every": LOG_EVERY}
+    out = {"seeds": a.seeds, "ticks": a.ticks, "hunger": {str(d): HUNGER[d] for d in a.dims},
+           "sources": {str(d): sources(d) for d in a.dims}, "hidden": HIDDEN, "log_every": LOG_EVERY}
+    if a.set:                              # only when given, so older sidecars still match
+        out["set"] = parse_overrides(a.set)
+    return out
+
+
+def short(source: str) -> str:
+    """A report label: hdist-n100, births-n100-r35 -> n100, n100-r35."""
+    if len(source) <= 16:
+        return source
+    m = re.search(r"n\d+(-r\d+)?$", source)
+    return m.group(0) if m else source[-16:]
 
 
 def read(path: Path) -> list[dict]:
@@ -117,8 +131,7 @@ def report(rows: list[dict], a) -> None:
             m = {k: float(np.nanmean([r[k] for r in cell]))
                  for k in ("late_births", "late_spawns", "pop_mean", "pop_cv", "at_floor", "at_cap")}
             met = {k: sum(x[k] for x in v) for k in v[0]}
-            short = source if len(source) <= 16 else source.rsplit("-", 1)[-1]     # hdist: n100
-            print(f"{dims:>4} {short:>16} {len(cell):>6} {m['late_births']:7.0f} {m['late_spawns']:7.0f} "
+            print(f"{dims:>4} {short(source):>16} {len(cell):>6} {m['late_births']:7.0f} {m['late_spawns']:7.0f} "
                   f"{m['pop_mean']:6.0f} {m['pop_cv']:5.2f} {m['at_floor']:6.0%} {m['at_cap']:5.0%}  "
                   f"{met['births']:>6} {met['off rails']:>6} {met['steady']:>7} "
                   f"{sum(all(x.values()) for x in v):>5}")
@@ -138,8 +151,14 @@ def main() -> None:
     ap.add_argument("--jobs", type=int, default=os.cpu_count() or 1)
     ap.add_argument("--nurseries", nargs="+", default=[], metavar="DIMS=GLOB",
                     help="score other nursery folders for a dimension (e.g. 4=snapshots/s3/births-n*-r35)")
+    ap.add_argument("--set", default="", metavar="K=V,...",
+                    help="Config overrides for every world (e.g. soil_diffusion=0.1); saved in the settings")
     ap.add_argument("--report-only", action="store_true")
     a = ap.parse_args()
+    try:
+        extra = parse_overrides(a.set)
+    except ValueError as e:
+        ap.error(f"--set: {e}")
     for spec in a.nurseries:
         dims, _, pattern = spec.partition("=")
         found = sorted(str(p.relative_to(ROOT)).replace("\\", "/") for p in ROOT.glob(pattern) if p.is_dir())
@@ -160,7 +179,7 @@ def main() -> None:
         missing = [s for d in a.dims for s in NURSERIES[d] if not (ROOT / s / "state.json").exists()]
         if missing:
             raise SystemExit(f"missing nurseries: {missing} (plan-m3 'Worlds' says how to rebuild them)")
-        tasks = [(d, s, list(range(a.seeds)), a.ticks) for d in a.dims for s in sources(d)]
+        tasks = [(d, s, list(range(a.seeds)), a.ticks, extra) for d in a.dims for s in sources(d)]
         tasks.sort(key=lambda t: -t[0])                 # 4D first: slowest per tick
         rows = []
         with ProcessPoolExecutor(min(a.jobs, len(tasks))) as pool:

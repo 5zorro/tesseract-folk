@@ -78,9 +78,14 @@ births, 5zorro's cross-entry idea) or S4 (axes x brain size), 5zorro's pick.
 births per play world), but worlds boom to the cap, then starve: the rich food
 cores lose their soil (eaten there, pooped everywhere, nothing carries it
 back). M3 needs a soil rule first (plan-m3 S3 result, open decision 6).
-**Next: plan-m3 slice S3b** (poop and soil diffusion, off by default, both
-engines, exact mass transfers; approved by 5zorro), then S3c (re-pick hunger
-with mating as a survival axis; 5zorro's budget-law idea).
+**S3b done (2026-11-08):** `Config.poop_diffusion` / `soil_diffusion` (off by
+default; `scripts/trace_soil.py`). Soil diffusion (0.03 or more) keeps the
+cores fertile; poop diffusion doesn't help. The births-race worlds now sit at
+the cap (250) instead of crashing. 5zorro: soil diffusion as the default,
+hunger may move, every world should pass M3, fix M2's 4D diet goal if the map
+caused it. **Next:** soil default (rate + re-baseline, open decision 6), then
+plan-m3 S3c (hunger up until food, not the cap, limits growth), S3e (M2 4D
+diet recheck), S3d (5zorro's whole-meal plants, a draft to agree).
 
 0. **State at 2026-11-06 (end):** results of the day are in
    `docs/plan-m2-diet-travel.md` slices R7-R9 and the laws table in
