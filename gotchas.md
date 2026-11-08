@@ -257,3 +257,20 @@ Traps that already bit us, by area. Add to this when something surprises you.
   has spawned (they import at spawn); a pool the script opens later (e.g. its
   play phase) imports the edited code.
 
+- **Raced hall-of-fame entries (`raced`, `scripts/arena.py` arm `persist`) are
+  pinned only inside the nursery that raced them.** They rank first, take no
+  credit from copies' lives and dodge the 5-copies floor, so their record is
+  frozen at the race's. A world started from that snapshot (`brains_from`,
+  `seed_brains`) drops the mark and treats them as ordinary entries; until the
+  review of 2026-11-08 it didn't, and every seeded world kept them pinned
+  forever. A loaded mark must be 1 (a shared snapshot can't set a bigger one).
+  Their merit is in race units (collapses in the 1x-hunger test worlds vs the
+  field), not the nursery's (vs the population): top-up tournaments compare
+  the two as if they were one scale. Not yet measured whether that matters.
+- **Research scripts reuse finished runs by file name.** `hunger_search.py`
+  names runs by dims, hunger keys, brain size (`-u<N>`, other than 16) and
+  level; `variation_ladder.py` checks rounds, round length, nursery seeds and
+  scored rounds against the cell's CSV and tags a non-default `--hunger`;
+  `arena.py --start-round` refuses a `--dims`, `--hidden` or `--breed` that
+  differs from the checkpoint's. Anything else that differs (e.g. `ladder.py`
+  defaults changed between runs) is still reused silently: delete the CSV.

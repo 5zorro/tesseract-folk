@@ -227,3 +227,30 @@ def test_a_raced_entry_keeps_its_race_record_and_its_place(engine, tmp_path):
     if engine == "arrays":
         save_snapshot(sim, tmp_path / "s")
         assert load_snapshot(tmp_path / "s").hall_of_fame[0]["raced"] == 1.0
+
+
+def test_a_raced_snapshot_seeds_ordinary_entries(tmp_path):
+    """Review 2026-11-08: the race's mark stays with the race. A world seeded
+    from a raced snapshot (`brains_from`) treats its entries like any others, or
+    they'd sit at the top of every world it seeds, their records frozen."""
+    sim = Simulation(Config(**SMALL), log_every=10**9)
+    sim.hall_of_fame = [{**entry(sim, 999, lives=8, excess_sum=-0.5), "raced": 1.0}]
+    save_snapshot(sim, tmp_path / "s")
+    pool = load_brain_pool(tmp_path / "s")
+    assert pool[0]["raced"] == 1.0                     # the snapshot itself keeps the mark
+    fresh = Simulation(Config(**{**SMALL, "seed": 4}), log_every=10**9)
+    seed_brains(fresh, pool)
+    assert not any("raced" in e for e in fresh.hall_of_fame)
+
+
+def test_a_raced_mark_is_a_mark_not_a_score(tmp_path):
+    """A shared snapshot can't give an entry a bigger mark than the race's 1."""
+    sim = Simulation(Config(**SMALL), log_every=10**9)
+    sim.hall_of_fame = [{**entry(sim, 999, lives=8, excess_sum=-0.5), "raced": 1.0}]
+    save_snapshot(sim, tmp_path / "s")
+    state = json.loads((tmp_path / "s" / "state.json").read_text())
+    for bad in (5.0, -1.0):
+        state["hall_of_fame"][0]["raced"] = bad
+        (tmp_path / "s" / "state.json").write_text(json.dumps(state))
+        with pytest.raises(ValueError, match="raced"):
+            load_snapshot(tmp_path / "s")

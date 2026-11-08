@@ -12,7 +12,10 @@ and scores each checkpoint in the usual play worlds (default mutation).
     python scripts/variation_ladder.py --report-only
 
 Each cell writes `runs/var-{d}d-m{scale}-h{hidden}.csv` / `.log`; cells already
-run are reused. Checkpoints are deleted after scoring unless the cell meets every
+run are reused, but only with the same settings: rounds, round length, nursery
+seeds and scored rounds are checked against the CSV, and a non-default
+`--hunger` adds a tag to the name (review 2026-11-08: a rerun with other
+settings silently reused old cells). Checkpoints are deleted after scoring unless the cell meets every
 M2 goal at its last round (snapshot rule: keep only what passes M2).
 Prints one table (mean +- se over nurseries) and a least-squares fit of each
 metric on log2(scale) and log2(hidden) at the last round: the relationship,
@@ -21,6 +24,7 @@ not just the winner.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import math
 import shutil
 import subprocess
@@ -43,14 +47,32 @@ SHOWN = (("zone_types_per_life", "types"), ("diet_diversity", "diet"), ("min_nut
          ("collapse_rate", "clpse"))
 
 
-def cell_name(dims: int, scale: float, hidden: int) -> str:
-    return f"var-{dims}d-m{round(scale, 3)}-h{hidden}"
+def cell_name(dims: int, scale: float, hidden: int, hunger: str = HUNGER_036) -> str:
+    tag = "" if hunger == HUNGER_036 else "-" + hashlib.sha1(hunger.encode()).hexdigest()[:6]
+    return f"var-{dims}d-m{round(scale, 3)}-h{hidden}{tag}"
+
+
+def scored_rounds(a) -> set[int]:
+    return {r for r in range(1, a.rounds + 1) if r % a.play_every == 0 or r == a.rounds}
+
+
+def check_settings(path: Path, rows: list[dict], a) -> None:
+    """Refuse a cell's CSV that other settings made (the name can't hold them all)."""
+    plain = [r for r in rows if r["arm"] == "plain"]
+    found = ({r["round"] for r in plain}, {r["nursery"] for r in plain},
+             {r["ticks"] == r["round"] * a.round_ticks for r in plain})
+    wanted = (scored_rounds(a), set(a.nursery_seeds), {True})
+    if found != wanted:
+        raise SystemExit(f"{path.name} was made with other settings (rounds {sorted(found[0])}, nurseries "
+                         f"{sorted(found[1])}, round length matches: {found[2] == {True}}). "
+                         "Rerun with those settings, or delete the cell's .csv and .log to redo it.")
 
 
 def run_cell(dims: int, scale: float, hidden: int, a) -> str:
-    name = cell_name(dims, scale, hidden)
+    name = cell_name(dims, scale, hidden, a.hunger)
     csv = ROOT / "runs" / f"{name}.csv"
     if csv.exists():
+        check_settings(csv, arena.read(csv), a)
         return f"{name}: reused"
     out = ROOT / "snapshots" / "var" / name
     breed = f"{a.hunger},mutation_scale={round(Config().mutation_scale * scale, 6)}"
@@ -68,10 +90,11 @@ def run_cell(dims: int, scale: float, hidden: int, a) -> str:
 
 
 def summary(dims: int, scale: float, hidden: int, a) -> dict | None:
-    path = ROOT / "runs" / f"{cell_name(dims, scale, hidden)}.csv"
+    path = ROOT / "runs" / f"{cell_name(dims, scale, hidden, a.hunger)}.csv"
     if not path.exists():
         return None
     rows = arena.read(path)
+    check_settings(path, rows, a)
     scratch = [r for r in rows if r["arm"] == "scratch"]
     rounds = sorted({r["round"] for r in rows if r["arm"] == "plain"})
     by_round = {}

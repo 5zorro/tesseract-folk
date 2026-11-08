@@ -39,6 +39,9 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 KEYS = HUNGER          # which hunger settings a level scales (--keys); the rest stay at 1x
+HIDDEN = 16            # brain size (--hidden); every run before 2026-11-08 used 16, and its
+                       # file names carry no size, so other sizes add one (review 2026-11-08:
+                       # --hidden 32 silently reused the 16-unit runs)
 TAGS = {"metabolism_rate": "body", "nutrient_decay": "nutr"}
 
 
@@ -47,7 +50,8 @@ def name(level: float) -> str:
 
 
 def tag() -> str:
-    return "" if set(KEYS) == set(HUNGER) else "-" + "-".join(TAGS[k] for k in KEYS)
+    keys = "" if set(KEYS) == set(HUNGER) else "-" + "-".join(TAGS[k] for k in KEYS)
+    return keys + ("" if HIDDEN == 16 else f"-u{HIDDEN}")
 
 
 def csv_path(dims: int, level: float) -> Path:
@@ -98,7 +102,8 @@ def report(dims: int) -> float | None:
         print(f"{dims}D: no runs yet")
         return None
     goal_names = list(rows[0]["goals"])
-    scaled = f" (scaling {', '.join(KEYS)} only)" if tag() else ""
+    scaled = f" (scaling {', '.join(KEYS)} only)" if set(KEYS) != set(HUNGER) else ""
+    scaled += f", {HIDDEN} hidden units"
     print(f"\n{dims}D, nursery-started worlds by hunger{scaled} (goals: {', '.join(goal_names)})")
     print(f"{'hunger':>6} {'clpse':>5} {'scr':>5} {'nutr':>5} {'diet':>5} {'types':>5} "
           f"{'births':>7} {'top-ups':>7} {'pop':>5}  goals")
@@ -124,8 +129,9 @@ def main() -> None:
                     help="hunger settings a level scales (default both; the rest stay at 1x)")
     ap.add_argument("--report-only", action="store_true")
     args = ap.parse_args()
-    global KEYS
+    global KEYS, HIDDEN
     KEYS = tuple(k for k in HUNGER if k in args.keys)
+    HIDDEN = args.hidden
     if any(not 0 < lv <= 10 for lv in args.levels):
         ap.error("--levels must be in (0, 10]")
     for dims in args.dims:

@@ -104,3 +104,26 @@ def test_persist_marks_kept_entries_raced_and_adds_up_their_races():
     assert (second["lives"], second["excess_sum"]) == (1.0, 0.5)     # new to the race: its record
     arena.write_back(sim, records, keep=2)                            # the arena arm: unchanged rules
     assert "raced" in sim.hall_of_fame[0] and sim.hall_of_fame[0]["lives"] == 2.0
+
+
+def test_resume_refuses_other_rules_than_the_checkpoint():
+    """Review 2026-11-08: --start-round used to ignore a changed --hidden or --breed."""
+    sim = Simulation(Config(**BASE, seed=0))
+    rate = sim.cfg.metabolism_rate
+    arena.check_resume(sim, {"dims": 2, "hidden": 4, "breed": {"metabolism_rate": rate * 1.0}})
+    for args in ({"dims": 2, "hidden": 8, "breed": {}}, {"dims": 3, "hidden": 4, "breed": {}},
+                 {"dims": 2, "hidden": 4, "breed": {"metabolism_rate": rate * 2}}):
+        with pytest.raises(ValueError, match="other rules"):
+            arena.check_resume(sim, args)
+
+
+def test_the_luck_report_reads_every_racing_arm(tmp_path):
+    """Review 2026-11-08: persist's race logs were left out of the luck report."""
+    import json
+    log = {"entries": [{"merit": m} for m in (1.0, 0.0, -1.0)],
+           "grids": [{"players": [0, 1, 2], "raw": [[1.0, 2.0], [2.0, 3.5], [3.0, 4.0]]}]}
+    for folder, name in (("arena-n1-r2", "race.json"), ("persist-n1-r2", "race.json"),
+                         ("plain-n1-r2", "measure.json")):
+        (tmp_path / folder).mkdir()
+        (tmp_path / folder / name).write_text(json.dumps(log))
+    assert sorted(r["kind"] for r in arena.luck_rows(tmp_path)) == ["arena", "persist", "untested"]

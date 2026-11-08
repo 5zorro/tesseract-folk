@@ -169,6 +169,18 @@ def race_log(sim, records: list[dict], grids: list, keep: int | None) -> dict:
             "records": records, "grids": grids}
 
 
+def check_resume(sim, args: dict) -> None:
+    """--start-round runs on the checkpoint's own rules, so refuse a --hidden or
+    --breed that differs from them (review 2026-11-08: they were silently ignored)."""
+    wanted = {"dims": args["dims"], "hidden_units": args["hidden"], **args["breed"]}
+    off = {k: (getattr(sim.cfg, k), v) for k, v in wanted.items()
+           if not (getattr(sim.cfg, k) == v or (isinstance(v, float) and math.isclose(getattr(sim.cfg, k), v)))}
+    if off:
+        raise ValueError("--start-round: the checkpoint was bred with other rules ("
+                         + ", ".join(f"{k} {have} vs {want}" for k, (have, want) in off.items())
+                         + "); pass the original --hidden and --breed")
+
+
 def nursery(job: tuple) -> list[str]:
     arm, nseed, args = job
     shape = shape_of(args["dims"], args["hidden"])
@@ -176,6 +188,7 @@ def nursery(job: tuple) -> list[str]:
     out, start = Path(args["out"]), args["start_round"]
     if start:
         sim = load_snapshot(checkpoint(out, arm, nseed, start), log_every=1000)
+        check_resume(sim, args)
     else:
         sim = Simulation(Config(**{**base, **NURSERY_RULES, **args["breed"], "seed": nseed}), log_every=1000)
     test = {**base, **args["test"], **TEST_RULES}
@@ -247,7 +260,9 @@ def spearman(a, b) -> float:
 def luck_rows(out: Path) -> list[dict]:
     """One row per race log (training races and measure-only races)."""
     rows = []
-    for kind, name in (("arena", "race.json"), ("plain", "measure.json")):
+    # Every arm that races (review 2026-11-08: persist's logs were left out) and
+    # the plain arm's measure-only races.
+    for kind, name in [(arm, "race.json") for arm in RACED] + [("plain", "measure.json")]:
         for p in sorted(out.glob(f"{kind}-n*-r*/{name}")):
             log = json.loads(p.read_text())
             grid = log["grids"][0]
@@ -258,7 +273,7 @@ def luck_rows(out: Path) -> list[dict]:
             half = len(merit) // 2
             agree = (len(set(np.argsort(-merit)[:half]) & set(np.argsort(-quality)[:half])) / half
                      if half else math.nan)
-            rows.append({"kind": "raced" if kind == "arena" else "untested",
+            rows.append({"kind": "untested" if kind == "plain" else kind,
                          "round": int(p.parent.name.rsplit("-r", 1)[1]), "brains": len(merit),
                          "scenarios": raw.shape[1], **c, "merit_vs_race": spearman(merit, quality),
                          "top_half": agree})
@@ -274,11 +289,11 @@ def luck_report(out: Path) -> None:
           "\nthat is quality: 'shared' when brains are compared on common scenarios, 'alone' for one life"
           "\nin its own world (an untested hall of fame). Tests = lives or scenarios for 0.8 reliability"
           "\n(Spearman-Brown). merit~race = rank correlation of the hall of fame's own merit with the race;"
-          "\ntop half = share of its top half the race also puts there (50% = chance). 'raced' rows use"
-          "\nstage 1 of each training race (the arena arm: half of it was raced before).")
+          "\ntop half = share of its top half the race also puts there (50% = chance). arena and persist"
+          "\nrows use stage 1 of each training race (up to --keep of its entries were raced before).")
     print(f"{'hall':>8} {'round':>5} {'brains':>6} {'quality':>7} {'shared':>7} {'leftover':>8} "
           f"{'r shared':>8} {'r alone':>7} {'tests (shared/alone)':>20} {'merit~race':>10} {'top half':>8}")
-    for kind in ("untested", "raced"):
+    for kind in ("untested", *RACED):
         for rnd in sorted({r["round"] for r in rows if r["kind"] == kind}):
             cell = [r for r in rows if r["kind"] == kind and r["round"] == rnd]
             m = {k: float(np.nanmean([r[k] for r in cell])) for k in cell[0] if k != "kind"}

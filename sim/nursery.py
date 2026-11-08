@@ -34,6 +34,8 @@ def hall_of_fame_entry(data: dict) -> dict:
     entry["id"] = int(entry["id"])
     if data.get("raced"):                     # scripts/arena.py: the record is a race's
         entry["raced"] = float(data["raced"])
+        if entry["raced"] != 1.0:             # a mark, not a score (it outranks merit)
+            raise ValueError("a hall-of-fame entry's raced mark must be 0 or 1")
     numbers = [v for k, v in entry.items() if k != "brain"]
     if (not all(math.isfinite(v) for v in numbers) or entry["lives"] < 0 or entry["copies"] < 0
             or entry["kids"] < 0 or entry["kids_alive"] < 0):
@@ -78,7 +80,10 @@ def seed_brains(sim, pool: list[dict]) -> None:
                 f"must match the snapshot's (pools saved before food scent need "
                 f"food_scent=false).") from e
     cfg = sim.cfg
-    pool = [dict(e, kids_alive=0.0) for e in pool]   # their children live in another world
+    # Their children live in another world. A race's mark stays with the race
+    # (scripts/arena.py): here the entries earn their place like any other, or
+    # a raced snapshot would pin its picks, frozen, in every world it seeds.
+    pool = [{**{k: v for k, v in e.items() if k != "raced"}, "kids_alive": 0.0} for e in pool]
     if cfg.hall_of_fame_track_record:
         # Pool ids come from another world and could clash with this one's NPC
         # ids, so entries get fresh ones (only needed to credit the track record).
