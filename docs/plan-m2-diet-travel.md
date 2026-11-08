@@ -1552,6 +1552,28 @@ Rounds 20-35, mean +- se over the 4 nurseries:
 | plain | 2.63 +- 0.02 | 0.80 +- 0.01 | 0.86 +- 0.01 |
 | arena | 2.65 +- 0.07 | 0.84 +- 0.02 | 0.88 +- 0.02 |
 | persist | 2.60 +- 0.06 | 0.85 +- 0.01 | 0.88 +- 0.03 |
+| persist, rescored (fix below) | 2.60 +- 0.08 | 0.85 +- 0.01 | 0.87 +- 0.02 |
+
+**Rescored after a bug fix (review 2026-11-08).** The persist rows above were
+scored in play worlds seeded from the checkpoints, and `seed_brains` carried the
+`raced` mark into them: the 10 race picks sat pinned at the top of every play
+world's hall of fame with frozen records. Fixed (commit a75c37d: a seeded world
+drops the mark). Rerun from tick 0 with the same command
+(`runs/arena-4d-persist-fixed.log`): training reproduced exactly (all 140 race
+lines identical), so only scoring changed, and it barely moved:
+| Round (ticks) | Types | Diet | Nutrient | Goals (collapses, nutrient, diet 0.8, types, seeks diet) |
+|---|---|---|---|---|
+| 5 (100k) | 2.18 | 0.79 | 0.77 | Y Y . . Y |
+| 10 (200k) | 2.48 | 0.82 | 0.79 | Y Y Y . Y |
+| 15 (300k) | 2.53 | 0.83 | 0.87 | Y Y Y Y Y |
+| 20 (400k) | 2.54 | 0.83 | 0.87 | Y Y Y Y Y |
+| 25 (500k) | 2.61 | 0.84 | 0.88 | Y Y Y Y Y |
+| 30 (600k) | 2.59 | 0.84 | 0.83 | Y Y Y Y Y |
+| 35 (700k) | 2.67 | 0.86 | 0.91 | Y Y Y Y Y |
+Every round within 0.05 types and 0.01 diet of the pinned scoring; "seeks
+diet" now passes at all 7 scored rounds (300k was the one miss). Diet over
+plain, rounds 20-35, paired by nursery: +0.045 +- 0.015 (+0.022, +0.089,
++0.044, +0.027). The persist findings below stand.
 - **The picks now last:** all 1,360 kept entries were still there at the next
   race (arena arm: 14 of 1,160).
 - **The race's ranking partly repeats:** the same kept brains rank with
@@ -1623,14 +1645,18 @@ nutrient, diet, types, seeks diet):
 |---|---|---|---|---|
 | plain (R14) | 200k | 0.83 | 2.61 | 0.88 |
 | arena (R14) | 500k, 600k | 0.84-0.86 | 2.66-2.70 | 0.89-0.90 |
-| persist (R14) | 400k, 500k, 600k, 700k | 0.84-0.86 | 2.52-2.66 | 0.83-0.90 |
+| persist (R14, rescored 2026-11-08) | 300k to 700k | 0.83-0.86 | 2.53-2.67 | 0.83-0.91 |
 | variation grid, 1x / 16 units (R15) | 200k | 0.81 | 2.57 | 0.87 |
 "Seeks diet" (approach excess above 0 in every run, and above scratch) is now
-the goal that decides it. Persist passes every scored round from 400k on, so
+the goal that decides it. Persist passes every scored round from 300k on
+(400k before the 2026-11-08 rescore, R14), so
 it is the 4D recipe: `python scripts/arena.py --dims 4 --breed H --play H
 --arms persist --rounds 20` with H = `nutrient_decay=0.00108,metabolism_rate=0.0036`
-(~1 hour). No 4D snapshot is kept today (all were deleted before the goal
-moved); rebuild one with that command when a later milestone needs it.
+(~1 hour). Kept 4D snapshots (2026-11-08 rescore, every one meets M2):
+`snapshots/arena-fixed/persist-n{100..103}-r{15,20,25,30,35}` (300k-700k
+ticks; `--rounds 35 --play-every 5 --out snapshots/arena-fixed` rebuilds them).
+A world seeded from them gets ordinary hall-of-fame entries (the raced mark
+stays in the racing nursery).
 
 **Revisit hints** (where to dig if 4D diet 0.9 matters again; none built):
 1. **The selection signal** ("rewarding B while hoping for A"): selection

@@ -90,7 +90,8 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
    race verdicts are washed out within one 20k round (~1% of kept entries
    survive). With the picks made to persist (raced entries, arm `persist`):
    same types ceiling, diet +0.05 (0.85), still short of 0.9; luck isn't the
-   cap. **R15:** mutation size (inverted U at the default) and brain size
+   cap (rescored 2026-11-08 after the review fixed raced marks leaking into
+   seeded worlds: same numbers within 0.01 diet). **R15:** mutation size (inverted U at the default) and brain size
    (8-32, flat) don't move it either; diet ~0.78-0.80 in every cell. 4D's diet
    ceiling isn't a training-method limit. **5zorro moved 4D's diet goal to
    0.8 and closed M2 (2026-11-07);** revisit hints are in R15. Next: M3

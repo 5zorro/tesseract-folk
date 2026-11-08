@@ -207,8 +207,9 @@ Traps that already bit us, by area. Add to this when something surprises you.
   the named script (keyed randomness reproduces the CSV).
 - **Most snapshot folders named in older plan and handoff entries are gone.**
   On 2026-11-06 only the snapshots that pass M2 under the current rules were
-  kept (2D/3D `ladder3`, `sizes`, `outputs`, `ramp-e1.0-f30`). Rebuild any
-  other folder with the command next to it.
+  kept (2D/3D `ladder3`, `sizes`, `outputs`, `ramp-e1.0-f30`; 4D since
+  2026-11-08: `arena-fixed`, plan-m2 R15). Rebuild any other folder with the
+  command next to it.
 - **Editing a script while a background run uses it can crash the run.** On
   Windows, worker processes re-import the script when a pool starts, so a
   half-edited file reaches them mid-run. Finish edits (and `py_compile`) before

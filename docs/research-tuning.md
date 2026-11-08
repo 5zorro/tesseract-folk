@@ -170,12 +170,12 @@ gitignored). The plan tables are the record; to check one, rerun its script.
 | After ~60k ticks one untested life is 15-45% quality: 0.8 reliability needs ~5-20 lives alone, or ~2-6 shared scenarios (common random numbers cut the tests 2-4x) | hint | plan-m2 R14 (Spearman-Brown) |
 | A hall of fame's own merit ranks brains no better than chance against a shared-scenario race (rank corr. ~0, top-half agreement 42-57%) | finding (every measured round, 1-35) | plan-m2 R14 |
 | Race verdicts written into the hall of fame don't last a 20k round: ~1% of kept entries survive to the next race (though the survivors are better); the 5-copies floor drops most of them on luck | finding | plan-m2 R14; `race.json` |
-| Taking luck out of selection (races whose picks persist) doesn't raise 4D's food-types ceiling (~2.6-2.65 in all arms); it raises late diet ~0.05 (0.85 vs 0.80), still below 0.9 | finding (4 nurseries per arm, to 700k) | plan-m2 R14 persist arm |
+| Taking luck out of selection (races whose picks persist) doesn't raise 4D's food-types ceiling (~2.6-2.65 in all arms); it raises late diet ~0.05 (0.85 vs 0.80; +0.045 +- 0.015 paired by nursery, rescored 2026-11-08), still below 0.9 | finding (4 nurseries per arm, to 700k) | plan-m2 R14 persist arm |
 | With persistent champions, the next race's newcomers (mostly their mutated copies) are as good as the champions: the population converges on them | finding | plan-m2 R14 persist arm |
 | Mutation size is an inverted U centred on the default (0.3) in 4D at 0.36x: half or double loses ~0.1-0.25 food types; double raises collapses +0.02 per doubling | finding (3 x 3 grid, 4 nurseries per cell, 300k) | plan-m2 R15; `variation_ladder.py` |
 | Brain size 8-32 units doesn't change 4D's ceiling at 0.36x (types -0.05 +- 0.05, diet -0.002 +- 0.005 per doubling) | finding | plan-m2 R15 |
 | 4D diet (~0.77-0.80) is flat across mutation size, brain size and selection noise: not a training-method limit | finding (R14 + R15) | plan-m2 R15 |
-| With 4D's diet goal at 0.8 (moved 2026-11-07), "seeks diet" decides 4D's M2 pass; persistent races pass it every scored round from 400k ticks | finding | plan-m2 R15 "Goal moved" |
+| With 4D's diet goal at 0.8 (moved 2026-11-07), "seeks diet" decides 4D's M2 pass; persistent races pass it every scored round from 300k ticks (rescored 2026-11-08) | finding | plan-m2 R15 "Goal moved" |
 | Lineage-adaptive mutation rarely gives its big jumps: in 4D 0% of children reach the 4x cap and ~40% sit at the 1/4 floor (mean 21.5 per child at 0.36x, 13.8 at 1x) | hint (one nursery, 20k ticks) | plan-m2 R15 notes; scratch probe |
 | Hunger isn't 4D's M2 lever: food types 1.96 at 1x, 2.11 at 0.36x (goal 2.5) | finding | plan-m2 R12 |
 | Diagonal (king) steps cut the food-to-food walk 1.4x / 1.75x / 1.9x in 2D / 3D / 4D (theory for an open grid: 2d/3) | finding (random walker) | plan-m2 R12; `probe_random_walk.py --diagonal` |

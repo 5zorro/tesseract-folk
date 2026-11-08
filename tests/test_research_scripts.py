@@ -1,5 +1,6 @@
-"""Research scripts reuse finished runs by file name; a rerun with other settings
-must not silently reuse them (review 2026-11-08)."""
+"""Research scripts: reruns reuse finished runs by file name, and a rerun with
+other settings must not silently reuse them (review 2026-11-08); the hunger
+search's bisection."""
 from types import SimpleNamespace
 
 import pytest
@@ -43,3 +44,12 @@ def test_variation_cells_name_a_non_default_hunger():
     assert variation_ladder.cell_name(4, 1.0, 16) == "var-4d-m1.0-h16"
     other = variation_ladder.cell_name(4, 1.0, 16, "nutrient_decay=0.003")
     assert other.startswith("var-4d-m1.0-h16-") and other != variation_ladder.cell_name(4, 1.0, 16)
+
+
+def test_hunger_search_bisects_between_the_lowest_pass_and_the_fail_below():
+    rows = lambda *ls: [{"level": lv, "passes": ok} for lv, ok in ls]  # noqa: E731
+    assert hunger_search.next_level(rows((0.5, False), (0.75, True), (1.0, True)), 0.02) == 0.625
+    assert hunger_search.next_level(rows((0.5, False), (0.75, False), (1.0, True)), 0.02) == 0.875
+    assert hunger_search.next_level(rows((0.5, False), (1.0, False)), 0.02) is None        # nothing passes
+    assert hunger_search.next_level(rows((0.75, True), (1.0, True)), 0.02) is None         # no fail below
+    assert hunger_search.next_level(rows((0.74, False), (0.75, True)), 0.02) is None       # gap under min_gap

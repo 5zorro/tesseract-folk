@@ -117,6 +117,19 @@ def report(dims: int) -> float | None:
     return pick
 
 
+def next_level(rows: list[dict], min_gap: float) -> float | None:
+    """The bisection step: halfway between the lowest level that meets every
+    goal and the highest failing level below it; None when nothing passes,
+    nothing fails below the lowest pass, or the gap is under `min_gap`."""
+    passing = sorted(s["level"] for s in rows if s["passes"])
+    if not passing:
+        return None
+    below = [s["level"] for s in rows if not s["passes"] and s["level"] < passing[0]]
+    if not below or passing[0] - max(below) < min_gap:
+        return None
+    return round((passing[0] + max(below)) / 2, 3)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--dims", type=int, nargs="+", required=True)
@@ -139,14 +152,11 @@ def main() -> None:
             for lv in args.levels:
                 run_level(dims, lv, args.hidden, args.out)
             for _ in range(args.refine):
-                rows = [s for s in (summary(dims, lv) for lv in known_levels(dims)) if s]
-                passing = sorted(s["level"] for s in rows if s["passes"])
-                if not passing:
+                level = next_level([s for s in (summary(dims, lv) for lv in known_levels(dims)) if s],
+                                   args.min_gap)
+                if level is None:
                     break
-                below = [s["level"] for s in rows if not s["passes"] and s["level"] < passing[0]]
-                if not below or passing[0] - max(below) < args.min_gap:
-                    break
-                run_level(dims, round((passing[0] + max(below)) / 2, 3), args.hidden, args.out)
+                run_level(dims, level, args.hidden, args.out)
         report(dims)
 
 
