@@ -67,6 +67,32 @@ Plus scratch worlds (no nursery) at the same settings, for comparison.
 - Report which criterion fails where, and how a world's population moves
   (booms, floors, swings).
 
+**Result (2026-11-08, `runs/m3-baseline.log`; 5 seeds x 30,000 ticks, judged
+on 15-30k).** Means over worlds; the last four columns count worlds (of 5)
+meeting each criterion:
+| Dims | Source | Births | Top-ups | Pop | On floor | Births | Off rails | Steady | Pass |
+|---|---|---|---|---|---|---|---|---|---|
+| 2D | n100 | 41 | 210 | 30 | 78% | 0 | 0 | 5 | 0 |
+| 2D | n101 | 230 | 174 | 42 | 67% | 1 | 1 | 4 | 0 |
+| 2D | scratch | 48 | 225 | 30 | 81% | 0 | 0 | 5 | 0 |
+| 3D | n100 | 724 | 82 | 80 | 28% | 3 | 3 | 5 | **3** |
+| 3D | n101 | 69 | 192 | 31 | 71% | 0 | 0 | 5 | 0 |
+| 3D | scratch | 410 | 178 | 58 | 62% | 1 | 0 | 4 | 0 |
+| 4D | persist n100-n103 | 0-10 | ~210 | 30 | 95-100% | 0 | 0 | 5 | 0 |
+| 4D | scratch | 35 | 194 | 30 | 86% | 0 | 0 | 5 | 0 |
+- **3 of 55 worlds pass, all 3D from nursery n100.** No 2D or 4D world passes.
+- **Most worlds end on the floor.** 30k-tick worlds start at 60 NPCs and fall
+  to the 30 floor, where top-ups hold them; the M2 ladders' 10k-tick runs (3D
+  0.9x: 567 births vs 53 top-ups) mostly saw the start. "Steady" is met almost
+  everywhere only because the floor is flat; the rails criterion catches it.
+- **3D is bistable by nursery and seed:** n100's worlds either thrive
+  (3 of 5) or sit on the floor; n101's all sit on the floor.
+- **4D's trained brains have fewer births than scratch brains** (0-10 vs 35;
+  every nursery). Hypothesis, not measured: the nursery selects against
+  mating (rewarding not collapsing at 0.36x, where mating costs body mass),
+  "rewarding B while hoping for A". Next: mate attempts and their failure
+  reasons per source (`scripts/probe_mating.py`, R9).
+
 ### Slice S2: What regulates a steady world (measure, don't add)
 For worlds off both rails: deaths by cause over time, density, food stock,
 fertilizer and stink against population. Is there a negative feedback below

@@ -68,7 +68,9 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
 **Now (2026-11-08): M3, stable population from real births.** Plan:
 `docs/plan-m3-births.md` (goal rewritten with 5zorro: births 10x top-ups, off
 the floor and the cap, cv < 0.15, in 2D/3D/4D at each dimension's M2 hunger).
-Next: slice S1, the baseline (`scripts/m3_ladder.py`).
+S1 baseline done: 3 of 55 worlds pass (all 3D, nursery n100); most worlds fall
+from 60 to the 30 floor over 30k ticks; 4D's trained brains have fewer births
+than scratch (0-10 vs 35). Next: why (mate attempts per source), plan S1/S2.
 
 0. **State at 2026-11-06 (end):** results of the day are in
    `docs/plan-m2-diet-travel.md` slices R7-R9 and the laws table in
