@@ -285,3 +285,13 @@ Traps that already bit us, by area. Add to this when something surprises you.
   scratch ones (plan-m3 S3, S3b). Every M2 number and M3's S1-S3 were measured
   that way. Snapshots without the field resume with 0 (LEGACY); worlds seeded
   from them get 0.1. Ladder nurseries from before count as other settings.
+- **Result names carry physics changed since older runs** (review
+  2026-11-09): `hunger_search` and `variation_ladder` file names end in
+  `-soil0.1` (`ladder.physics_tag()`), `m3_ladder` settings record it, and
+  `arena.py --start-round` refuses a checkpoint bred under soil mining. Files
+  without the tag are from before 2026-11-08. A future default change goes
+  into `ladder.PHYSICS` the same way.
+- **`trace_soil.py --variant default`** means today's rules (soil 0.1); soil
+  mining is `soil_diffusion=0`. Its S3b table's "off" row predates the default.
+- **Cap-2,000 worlds are slow:** a 4D world of ~1,500 NPCs is ~10x a floor
+  world per tick (the 4D capacity scan took 67 of its 73 minutes).

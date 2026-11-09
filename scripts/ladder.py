@@ -66,6 +66,24 @@ def min_diet(dims: int) -> float:
 # A "shape" is (dims, size, food_patch_radius, hidden_units, rules), where rules
 # are extra Config overrides as sorted (key, value) pairs. Jobs carry it whole,
 # since worker processes re-import this module and wouldn't see the chosen set.
+# World rules whose default changed after research results were saved, with the
+# value those results used. Result files and checkpoints made before a change
+# must not count as reruns (pre-compaction review 2026-11-09).
+PHYSICS = {"soil_diffusion": 0.0}          # 0.1 since 2026-11-08 (plan-m3 S3b)
+PHYSICS_TAGS = {"soil_diffusion": "soil"}
+
+
+def physics_changes() -> dict:
+    """Today's value of each PHYSICS default that differs from what older results used."""
+    base = Config()
+    return {k: getattr(base, k) for k, old in PHYSICS.items() if getattr(base, k) != old}
+
+
+def physics_tag() -> str:
+    """A file-name tag for today's physics ('' while every default is the old one)."""
+    return "".join(f"-{PHYSICS_TAGS[k]}{v:g}" for k, v in physics_changes().items())
+
+
 def world(shape: tuple) -> dict:
     dims, size, radius, hidden, rules = shape
     return {**RESEARCH_DEFAULTS, "dims": dims, "size": size, "food_patch_radius": radius,

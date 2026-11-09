@@ -39,7 +39,7 @@ import numpy as np  # noqa: E402
 
 from sim import Config  # noqa: E402
 import arena  # noqa: E402
-from ladder import verdicts  # noqa: E402
+from ladder import physics_tag, verdicts  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 HUNGER_036 = "nutrient_decay=0.00108,metabolism_rate=0.0036"     # 4D's pick (R12-R14)
@@ -49,7 +49,7 @@ SHOWN = (("zone_types_per_life", "types"), ("diet_diversity", "diet"), ("min_nut
 
 def cell_name(dims: int, scale: float, hidden: int, hunger: str = HUNGER_036) -> str:
     tag = "" if hunger == HUNGER_036 else "-" + hashlib.sha1(hunger.encode()).hexdigest()[:6]
-    return f"var-{dims}d-m{round(scale, 3)}-h{hidden}{tag}"
+    return f"var-{dims}d-m{round(scale, 3)}-h{hidden}{tag}{physics_tag()}"
 
 
 def scored_rounds(a) -> set[int]:

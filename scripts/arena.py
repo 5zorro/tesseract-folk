@@ -67,7 +67,7 @@ from sim.brain import Brain  # noqa: E402
 from sim.config import parse_overrides  # noqa: E402
 from sim.simulation import Batch  # noqa: E402
 from sim.snapshot import load_snapshot, save_snapshot  # noqa: E402
-from ladder import LATE_FROM, LOG_EVERY, NURSERY_RULES, WORLD_SETS, verdicts, world  # noqa: E402
+from ladder import LATE_FROM, LOG_EVERY, NURSERY_RULES, PHYSICS, WORLD_SETS, verdicts, world  # noqa: E402
 from sweep import run_batch  # noqa: E402
 
 ARMS = ("plain", "arena", "persist", "births", "cross", "births-cross")
@@ -230,8 +230,11 @@ def race_log(sim, records: list[dict], grids: list, keep: int | None) -> dict:
 
 def check_resume(sim, args: dict) -> None:
     """--start-round runs on the checkpoint's own rules, so refuse a --hidden or
-    --breed that differs from them (review 2026-11-08: they were silently ignored)."""
-    wanted = {"dims": args["dims"], "hidden_units": args["hidden"], **args["breed"]}
+    --breed that differs from them (review 2026-11-08: they were silently ignored),
+    or a checkpoint from before a physics default changed (review 2026-11-09: it
+    would breed under the old rules while its test worlds use the new ones)."""
+    wanted = {"dims": args["dims"], "hidden_units": args["hidden"],
+              **{k: getattr(Config(), k) for k in PHYSICS}, **args["breed"]}
     off = {k: (getattr(sim.cfg, k), v) for k, v in wanted.items()
            if not (getattr(sim.cfg, k) == v or (isinstance(v, float) and math.isclose(getattr(sim.cfg, k), v)))}
     if off:

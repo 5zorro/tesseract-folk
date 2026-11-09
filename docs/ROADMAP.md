@@ -25,7 +25,12 @@ Passed in 2D, 3D and 4D (4D's diet goal is 0.8, 5zorro 2026-11-07); see
 **Pass:** `diet_diversity` stays high *and* NPCs move between food zones
 (add a metric: distinct food zones visited per lifetime).
 
-## M3: Stable population from real births
+## M3: Stable population from real births ✅ (closed by 5zorro, 2026-11-09)
+Closed with populations that hold on their own births but cycle (boom and
+bust on stink) instead of settling: 5zorro, "i don't care too much about
+trying to make it perfectly even and at equilibrium... Lets mark it done and
+move on." The steadiness criterion below was not met in M3's band; what
+holds and what cycles is in `docs/plan-m3-births.md` (S3c).
 Rewritten 2026-11-08 (5zorro: "m3 was written a long time ago. is it still
 relevant?"); plan: `docs/plan-m3-births.md`.
 **Pass,** in 2D, 3D and 4D, play worlds started from each dimension's M2

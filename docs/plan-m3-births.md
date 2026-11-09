@@ -1,5 +1,26 @@
 # Plan: M3 Stable population from real births
 
+**Closed by 5zorro (2026-11-09):** "i don't care too much about trying to make
+it perfectly even and at equilibrium. We got it to the point that we have a
+sine wave of 'at this level, it booms and busts on stink', great. Lets mark it
+done and move on. If we test, we have to test in a manner that removes the
+noise, but that is doable." Where M3 stands at close:
+- **Births sustain populations** once soil diffusion (default 0.1) keeps the
+  food cores fertile and NPCs are dense enough to find mates (>= ~0.04-0.08
+  per cell). Brains bred with births scored (S3's births race) do it; M2's
+  brains don't (mating was selected away).
+- **4D steady:** size 10 with the cap at 2,000 passes every M3 criterion at
+  0.6x (12/12 worlds) and 0.75x (10/12), at ~1,500 / ~770 NPCs.
+- **In M3's 30-250 band** (2D at 0.6-0.8x, 4D at sizes 6-8) populations hold
+  on births but cycle: cv 0.23-0.95, stink killing ~90-99%.
+- **5zorro's reading:** stink's boom and bust is like the thermostat ladder
+  (`scripts/anneal.py`, plan-m2 R7: population swings weed out bad brains, then let
+  mutants back in), so it may help selection rather than hurt it.
+- **For later tests:** cycles add noise; compare with common random numbers,
+  long windows (several cycles) or cycle-averaged measures.
+- Not done, still open: S3d (whole-meal plants, a draft), S3e (M2's 4D diet
+  goal: small maps raise diet to ~0.86-0.91), S4, and open decisions 3-5.
+
 Status (2026-11-08, late): S1 baseline, S1b probe, S3 (births race, cross
 entry) and S3b (poop and soil diffusion, built, off by default) done; no world
 passes yet. Soil diffusion ends the soil mining: births-race worlds no longer

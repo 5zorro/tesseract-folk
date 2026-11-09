@@ -33,7 +33,7 @@ import numpy as np  # noqa: E402
 
 from sim import Config  # noqa: E402
 from anneal import HUNGER  # noqa: E402
-from ladder import read_csv, verdicts  # noqa: E402
+from ladder import physics_tag, read_csv, verdicts  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -51,7 +51,7 @@ def name(level: float) -> str:
 
 def tag() -> str:
     keys = "" if set(KEYS) == set(HUNGER) else "-" + "-".join(TAGS[k] for k in KEYS)
-    return keys + ("" if HIDDEN == 16 else f"-u{HIDDEN}")
+    return keys + ("" if HIDDEN == 16 else f"-u{HIDDEN}") + physics_tag()   # runs before 2026-11-08 had none
 
 
 def csv_path(dims: int, level: float) -> Path:

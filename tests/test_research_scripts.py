@@ -13,10 +13,10 @@ def test_hunger_search_names_runs_by_brain_size(monkeypatch):
     monkeypatch.setattr(hunger_search, "HIDDEN", 16)
     default = hunger_search.csv_path(4, 0.5).name
     monkeypatch.setattr(hunger_search, "HIDDEN", 32)
-    assert default == "hdist-4d-h0.5.csv"                  # runs before 2026-11-08 keep their names
-    assert hunger_search.csv_path(4, 0.5).name == "hdist-4d-u32-h0.5.csv"
+    assert default == "hdist-4d-soil0.1-h0.5.csv"          # 16 units: no size tag; soil since 2026-11-08
+    assert hunger_search.csv_path(4, 0.5).name == "hdist-4d-u32-soil0.1-h0.5.csv"
     monkeypatch.setattr(hunger_search, "KEYS", ("metabolism_rate",))
-    assert hunger_search.csv_path(4, 0.5).name == "hdist-4d-body-u32-h0.5.csv"
+    assert hunger_search.csv_path(4, 0.5).name == "hdist-4d-body-u32-soil0.1-h0.5.csv"
 
 
 def args(**kw):
@@ -41,7 +41,7 @@ def test_variation_cells_refuse_other_settings(tmp_path):
 
 
 def test_variation_cells_name_a_non_default_hunger():
-    assert variation_ladder.cell_name(4, 1.0, 16) == "var-4d-m1.0-h16"
+    assert variation_ladder.cell_name(4, 1.0, 16) == "var-4d-m1.0-h16-soil0.1"   # runs before 2026-11-08: no tag
     other = variation_ladder.cell_name(4, 1.0, 16, "nutrient_decay=0.003")
     assert other.startswith("var-4d-m1.0-h16-") and other != variation_ladder.cell_name(4, 1.0, 16)
 
@@ -107,3 +107,12 @@ def test_trace_soil_steps_to_the_nearest_core_wrap_and_cap():
     d = tr.steps_to(core)
     assert d[0, 0] == 0 and d[0, 1] == 1 and d[9, 9] == 2          # around the wrap
     assert d.max() == tr.BINS - 1 and d[5, 5] == tr.BINS - 1        # capped
+
+
+def test_result_names_carry_physics_changed_since_older_runs(monkeypatch):
+    """Review 2026-11-09: results made under soil mining were reused by name."""
+    import scripts.ladder as ladder
+    assert ladder.physics_tag() == "-soil0.1"
+    assert hunger_search.csv_path(4, 0.36).name == "hdist-4d-soil0.1-h0.36.csv"
+    monkeypatch.setattr(ladder, "PHYSICS", {"soil_diffusion": 0.1})      # as if nothing changed
+    assert ladder.physics_tag() == "" and ladder.physics_changes() == {}

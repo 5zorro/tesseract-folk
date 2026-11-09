@@ -93,6 +93,10 @@ fails on hunger and on density, not age. Smaller 4D maps (size 6-8) bring the
 population into the band (84-267 NPCs) but it cycles (cv 0.45-0.95, stink
 deaths ~95%), like 2D. **Next:** confirm stink as a delayed regulator (trace),
 then a stink-rule test; S3e (small maps raise 4D diet to ~0.9), S3d.
+**M3 closed by 5zorro (2026-11-09):** populations hold on births and boom/bust
+on stink; "mark it done and move on" (ROADMAP, plan-m3 top). Next is 5zorro's
+pick: M4 (trade), S3e (M2's 4D diet 0.9 via map shape), S3d (whole-meal
+plants), or game-layer design (performance/LOD notes in `openitems.md`).
 
 0. **State at 2026-11-06 (end):** results of the day are in
    `docs/plan-m2-diet-travel.md` slices R7-R9 and the laws table in

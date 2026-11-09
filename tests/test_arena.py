@@ -117,6 +117,14 @@ def test_resume_refuses_other_rules_than_the_checkpoint():
             arena.check_resume(sim, args)
 
 
+def test_resume_refuses_a_checkpoint_from_before_soil_diffusion():
+    """Review 2026-11-09: an old checkpoint loads with soil_diffusion 0 (LEGACY) and
+    would breed under soil mining while its test worlds use today's 0.1."""
+    old = Simulation(Config(**BASE, seed=0, soil_diffusion=0.0))
+    with pytest.raises(ValueError, match="soil_diffusion"):
+        arena.check_resume(old, {"dims": 2, "hidden": 4, "breed": {}})
+
+
 def test_the_luck_report_reads_every_racing_arm(tmp_path):
     """Review 2026-11-08: persist's race logs were left out of the luck report."""
     import json

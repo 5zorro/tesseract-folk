@@ -46,7 +46,7 @@ import numpy as np  # noqa: E402
 
 from sim import Config  # noqa: E402
 from sim.config import parse_overrides  # noqa: E402
-from ladder import WORLD_SETS, world  # noqa: E402
+from ladder import WORLD_SETS, physics_changes, world  # noqa: E402
 from sweep import run_batch  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -59,9 +59,6 @@ NURSERIES = {
 }
 HIDDEN = 16
 LOG_EVERY = 250
-# World rules whose default changed after M3 runs began, with the value those
-# runs used: a results file made before the change doesn't count as a rerun.
-PHYSICS = {"soil_diffusion": 0.0}          # 0.1 since 2026-11-08 (plan-m3 S3b)
 
 
 def hunger_rules(level: float) -> dict:
@@ -103,7 +100,7 @@ def settings(a) -> dict:
            "sources": {str(d): sources(d) for d in a.dims}, "hidden": HIDDEN, "log_every": LOG_EVERY}
     if a.set:                              # only when given, so older sidecars still match
         out["set"] = parse_overrides(a.set)
-    physics = {k: getattr(Config(), k) for k in PHYSICS if getattr(Config(), k) != PHYSICS[k]}
+    physics = physics_changes()
     if physics:                            # a default that changed since the older sidecars
         out["physics"] = physics
     return out
