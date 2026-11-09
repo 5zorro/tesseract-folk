@@ -7,11 +7,12 @@ crash, they sit at the population cap (250) instead. 5zorro (2026-11-08):
 soil diffusion should be the default, hunger may move, every world should
 pass M3, and fix M2's 4D diet goal too if the map was the cause.
 `soil_diffusion` 0.1 is the default since 2026-11-08 (re-baseline below).
-S3c: with the cap at 250 every world sits on a rail; with it lifted, 4D's
-births worlds pass M3 at 0.6-0.75x, settling at 800-1,500 NPCs held by
-stink. M3's 30-250 band is below 4D's viable density (~0.08 NPCs per cell).
-**Next: 5zorro's call on the 4D world shape or a density-based band (open
-decision 3), then 2D's cycles, S3e (M2 recheck), S3d (meals).**
+S3c: with the 250 cap every world sits on a rail; with it lifted, 4D's
+births worlds pass M3 at 0.6-0.75x, settling at 800-1,500 NPCs. Smaller 4D
+maps (size 6-8) bring the population into the band but cycle (cv 0.45-0.95),
+like 2D: stink, a delayed regulator, drives boom and bust. **Next: confirm
+the stink cycle (trace stink and deaths over time), then a stink-rule or
+fast-regulator test; S3e (M2 recheck: small maps raise 4D diet), S3d.**
 The goal was rewritten with 5zorro on 2026-11-08 (`docs/ROADMAP.md`).
 Open decisions (bottom) are 5zorro's.
 
@@ -515,6 +516,39 @@ Ladder: 4D size 6 / 7 / 8 (1,296 / 2,401 / 4,096 cells; the time shape's
 patches keep total food at ~1,300-1,600) x hunger 0.6 / 0.75, births
 nurseries, cap 2,000, against size 10 (done). Stink law predicts K ~0.15 x
 cells at 0.6x (~195 at size 6); food law predicts K ~1,500 at every size.
+
+**Size ladder result (2026-11-09; `runs/m3-size{6,7,8}-4d.log`, births
+nurseries, cap 2,000, 3 seeds x 30k, ~14 min).** Claude's prediction, written
+before the results: ~0.15 NPCs per cell at 0.6x (size 6: 150-250), more per
+cell than size 10 at 0.75x, steady. Measured, means of 12 worlds:
+| Size (cells) | Hunger | Pop (range) | Per cell | cv | At floor | M3 passes | Deaths |
+|---|---|---|---|---|---|---|---|
+| 6 (1,296) | 0.6 / 0.75 | 84 (61-109) / 77 (58-96) | 0.065 / 0.059 | 0.45-0.63 | 12-19% | 0 / 0 | stink 99% |
+| 7 (2,401) | 0.6 / 0.75 | 131 (110-160) / 121 (104-138) | 0.055 / 0.050 | 0.58-0.79 | 4-14% | 0 / 0 | stink 96-98% |
+| 8 (4,096) | 0.6 / 0.75 | 245 (186-334) / 267 (204-332) | 0.060 / 0.065 | 0.45-0.95 | 0-7% | 0 / 0 | stink 89-94% |
+| 10 (10,000) | 0.6 / 0.75 | ~1,500 / ~770 | 0.15 / 0.08 | 0.02-0.05 | 0-19% | 12 / 10 | stink 56% / 22% |
+- **The food law is out:** population scales with cells, not total food
+  (which is ~1,300-1,600 at every size). Shrinking the map does shrink the
+  population into M3's band (30-250).
+- **But the small maps cycle:** cv 0.45-0.95 against M3's 0.15, with dips
+  to the floor and top-ups. Nearly every death is stink; hunger barely
+  matters (0.6x and 0.75x look alike, starvation 3-9%). Per cell they hold
+  less (0.05-0.065) than size 10 at the same hunger, and they don't settle.
+- **Prediction misses:** density per cell was 2-3x lower than predicted, and
+  the worlds were unsteady instead of steady. Right only on direction.
+- **Reading (hypothesis):** stink is a *delayed* regulator: crowding makes
+  poop, poop makes stink over ~100 ticks, stink kills, the population
+  crashes, stink fades, the survivors boom again (delayed density
+  dependence; Nicholson's blowflies, May 1974, from memory). 2D cycles the
+  same way. Size 10 at 0.6x is steady, and there 40% of deaths are
+  starvation, a fast regulator; at 0.75x size 10 is mostly starvation. In
+  small maps the patches are closer, foraging is easy, so only the slow
+  stink regulator is left. Large maps may also average many local
+  cycles out of step (spatial asynchrony; Huffaker's mites, 1958).
+- **M2 bonus (S3e):** the small maps make diet easy: size 6 reaches diet
+  0.82-0.91 and types 2.6-2.9 with these untrained births brains (n101:
+  0.91 / 2.80), against ~0.80 / 2.5 at size 10. 4D's lost diet 0.9 looks
+  like a map-shape effect.
 
 **What it means for M3 (5zorro's open decision 3, the 4D world shape):**
 either the 4D world shrinks so that 30-250 NPCs is a viable density (at

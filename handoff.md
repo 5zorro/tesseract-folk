@@ -89,8 +89,10 @@ in plan-m3 S3b; every earlier M2/M3 number was measured with soil mining).
 2,000, 4D births worlds pass M3 at 0.6x (12/12) and 0.75x (10/12), steady at
 ~1,500 / ~770 NPCs (stink-held). M3's 30-250 band is below 4D's viable density
 (~0.08 NPCs per cell; 250 on 10,000 cells is 0.025). Near the floor, mating
-fails on hunger and on density, not age. **Next:** 5zorro's call on the 4D
-world shape or cap (plan-m3 open decision 3), then 2D's cycles, S3e, S3d.
+fails on hunger and on density, not age. Smaller 4D maps (size 6-8) bring the
+population into the band (84-267 NPCs) but it cycles (cv 0.45-0.95, stink
+deaths ~95%), like 2D. **Next:** confirm stink as a delayed regulator (trace),
+then a stink-rule test; S3e (small maps raise 4D diet to ~0.9), S3d.
 
 0. **State at 2026-11-06 (end):** results of the day are in
    `docs/plan-m2-diet-travel.md` slices R7-R9 and the laws table in
