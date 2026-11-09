@@ -483,6 +483,39 @@ problem" or "250 fat people, let them breed"? `probe_births.py --hunger
   both move it. A longer life would too (more fertile ticks), but that is a
   rule change, not a measurement.
 
+**Is food what sets the population?** (5zorro: "food availability drives
+population growth normally... if we shrink the 4d map... would it have no
+effect on the density and make the problem continue?") Not total food,
+by arithmetic: the "time" worlds hold about the same food in every
+dimension (capacity 1,359 / 1,770 / 1,625 in 2D / 3D / 4D; at most ~30 food
+regrows per tick), yet 4D holds ~20x 2D's population. At 0.6x hunger an NPC
+burns ~0.006 body per tick, so 1,500 NPCs need ~9 per tick and 2D's 80 need
+~0.5: neither world runs out of food in total. What bounds them:
+- **From above, stink** (crowding): most collapses in steady worlds are
+  stink deaths. Stink is local (poop per cell, spread to 2 x dims
+  neighbors), so it caps NPCs *per cell*; 4D's 8 neighbors dilute it more,
+  so 4D holds more per cell (0.15 vs 0.08 at 0.6x).
+- **From below, mate finding** (the Allee edge, ~0.04-0.08 per cell).
+- **As hunger rises, foraging:** deaths shift to nutrient starvation, i.e.
+  failing to reach the right food in time (M2's diet problem), not a lack
+  of food.
+Known neighbors (cited from memory): carrying capacity as supply over
+per-capita need (Verhulst's logistic; Tilman's resource-ratio theory, 1982),
+the ideal free distribution (Fretwell & Lucas 1970: consumers spread in
+proportion to resources; our NPCs don't concentrate at the food cores, so
+food isn't what places them either), and self-limitation by waste
+(crowding toxins, e.g. Pearl's yeast and fly cultures).
+
+**Two laws, one ladder to tell them apart (proposed):** if stink caps
+density, K grows with cells (K per cell constant) and shrinking the 4D map
+shrinks K into the band while density stays viable. If total food set K,
+K stays fixed as the map shrinks and density rises. Either way a smaller
+map raises density relative to the 250 cap, but by different amounts.
+Ladder: 4D size 6 / 7 / 8 (1,296 / 2,401 / 4,096 cells; the time shape's
+patches keep total food at ~1,300-1,600) x hunger 0.6 / 0.75, births
+nurseries, cap 2,000, against size 10 (done). Stink law predicts K ~0.15 x
+cells at 0.6x (~195 at size 6); food law predicts K ~1,500 at every size.
+
 **What it means for M3 (5zorro's open decision 3, the 4D world shape):**
 either the 4D world shrinks so that 30-250 NPCs is a viable density (at
 ~0.08 per cell, 250 NPCs fills ~3,000 cells: size 7 is 2,401 cells, size 8
