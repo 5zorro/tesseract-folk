@@ -185,3 +185,23 @@ def test_probe_memory_follows_npcs_by_world_and_id():
         batch.step()
         probe.record(follow, batch.pop, batch.pop.live())
     assert all(len(v) <= 4 for v in follow.values()) and max(len(v) for v in follow.values()) == 4
+
+
+def test_mr1_ladder_trains_under_nursery_rules_and_refuses_other_runs(tmp_path):
+    import json
+    import scripts.mr1_ladder as mr1
+    from scripts.ladder import NURSERY_RULES
+    rules = mr1.nursery_rules(4, 3, 101, {})
+    assert rules["reaction_queue"] == 3 and rules["seed"] == 101
+    assert all(rules[k] == v for k, v in NURSERY_RULES.items())
+    path = mr1.trained_path(tmp_path, "snapshots/x/persist-n101-r35", 3, 500)
+    assert path.name.startswith("persist-n101-r35-q3-t500")
+    assert not mr1.reusable(path, rules, "src", 500)               # nothing there yet
+    path.mkdir()
+    (path / "state.json").write_text(json.dumps({"config": rules, "tick": 500}))
+    (path / "mr1.json").write_text(json.dumps({"source": "src"}))
+    assert mr1.reusable(path, rules, "src", 500)
+    with pytest.raises(ValueError):
+        mr1.reusable(path, rules, "other source", 500)
+    with pytest.raises(ValueError):
+        mr1.reusable(path, {**rules, "reaction_queue": 1}, "src", 500)
