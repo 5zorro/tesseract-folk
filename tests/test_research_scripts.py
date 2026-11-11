@@ -206,3 +206,51 @@ def test_mr1_ladder_trains_under_nursery_rules_and_refuses_other_runs(tmp_path):
         mr1.reusable(path, rules, "other source", 500)
     with pytest.raises(ValueError):
         mr1.reusable(path, {**rules, "reaction_queue": 1}, "src", 500)
+
+
+def test_mr2_follow_measure_counts_closer_moves_against_chance():
+    import numpy as np
+    import scripts.mr2_experiment as mr2
+    before = np.array([[0, 0], [0, 0], [5, 5]])
+    after = np.array([[1, 0], [0, 11], [5, 6]])
+    target = np.array([[3, 0], [0, 2], [5, 5]])
+    closer, chance = mr2.closer_and_chance(before, after, target, 12)
+    assert list(closer) == [True, False, False]
+    assert list(chance) == [0.25, 0.25, 0.0]                  # one axis to travel of 2 dims; already there
+
+
+def test_mr2_targets_the_slot_remembering_the_most_needed_food():
+    import numpy as np
+    import scripts.mr2_experiment as mr2
+    from sim import Config, Simulation
+    sim = Simulation(Config(size=12, initial_npcs=3, min_population=0, seed=5, memory_slots=3))
+    b, P = sim.batch, sim.pop
+    live = P.live()
+    slot = live[0]
+    P.nutrients[slot] = [0.9, 0.1, 0.9]                       # needs nutrient 1
+    rich = b._rich[0]
+    food = np.where(rich == 1, 0.8, 0.0)
+    for k, (pos, f) in enumerate([((1, 1), food * 0.5), ((2, 2), food), ((3, 3), 1 - food)]):
+        sim.write_memory(sim.npcs[0] if sim.npcs[0].id == P.id[slot] else [n for n in sim.npcs if n.id == P.id[slot]][0],
+                         k, pos, f)
+    has, target = mr2.follow_targets(b, live)
+    assert has[0] and tuple(target[0]) == (2, 2)
+    assert not has[1:].any()
+
+
+def test_mr2_blind_zeroes_slot_senses_and_restores():
+    import numpy as np
+    import scripts.mr2_experiment as mr2
+    from sim import Config, Simulation
+    from sim.simulation import Batch
+    original = Batch.sense_slots
+    sim = Simulation(Config(size=12, initial_npcs=6, min_population=0, seed=5, memory_slots=3,
+                            memory_write_start=0.5))
+    part = sim.sense_layout()["slots"]
+    with mr2.slots_blind():
+        sim.run(20)
+        live = sim.pop.live()
+        assert sim.pop.mem_filled[live].any()                 # still written
+        assert not sim.batch.sense_slots(live)[:, part].any()
+    assert Batch.sense_slots is original
+    assert sim.batch.sense_slots(sim.pop.live())[:, part].any()
