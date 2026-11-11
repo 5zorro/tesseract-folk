@@ -39,6 +39,9 @@ CASES = {
     "child credit": dict(hall_of_fame_child_credit=True, hall_of_fame_birth_weight=5.0,
                          hall_of_fame_min_copies=2, hall_of_fame_size=4),
     "trials": dict(hall_of_fame_trials=2, hall_of_fame_birth_weight=5.0),
+    "reaction queue": dict(reaction_queue=3),
+    "reaction queue, 4d": dict(dims=4, size=5, food_growth_rate=0.005, reaction_queue=2, old_age=120),   # elders die
+    "reaction queue, linear brains": dict(hidden_units=0, reaction_queue=1),
     "trials, absolute": dict(hall_of_fame_trials=1, hall_of_fame_trial_passes=1,
                              hall_of_fame_trial_max_collapses=1, hall_of_fame_trial_parents=1),
 }

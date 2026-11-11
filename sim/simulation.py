@@ -42,7 +42,7 @@ from .brain import Brain
 from .clock import SimClock
 from .config import Config
 from .deity import Deity
-from .npc import NPC, build_actions
+from .npc import NPC, build_actions, check_queue, checked_action, queue_fill
 from .population import NPCView, Population
 from .stats import Stats
 from .world import World, diffuse_mass, wrapped_delta
@@ -54,7 +54,7 @@ _PHASES = {"eat": 1, "eat_need": 1, "eat_most": 1, "pick_up": 1,
            "give": SOCIAL_PHASE, "mate": SOCIAL_PHASE, "share": SOCIAL_PHASE}
 
 # Settings that shape arrays, actions or senses: equal within a batch.
-STRUCTURAL = ("dims", "size", "n_food_types", "n_nutrients", "hidden_units", "memory_units",
+STRUCTURAL = ("dims", "size", "n_food_types", "n_nutrients", "hidden_units", "memory_units", "reaction_queue",
               "food_scent", "craving_sense", "mate_sense", "two_eat_actions", "actions_off", "extra_stay_actions", "food_patches_per_type", "precision")
 PRECISIONS = {"float64": np.float64, "float32": np.float32}
 # World arrays stacked by a batch (each World keeps a view of its row).
@@ -81,6 +81,7 @@ class Simulation:
         self.actions = build_actions(self.cfg.dims, self.cfg.two_eat_actions, self.cfg.actions_off,
                                      self.cfg.extra_stay_actions)
         self.n_actions = len(self.actions)
+        self._stay = queue_fill(self.actions, self.cfg.reaction_queue)
         self.n_inputs = self.sensor_size()
         self.n_outputs = self.n_actions + self.cfg.memory_units
         c = self.cfg
@@ -235,8 +236,9 @@ class Simulation:
         scent = t + d * t if c.food_scent else 0
         craving = d if c.craving_sense else 0
         mate = 3 + d if c.mate_sense else 0
+        queue = c.reaction_queue * self.n_actions
         return (n + 4 + t + t + d * t + 1 + d + 1 + t + 2
-                + 1 + d + d + 1 + 1 + m + 1 + scent + craving + mate)
+                + 1 + d + d + 1 + 1 + m + 1 + scent + craving + mate + queue)
 
     def sense_layout(self) -> dict[str, slice]:
         """Where each part of the sense vector sits (the order of reference.sense).
@@ -253,6 +255,8 @@ class Simulation:
             parts += [("craving", d)]
         if c.mate_sense:
             parts += [("can_mate", 1), ("partner_ready", 1), ("pheromone_here", 1), ("pheromone_grad", d)]
+        if c.reaction_queue:          # last, so brains from before MR1 widen by appending (nursery)
+            parts += [("queue", c.reaction_queue * self.n_actions)]
         out, at = {}, 0
         for name, size in parts:
             out[name] = slice(at, at + size)
@@ -307,6 +311,7 @@ class Simulation:
             satiation=np.zeros(cfg.n_food_types),
             inventory=np.zeros(cfg.n_food_types),
             memory=np.zeros(cfg.memory_units),
+            queue=np.full(cfg.reaction_queue, self._stay, dtype=np.int64),
         )
         self.next_id += 1
         return npc
@@ -634,6 +639,7 @@ class Batch:
         self.food_scent = cfg.food_scent
         self.craving = cfg.craving_sense
         self.mate_sense = cfg.mate_sense
+        self.queue_len = cfg.reaction_queue
         self.cells = cfg.size ** cfg.dims
         self.float = PRECISIONS[cfg.precision]
         records = [[s.pop.record(slot) for slot in s._by_id(s.pop.live(s.index))] if s.batch else []
@@ -657,9 +663,9 @@ class Batch:
         self.pop = Population(
             capacity, cfg.dims,
             {"nutrients": cfg.n_nutrients, "satiation": self.types, "inventory": self.types,
-             "memory": cfg.memory_units, "eaten": self.types},
+             "memory": cfg.memory_units, "eaten": self.types, "queue": cfg.reaction_queue},
             (first.n_inputs, cfg.hidden_units, first.n_outputs), cfg.food_patches_per_type, self.float,
-            world_size=cfg.size)
+            world_size=cfg.size, n_actions=first.n_actions)
         for i, (s, recs) in enumerate(zip(sims, records)):
             for r in recs:
                 self.pop.add(r, i)
@@ -739,7 +745,7 @@ class Batch:
 
         order = self._priority_order()
         self.present = order
-        actions = self.decide_all(order)
+        actions = self.queued(order, self.decide_all(order))
         births: list[list[NPC]] = [[] for _ in self.sims]
         self.resolve(order, actions, births)
         self._metabolize(order, self._aging)
@@ -901,6 +907,11 @@ class Batch:
             parts.append(np.where(wanted[:, None, :], grad, 0.0).sum(axis=2))
         if self.mate_sense:
             parts.append(self._mate_senses(slots, live, g, gn))
+        if self.queue_len:            # the pending queue, oldest first, as one-hots
+            Q, A = self.queue_len, self.n_actions
+            onehot = np.zeros((n, Q, A))
+            onehot[np.arange(n)[:, None], np.arange(Q)[None, :], P.queue[slots]] = 1.0
+            parts.append(onehot.reshape(n, Q * A))
         obs = np.concatenate(parts, axis=1, dtype=self.float)
         assert obs.shape == (n, self.sims[0].n_inputs), obs.shape
         return obs
@@ -976,9 +987,14 @@ class Batch:
 
     def decide_all(self, order: np.ndarray) -> np.ndarray:
         """Rule 1: everyone senses the start-of-tick world and picks an action
-        (an index into actions). Deciding changes only each NPC's own memory.
-        (5zorro's reaction-time queue would hand `resolve` actions decided
-        earlier instead; docs/plan-gpu-backend.md.)"""
+        (an index into actions). Deciding changes only each NPC's own memory
+        (and, under a controller, possibly its queue).
+
+        Controllers (plan-memory-reaction MR1 seams): the brain runs under a
+        controller too, so its memory stays current for when it takes back
+        over; a controller returning None leaves the brain's choice; and a
+        controller may rewrite `npc.queue` (the pending actions, oldest first)
+        during decide, e.g. to cancel what the brain queued."""
         if not order.size:
             return np.zeros(0, dtype=np.int64)
         P, A = self.pop, self.n_actions
@@ -997,16 +1013,27 @@ class Batch:
         cdf = probs.cumsum(axis=1)
         cdf /= cdf[:, -1:]
         actions = (cdf <= u[:, None]).sum(axis=1)
-        brained = np.ones(order.size, dtype=bool)
+        P.memory[order] = np.tanh(out[:, A:])
         if any(s.overrides for s in self.sims):
             for i, slot in enumerate(order.tolist()):
                 sim = self.sims[wn[i]]
                 controller = sim.overrides.get(int(P.id[slot])) if sim.overrides else None
                 if controller is not None:
-                    actions[i] = controller.decide(sim, NPCView(P, slot), obs[i])
-                    brained[i] = False
-        P.memory[order[brained]] = np.tanh(out[brained, A:])
+                    choice = controller.decide(sim, NPCView(P, slot), obs[i])
+                    if choice is not None:
+                        actions[i] = checked_action(choice, A)
+                    check_queue(P.queue[slot], A, int(P.id[slot]))
         return actions
+
+    def queued(self, order: np.ndarray, decided: np.ndarray) -> np.ndarray:
+        """Config.reaction_queue: each NPC appends its decision to its queue and
+        resolves the oldest entry (with the queue off, the decisions themselves)."""
+        if not self.queue_len or not order.size:
+            return decided
+        P = self.pop
+        pending = P.queue[order]
+        P.queue[order] = np.concatenate([pending[:, 1:], decided[:, None]], axis=1)
+        return pending[:, 0].copy()
 
     # =============================================================== actions
     def resolve(self, order: np.ndarray, actions: np.ndarray, births: list[list[NPC]]) -> None:

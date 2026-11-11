@@ -39,6 +39,30 @@ def build_actions(dims: int, two_eat_actions: bool = False, off: str = "", extra
     return moves + [a for a in base if a not in drop] + [f"stay{i}" for i in range(1, extra_stay + 1)]
 
 
+def queue_fill(actions: list[str], queue_len: int) -> int:
+    """The action a newborn's reaction queue starts with ("stay"); Config.reaction_queue
+    needs it, so it can't be turned off with actions_off then."""
+    if queue_len and "stay" not in actions:
+        raise ValueError("reaction_queue needs the stay action (newborns start with it queued)")
+    return actions.index("stay") if "stay" in actions else 0
+
+
+def checked_action(choice, n_actions: int) -> int:
+    """A controller's choice as an action index, or ValueError (a bad index would
+    fail mid-tick or, if negative, silently wrap)."""
+    if isinstance(choice, (bool, np.bool_)) or not isinstance(choice, (int, np.integer)):
+        raise ValueError(f"a controller must return an action index or None, got {choice!r}")
+    if not 0 <= int(choice) < n_actions:
+        raise ValueError(f"a controller's action {int(choice)} is out of range (0-{n_actions - 1})")
+    return int(choice)
+
+
+def check_queue(queue: np.ndarray, n_actions: int, who) -> None:
+    """A queue a controller may have rewritten: every entry a valid action index."""
+    if queue.size and not ((queue >= 0) & (queue < n_actions)).all():
+        raise ValueError(f"NPC {who}: a queued action is out of range (0-{n_actions - 1})")
+
+
 @dataclass
 class NPC:
     id: int
@@ -107,10 +131,15 @@ class NPC:
     kid_lives: float = 0.0
     kid_excess_sum: float = 0.0
     trial_of: int = -1        # the hall-of-fame candidate this clone is a trial of (Config.hall_of_fame_trials)
+    # Config.reaction_queue: actions decided but not yet resolved, oldest first
+    # (indices into the world's actions). Empty when the queue is off.
+    queue: np.ndarray = field(default=None)
 
     def __post_init__(self):
         if self.eaten is None:
             self.eaten = np.zeros_like(self.inventory)
+        if self.queue is None:
+            self.queue = np.zeros(0, dtype=np.int64)
 
     def take_damage(self, cause: str, amount: float) -> None:
         self.health -= amount
@@ -161,6 +190,10 @@ class NPC:
         d["pos"] = tuple(d["pos"])
         for k in ("nutrients", "satiation", "inventory", "memory", "eaten"):
             d[k] = np.asarray(d[k], dtype=float)
+        queue = np.asarray(d.get("queue", []), dtype=float)   # absent before MR1 (2026-11-10)
+        if queue.ndim != 1 or not (np.isfinite(queue).all() and (queue == np.round(queue)).all()):
+            raise ValueError(f"NPC {d.get('id')}: queue must be a list of whole numbers")
+        d["queue"] = queue.astype(np.int64)
         d["zones_eaten"] = {tuple(z) for z in d.get("zones_eaten", [])}   # absent before M2
         if d.get("last_zone") is not None:
             d["last_zone"] = tuple(d["last_zone"])

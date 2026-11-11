@@ -66,6 +66,19 @@ class Brain:
         hidden = np.tanh(self.w1 @ x + self.b1) if self.w1.shape[0] else x
         return self.w2 @ hidden + self.b2
 
+    def widen(self, n_in: int) -> "Brain":
+        """The same brain with zero-weight inputs appended up to n_in: it behaves
+        exactly as before until mutation gives the new inputs weight (a warm start,
+        Net2Net-style; plan-memory-reaction MR1)."""
+        extra = n_in - self.n_in
+        if extra < 0:
+            raise ValueError(f"can't widen a brain of {self.n_in} inputs to {n_in}")
+        if self.n_hidden:
+            w1, w2 = np.pad(self.w1, ((0, 0), (0, extra))), self.w2.copy()
+        else:                                   # linear: w2 reads the inputs directly
+            w1, w2 = self.w1.reshape(0, n_in), np.pad(self.w2, ((0, 0), (0, extra)))
+        return Brain(w1, self.b1.copy(), w2, self.b2.copy())
+
     def mutation_rate(self, rate: float, per_birth: float) -> float:
         """Chance per weight: `rate`, or `per_birth` / weight count when per_birth > 0
         (the same number of mutated weights per child at any brain size)."""

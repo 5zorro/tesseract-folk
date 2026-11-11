@@ -143,6 +143,12 @@ class Config:
     # --- brains ------------------------------------------------------------
     hidden_units: int = 16
     memory_units: int = 2                 # tiny recurrent memory
+    # Reaction queue (5zorro, plan-memory-reaction MR1, 2026-11-10): each NPC keeps
+    # its last Q decided actions. Each tick it decides one and appends it, and
+    # the oldest resolves, so an action takes effect Q ticks after it was chosen.
+    # The pending queue is sensed (one-hots, oldest first) at the end of the
+    # sense vector. Newborns start with "stay" queued. 0 = off (today's rule).
+    reaction_queue: int = 0
     mutation_rate: float = 0.1            # chance per weight (ignored if mutations_per_birth > 0)
     # Mutations per birth (research slices R1-R4, 2026-11-04): > 0 sets the chance
     # per weight to this / the brain's weight count, so every brain size gets the
@@ -273,7 +279,7 @@ class Config:
 SIZE_LIMITS = {
     "dims": (1, 6), "size": (2, 4096),
     "n_food_types": (1, 32), "n_nutrients": (1, 32), "food_patches_per_type": (0, 1024),
-    "hidden_units": (0, 1024), "memory_units": (0, 64),
+    "hidden_units": (0, 1024), "memory_units": (0, 64), "reaction_queue": (0, 64),
     "initial_npcs": (0, 100_000), "max_population": (1, 100_000), "min_population": (0, 100_000),
     "hall_of_fame_size": (0, 10_000), "n_shrines": (0, 1024), "max_secrets": (0, 1024),
 }

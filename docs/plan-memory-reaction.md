@@ -231,7 +231,29 @@ circidaian rythem and ultradian rythem. ultradian is like 90 mins".
 - **When:** the day clock comes with occupations. Multi-timescale units are
   a cheap MR2 variant (no new action, just different decay per unit).
 
-**MR1. Reaction queue.**
+**MR1. Reaction queue.** **Engine built 2026-11-10** (both engines;
+`tests/test_reaction_queue.py`, 3 `test_engines.py` cases; all six
+fingerprints unchanged with the queue off):
+- `Config.reaction_queue` Q (0-64; LEGACY 0; structural). `npc.queue` holds the
+  pending actions oldest first; each tick the decision is appended and the
+  oldest resolves. Newborns start with "stay" queued (so Q needs the stay
+  action). Sensed as Q one-hots at the very end of the sense vector.
+- **Seams for the LLM pawn, built:** a controller returning None leaves the
+  brain's choice; the brain (and its memory) runs under a controller too; a
+  controller may rewrite `npc.queue` during decide. Controller actions and
+  rewritten queues are range-checked; snapshots check queued actions too.
+  Not built (lives with the integration, outside `sim/`): recording replies
+  by the tick they apply.
+- **Warm start:** `Brain.widen` appends zero-weight inputs; `seed_brains`
+  widens a pool brain that lacks exactly the queue's inputs, so pre-MR1
+  nurseries seed queued worlds and choose exactly as before.
+- **Cost:** +13-16% per tick at Q = 3 (2D 2.44 -> 2.84 ms, 4D 3.04 -> 3.43 ms,
+  ~180 NPCs; inputs 2D 47 -> 89, 4D 65 -> 119).
+- **Behavior change for controllers:** before MR1, an NPC under a controller
+  didn't update its recurrent memory; now it does (seam 2). No fingerprint or
+  test depends on it.
+
+Still to do in MR1:
 - Build Q in both engines, the queue sense, snapshots, LEGACY, and the
   controller seams (1-3 above).
 - Train: warm-start the forager from today's hall of fame at Q = 3, anneal to

@@ -70,6 +70,12 @@ def seed_brains(sim, pool: list[dict]) -> None:
     """
     if not pool:
         raise ValueError("the brain pool is empty")
+    # Warm start (plan-memory-reaction MR1): brains from before the reaction queue
+    # lack its inputs, which come last in the sense vector, so they gain them with
+    # zero weights and behave as before until mutation uses them.
+    queue_inputs = sim.cfg.reaction_queue * sim.n_actions
+    pool = [{**e, "brain": e["brain"].widen(sim.n_inputs)}
+            if queue_inputs and e["brain"].n_in + queue_inputs == sim.n_inputs else e for e in pool]
     for entry in pool:
         try:
             entry["brain"].check(sim.n_inputs, sim.cfg.hidden_units, sim.n_outputs)
@@ -77,7 +83,8 @@ def seed_brains(sim, pool: list[dict]) -> None:
             raise ValueError(
                 f"a pool brain doesn't fit this world: {e}. dims, n_food_types, "
                 f"n_nutrients, hidden_units, memory_units, food_scent, craving_sense, mate_sense and two_eat_actions "
-                f"must match the snapshot's (pools saved before food scent need "
+                f"must match the snapshot's (reaction_queue may be added to a pool without it; "
+                f"pools saved before food scent need "
                 f"food_scent=false).") from e
     cfg = sim.cfg
     # Their children live in another world. A race's mark stays with the race

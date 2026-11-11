@@ -27,7 +27,7 @@ from .clock import SimClock
 from .config import Config
 from . import keyed
 from .deity import Deity
-from .npc import NPC, build_actions
+from .npc import NPC, build_actions, check_queue, checked_action, queue_fill
 from .stats import Stats
 from .world import World, wrapped_delta
 
@@ -57,6 +57,7 @@ class ReferenceSimulation:
                                      self.cfg.extra_stay_actions)
         self.n_actions = len(self.actions)
         self._phase = [action_phase(a) for a in self.actions]
+        self._stay = queue_fill(self.actions, self.cfg.reaction_queue)
         self.n_inputs = self.sensor_size()
         self.n_outputs = self.n_actions + self.cfg.memory_units
         c = self.cfg
@@ -106,7 +107,7 @@ class ReferenceSimulation:
         self.deity.step(self.tick, self.world, self.keys, self.stats)
 
         order = self._priority_order()
-        chosen = self.decide_all(order, self._spatial_index())
+        chosen = self.queued(order, self.decide_all(order, self._spatial_index()))
         births: list[NPC] = []
         self.resolve(order, chosen, births)
         self.metabolize(order, aging)
@@ -171,8 +172,9 @@ class ReferenceSimulation:
         scent = t + d * t if c.food_scent else 0
         craving = d if c.craving_sense else 0
         mate = 3 + d if c.mate_sense else 0
+        queue = c.reaction_queue * self.n_actions
         return (n + 4 + t + t + d * t + 1 + d + 1 + t + 2
-                + 1 + d + d + 1 + 1 + m + 1 + scent + craving + mate)
+                + 1 + d + d + 1 + 1 + m + 1 + scent + craving + mate + queue)
 
     def sense(self, npc: NPC, index: dict) -> np.ndarray:
         cfg, w, p = self.cfg, self.world, npc.pos
@@ -233,6 +235,11 @@ class ReferenceSimulation:
             parts += [[1.0 if self._can_mate(npc) else 0.0, 1.0 if ready else 0.0,
                        here / (here + cfg.pheromone_half)],
                       (s_plus - s_minus) / (s_plus + s_minus + 1e-12)]
+        if cfg.reaction_queue:
+            # The pending queue, oldest first, as one-hots (last, see sense_layout).
+            onehot = np.zeros((cfg.reaction_queue, self.n_actions))
+            onehot[np.arange(cfg.reaction_queue), npc.queue] = 1.0
+            parts.append(onehot.ravel())
         obs = np.concatenate(parts, dtype=float)
         assert obs.size == self.n_inputs, (obs.size, self.n_inputs)
         return obs
@@ -266,13 +273,24 @@ class ReferenceSimulation:
 
     def decide_all(self, order: list[NPC], index: dict) -> list[int]:
         """Rule 1: everyone senses the start-of-tick world and picks an action.
-        Deciding changes only the NPC's own memory, so the order doesn't matter.
-        (5zorro's reaction-time queue would hand `resolve` actions decided
-        earlier instead; docs/plan-gpu-backend.md.)"""
+        Deciding changes only the NPC's own memory (and, under a controller,
+        possibly its queue), so the order doesn't matter. Controllers: see
+        Batch.decide_all."""
         if not order:
             return []
         draws = self.keys.uniform(self.tick, [n.id for n in order], keyed.ACTION)
         return [self._decide(npc, self.sense(npc, index), float(u)) for npc, u in zip(order, draws)]
+
+    def queued(self, order: list[NPC], chosen: list[int]) -> list[int]:
+        """Config.reaction_queue: each NPC appends its decision to its queue and
+        resolves the oldest entry (with the queue off, the decisions themselves)."""
+        if not self.cfg.reaction_queue:
+            return chosen
+        out = []
+        for npc, action in zip(order, chosen):
+            out.append(int(npc.queue[0]))
+            npc.queue = np.append(npc.queue[1:], action).astype(np.int64)
+        return out
 
     def resolve(self, order: list[NPC], chosen: list[int], births: list[NPC]) -> None:
         """Rules 2-3: actions take effect phase by phase, in priority order. Social
@@ -287,11 +305,14 @@ class ReferenceSimulation:
 
     def _decide(self, npc: NPC, obs: np.ndarray, u: float) -> int:
         """`u` is this NPC's keyed uniform draw for the tick (keyed.ACTION)."""
+        out = npc.brain.forward(obs)
+        npc.memory = np.tanh(out[self.n_actions:])          # under a controller too
         controller = self.overrides.get(npc.id)
         if controller is not None:
-            return controller.decide(self, npc, obs)
-        out = npc.brain.forward(obs)
-        npc.memory = np.tanh(out[self.n_actions:])
+            choice = controller.decide(self, npc, obs)
+            check_queue(npc.queue, self.n_actions, npc.id)
+            if choice is not None:
+                return checked_action(choice, self.n_actions)
         logits = out[: self.n_actions] / self.cfg.action_temperature
         logits -= logits.max()
         probs = np.exp(logits)
@@ -610,6 +631,7 @@ class ReferenceSimulation:
             satiation=np.zeros(cfg.n_food_types),
             inventory=np.zeros(cfg.n_food_types),
             memory=np.zeros(cfg.memory_units),
+            queue=np.full(cfg.reaction_queue, self._stay, dtype=np.int64),
         )
         self.next_id += 1
         return npc
