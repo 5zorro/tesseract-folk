@@ -310,7 +310,48 @@ agreeing in sign):
   already play at Q = 3 as well as at 0, so MR2 starts from today's pools
   with the queue on (widened at load).
 
-**MR2. Memory net.**
+**MR2. Memory net.** **Engine built 2026-11-10** (both engines;
+`tests/test_memory_slots.py`, 3 `test_engines.py` cases; fingerprints
+unchanged with slots off):
+- `Config.memory_slots` K (0-64, LEGACY 0), `memory_net_hidden` (8),
+  `memory_tau` (500 ticks), `memory_write_start` (0.05). Per NPC: `mem_pos`,
+  `mem_tick`, `mem_food` (per type, / food_capacity), `mem_filled`; saved and
+  checked in snapshots (cells in the world, whole numbers, finite food).
+- **One genome, two nets:** `Brain.memory` is the memory net. Mutation,
+  crossover, JSON, hall-of-fame entries and pools carry it; the mutation
+  count per child covers both nets' weights. A forager's own mutations are
+  the same with or without a memory net (its draws come first).
+- **Senses** (after the queue, last): per slot, filled, direction
+  (`wrapped_delta / half`), freshness `exp(-age / memory_tau)`, remembered
+  food. 2D: 7 per slot; 4D: 9.
+- **The memory net** sees the forager's full senses and picks one of 2K + 1
+  (remember here in slot k, forget slot k, nothing) with its own keyed draw
+  (`keyed.MEMORY`), at the action temperature. It acts at once, before any
+  controller, so the LLM pawn's `write_memory(npc, slot, pos, food)` wins.
+  Counted as `memory_writes` and `memory_forgets` in the stats.
+- **Start bias:** the "nothing" bias is set from `memory_write_start` and the
+  action temperature. Measured: 0.05 gives writes or forgets on ~10% of
+  ticks (the random weights' spread about doubles it), 0.2 gives ~34%.
+- **Warm start:** `seed_brains` widens pool brains lacking the queue and/or
+  slot inputs, and gives a brain without a memory net a new random one
+  (keyed by pool index, so repeatable).
+- **Cost:** Q = 3 with K = 8 (8 hidden) is +50-60% per tick over neither:
+  2D 2.47 -> 3.90 ms, 4D 3.00 -> 4.55 ms (~180 NPCs). Genome 2D 1,040 ->
+  3,929 weights, 4D 1,396 -> 5,101.
+
+**MR2 experiment (proposed, not run).** MR1 showed one nursery per cell is
+swamped by evolution noise, so:
+- Two arms, both warm-started from the M2 pools at Q = 3: *control* (K = 0)
+  and *memory* (K = 8). Three nursery seeds per pool per arm, paired by
+  (pool, seed): 2D 2 pools, 4D 4 pools = 18 pairs.
+- Train long enough for a random memory net to matter: 60,000 ticks.
+- Score both in M2's top-up worlds (5 seeds x 10k), paired. Usage on the
+  memory arm: writes and forgets per 1,000 NPC-ticks, how long a memory
+  lives, the follow rate (moves toward a remembered cell holding the needed
+  food, against 1 in 2·dims), and the score with slots held empty
+  (ablation, like MR0).
+- Then the ladders: hidden 16 vs 32, K = 4 vs 8.
+
 - Build slots, the slot senses, the memory net (one genome, two nets:
   mutation, crossover, hall of fame, JSON), `write_memory`, both engines.
 - Train: warm-start the MR1 hall of fame, random memory nets, co-evolve.

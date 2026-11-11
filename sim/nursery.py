@@ -14,8 +14,9 @@ import json
 import math
 from pathlib import Path
 
+from . import keyed
 from .brain import Brain
-from .npc import NPC
+from .npc import NPC, random_memory_net, slot_inputs
 
 
 # Track-record fields of a hall-of-fame entry (plan-m2 slice R5) and their values
@@ -70,15 +71,22 @@ def seed_brains(sim, pool: list[dict]) -> None:
     """
     if not pool:
         raise ValueError("the brain pool is empty")
-    # Warm start (plan-memory-reaction MR1): brains from before the reaction queue
-    # lack its inputs, which come last in the sense vector, so they gain them with
-    # zero weights and behave as before until mutation uses them.
-    queue_inputs = sim.cfg.reaction_queue * sim.n_actions
+    # Warm start (plan-memory-reaction MR1, MR2): brains from before the reaction
+    # queue or the memory slots lack their inputs, which come last in the sense
+    # vector (queue, then slots), so they gain them with zero weights and behave as
+    # before until mutation uses them. A brain without a memory net gets a new one
+    # (keyed by its pool index) when this world has slots.
+    queue_inputs, memory_inputs = sim.cfg.reaction_queue * sim.n_actions, slot_inputs(sim.cfg)
+    missing = {memory_inputs, queue_inputs + memory_inputs} - {0}
     pool = [{**e, "brain": e["brain"].widen(sim.n_inputs)}
-            if queue_inputs and e["brain"].n_in + queue_inputs == sim.n_inputs else e for e in pool]
+            if sim.n_inputs - e["brain"].n_in in missing else e for e in pool]
+    if sim.cfg.memory_slots:
+        pool = [{**e, "brain": e["brain"].with_memory(
+                    random_memory_net(sim.cfg, sim.n_inputs, sim.keys.stream(0, i, keyed.MEMORY_NET)))}
+                if e["brain"].memory is None else e for i, e in enumerate(pool)]
     for entry in pool:
         try:
-            entry["brain"].check(sim.n_inputs, sim.cfg.hidden_units, sim.n_outputs)
+            entry["brain"].check(*sim.brain_spec())
         except ValueError as e:
             raise ValueError(
                 f"a pool brain doesn't fit this world: {e}. dims, n_food_types, "

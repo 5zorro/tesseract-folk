@@ -149,6 +149,20 @@ class Config:
     # The pending queue is sensed (one-hots, oldest first) at the end of the
     # sense vector. Newborns start with "stay" queued. 0 = off (today's rule).
     reaction_queue: int = 0
+    # Memory slots and the memory net (5zorro, plan-memory-reaction MR2, 2026-11-10):
+    # each NPC has K slots (position, tick, the food there) that its forager senses,
+    # and a second net on the same senses that each tick picks one of 2K + 1:
+    # remember here in slot k (overwriting it), forget slot k, or nothing.
+    # 0 = off. The memory net is inherited with the forager (sim/brain.py).
+    memory_slots: int = 0
+    memory_net_hidden: int = 8
+    memory_tau: float = 500.0             # ticks: a memory's freshness is exp(-age / memory_tau)
+    # A new memory net's chance to write or forget anything on a tick, set by its
+    # "nothing" bias (a random net would otherwise write on ~16 of 17 ticks and
+    # every slot would hold "here, just now"). Mutation can move it. Roughly: the
+    # random weights' spread about doubles it (0.05 -> ~0.10 of ticks, 0.2 -> ~0.34;
+    # measured 2026-11-10, 8 slots).
+    memory_write_start: float = 0.05
     mutation_rate: float = 0.1            # chance per weight (ignored if mutations_per_birth > 0)
     # Mutations per birth (research slices R1-R4, 2026-11-04): > 0 sets the chance
     # per weight to this / the brain's weight count, so every brain size gets the
@@ -280,6 +294,7 @@ SIZE_LIMITS = {
     "dims": (1, 6), "size": (2, 4096),
     "n_food_types": (1, 32), "n_nutrients": (1, 32), "food_patches_per_type": (0, 1024),
     "hidden_units": (0, 1024), "memory_units": (0, 64), "reaction_queue": (0, 64),
+    "memory_slots": (0, 64), "memory_net_hidden": (0, 1024),
     "initial_npcs": (0, 100_000), "max_population": (1, 100_000), "min_population": (0, 100_000),
     "hall_of_fame_size": (0, 10_000), "n_shrines": (0, 1024), "max_secrets": (0, 1024),
 }

@@ -42,7 +42,8 @@ from .brain import Brain
 from .clock import SimClock
 from .config import Config
 from .deity import Deity
-from .npc import NPC, build_actions, check_queue, checked_action, queue_fill
+from .npc import (NPC, build_actions, check_memory_settings, check_queue, checked_action, clear_slot,
+                  memory_net_shape, queue_fill, random_memory_net, slot_inputs, write_slot)
 from .population import NPCView, Population
 from .stats import Stats
 from .world import World, diffuse_mass, wrapped_delta
@@ -54,7 +55,7 @@ _PHASES = {"eat": 1, "eat_need": 1, "eat_most": 1, "pick_up": 1,
            "give": SOCIAL_PHASE, "mate": SOCIAL_PHASE, "share": SOCIAL_PHASE}
 
 # Settings that shape arrays, actions or senses: equal within a batch.
-STRUCTURAL = ("dims", "size", "n_food_types", "n_nutrients", "hidden_units", "memory_units", "reaction_queue",
+STRUCTURAL = ("dims", "size", "n_food_types", "n_nutrients", "hidden_units", "memory_units", "reaction_queue", "memory_slots", "memory_net_hidden",
               "food_scent", "craving_sense", "mate_sense", "two_eat_actions", "actions_off", "extra_stay_actions", "food_patches_per_type", "precision")
 PRECISIONS = {"float64": np.float64, "float32": np.float32}
 # World arrays stacked by a batch (each World keeps a view of its row).
@@ -82,6 +83,7 @@ class Simulation:
                                      self.cfg.extra_stay_actions)
         self.n_actions = len(self.actions)
         self._stay = queue_fill(self.actions, self.cfg.reaction_queue)
+        check_memory_settings(self.cfg)
         self.n_inputs = self.sensor_size()
         self.n_outputs = self.n_actions + self.cfg.memory_units
         c = self.cfg
@@ -238,7 +240,27 @@ class Simulation:
         mate = 3 + d if c.mate_sense else 0
         queue = c.reaction_queue * self.n_actions
         return (n + 4 + t + t + d * t + 1 + d + 1 + t + 2
-                + 1 + d + d + 1 + 1 + m + 1 + scent + craving + mate + queue)
+                + 1 + d + d + 1 + 1 + m + 1 + scent + craving + mate + queue + slot_inputs(c))
+
+    def brain_spec(self) -> tuple:
+        """What every brain here must look like: Brain.check's arguments."""
+        return (self.n_inputs, self.cfg.hidden_units, self.n_outputs, memory_net_shape(self.cfg, self.n_inputs))
+
+    def write_memory(self, npc, slot: int, pos, food=None) -> None:
+        """Fill one of an NPC's memory slots from outside its brain (a controller:
+        the LLM pawn, later occupations): a cell, this tick, and the food there
+        (default: the food at that cell now, / food_capacity)."""
+        k, d = self.cfg.memory_slots, self.cfg.dims
+        pos = tuple(int(c) for c in pos)
+        if not (isinstance(slot, (int, np.integer)) and 0 <= slot < k):
+            raise ValueError(f"memory slot {slot!r} is out of range (0-{k - 1})")
+        if len(pos) != d or not all(0 <= c < self.cfg.size for c in pos):
+            raise ValueError(f"{pos} isn't a cell of this {d}D world")
+        food = (self.world.food_at(pos) / self.cfg.food_capacity if food is None
+                else np.asarray(food, dtype=float))
+        if food.shape != (self.cfg.n_food_types,) or not np.isfinite(food).all():
+            raise ValueError("food must be one finite number per food type")
+        write_slot(npc, int(slot), pos, self.tick, food)
 
     def sense_layout(self) -> dict[str, slice]:
         """Where each part of the sense vector sits (the order of reference.sense).
@@ -257,6 +279,8 @@ class Simulation:
             parts += [("can_mate", 1), ("partner_ready", 1), ("pheromone_here", 1), ("pheromone_grad", d)]
         if c.reaction_queue:          # last, so brains from before MR1 widen by appending (nursery)
             parts += [("queue", c.reaction_queue * self.n_actions)]
+        if c.memory_slots:            # after the queue, for the same reason (MR2)
+            parts += [("slots", slot_inputs(c))]
         out, at = {}, 0
         for name, size in parts:
             out[name] = slice(at, at + size)
@@ -299,8 +323,12 @@ class Simulation:
 
     # ========================================================= population
     def _random_brain(self, draw) -> Brain:
-        """`draw`: a keyed stream (keyed.Stream) or anything with NumPy's normal()."""
-        return Brain.random(self.n_inputs, self.cfg.hidden_units, self.n_outputs, draw)
+        """`draw`: a keyed stream (keyed.Stream) or anything with NumPy's normal().
+        The memory net (if any) is drawn after the forager."""
+        brain = Brain.random(self.n_inputs, self.cfg.hidden_units, self.n_outputs, draw)
+        if self.cfg.memory_slots:
+            brain = brain.with_memory(random_memory_net(self.cfg, self.n_inputs, draw))
+        return brain
 
     def _make_npc(self, brain: Brain, pos, body: float, generation: int) -> NPC:
         """A new NPC record with the next id (not added to the world yet)."""
@@ -312,6 +340,10 @@ class Simulation:
             inventory=np.zeros(cfg.n_food_types),
             memory=np.zeros(cfg.memory_units),
             queue=np.full(cfg.reaction_queue, self._stay, dtype=np.int64),
+            mem_pos=np.zeros((cfg.memory_slots, cfg.dims), dtype=np.int64),
+            mem_tick=np.zeros(cfg.memory_slots, dtype=np.int64),
+            mem_food=np.zeros((cfg.memory_slots, cfg.n_food_types)),
+            mem_filled=np.zeros(cfg.memory_slots, dtype=bool),
         )
         self.next_id += 1
         return npc
@@ -640,6 +672,7 @@ class Batch:
         self.craving = cfg.craving_sense
         self.mate_sense = cfg.mate_sense
         self.queue_len = cfg.reaction_queue
+        self.n_slots = cfg.memory_slots
         self.cells = cfg.size ** cfg.dims
         self.float = PRECISIONS[cfg.precision]
         records = [[s.pop.record(slot) for slot in s._by_id(s.pop.live(s.index))] if s.batch else []
@@ -663,9 +696,11 @@ class Batch:
         self.pop = Population(
             capacity, cfg.dims,
             {"nutrients": cfg.n_nutrients, "satiation": self.types, "inventory": self.types,
-             "memory": cfg.memory_units, "eaten": self.types, "queue": cfg.reaction_queue},
+             "memory": cfg.memory_units, "eaten": self.types, "queue": cfg.reaction_queue,
+             "slots": cfg.memory_slots},
             (first.n_inputs, cfg.hidden_units, first.n_outputs), cfg.food_patches_per_type, self.float,
-            world_size=cfg.size, n_actions=first.n_actions)
+            world_size=cfg.size, n_actions=first.n_actions,
+            memory_shape=memory_net_shape(cfg, first.n_inputs))
         for i, (s, recs) in enumerate(zip(sims, records)):
             for r in recs:
                 self.pop.add(r, i)
@@ -912,6 +947,14 @@ class Batch:
             onehot = np.zeros((n, Q, A))
             onehot[np.arange(n)[:, None], np.arange(Q)[None, :], P.queue[slots]] = 1.0
             parts.append(onehot.reshape(n, Q * A))
+        if self.n_slots:              # per slot: filled, direction, freshness, food (MR2)
+            filled = P.mem_filled[slots].astype(float)                           # (n, K)
+            delta = wrapped_delta(P.pos[slots][:, None, :], P.mem_pos[slots], self.size) / half
+            age = np.maximum(self.tick - P.mem_tick[slots], 0)
+            fresh = np.exp(-age / self._p("memory_tau", wn)[:, None])
+            parts.append(np.concatenate([filled[:, :, None], delta * filled[:, :, None],
+                                         (fresh * filled)[:, :, None], P.mem_food[slots] * filled[:, :, None]],
+                                        axis=2).reshape(n, -1))
         obs = np.concatenate(parts, axis=1, dtype=self.float)
         assert obs.shape == (n, self.sims[0].n_inputs), obs.shape
         return obs
@@ -1014,6 +1057,8 @@ class Batch:
         cdf /= cdf[:, -1:]
         actions = (cdf <= u[:, None]).sum(axis=1)
         P.memory[order] = np.tanh(out[:, A:])
+        if self.n_slots:
+            self._memory_net(order, obs, wn)
         if any(s.overrides for s in self.sims):
             for i, slot in enumerate(order.tolist()):
                 sim = self.sims[wn[i]]
@@ -1024,6 +1069,37 @@ class Batch:
                         actions[i] = checked_action(choice, A)
                     check_queue(P.queue[slot], A, int(P.id[slot]))
         return actions
+
+    def _memory_net(self, order: np.ndarray, obs: np.ndarray, wn: np.ndarray) -> None:
+        """Config.memory_slots (MR2): each NPC's memory net picks one of 2K + 1 from
+        the same senses: remember here in slot k, forget slot k, or nothing. It
+        takes effect at once (memory isn't an action in the world) and before any
+        controller, so a controller's own write_memory wins."""
+        P, K = self.pop, self.n_slots
+        hidden = (np.tanh(np.matmul(P.mw1[order], obs[:, :, None])[:, :, 0] + P.mb1[order])
+                  if P.mw1.shape[1] else obs)
+        out = np.matmul(P.mw2[order], hidden[:, :, None])[:, :, 0] + P.mb2[order]
+        logits = out / self._p("action_temperature", wn)[:, None]
+        logits -= logits.max(axis=1, keepdims=True)
+        probs = np.exp(logits)
+        probs /= probs.sum(axis=1, keepdims=True)
+        cdf = probs.cumsum(axis=1)
+        cdf /= cdf[:, -1:]
+        u = keyed.uniform(self.seeds[wn], self.tick, P.id[order], keyed.MEMORY)
+        choice = (cdf <= u[:, None]).sum(axis=1)
+        write, forget = choice < K, (choice >= K) & (choice < 2 * K)
+        s, k = order[write], choice[write]
+        if s.size:
+            P.mem_pos[s, k] = P.pos[s]
+            P.mem_tick[s, k] = self.tick
+            food = self.food.reshape(self.W, self.types, self.cells)
+            P.mem_food[s, k] = food[wn[write], :, self._flat(P.pos[s])] / self._p("food_capacity", wn[write])[:, None]
+            P.mem_filled[s, k] = True
+        s, k = order[forget], choice[forget] - K
+        if s.size:
+            P.mem_pos[s, k], P.mem_tick[s, k], P.mem_food[s, k], P.mem_filled[s, k] = 0, 0, 0.0, False
+        self._count("memory_writes", wn[write])
+        self._count("memory_forgets", wn[forget])
 
     def queued(self, order: np.ndarray, decided: np.ndarray) -> np.ndarray:
         """Config.reaction_queue: each NPC appends its decision to its queue and

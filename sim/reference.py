@@ -27,7 +27,8 @@ from .clock import SimClock
 from .config import Config
 from . import keyed
 from .deity import Deity
-from .npc import NPC, build_actions, check_queue, checked_action, queue_fill
+from .npc import (NPC, build_actions, check_memory_settings, check_queue, checked_action, clear_slot,
+                  memory_net_shape, queue_fill, random_memory_net, slot_inputs, write_slot)
 from .stats import Stats
 from .world import World, wrapped_delta
 
@@ -58,6 +59,7 @@ class ReferenceSimulation:
         self.n_actions = len(self.actions)
         self._phase = [action_phase(a) for a in self.actions]
         self._stay = queue_fill(self.actions, self.cfg.reaction_queue)
+        check_memory_settings(self.cfg)
         self.n_inputs = self.sensor_size()
         self.n_outputs = self.n_actions + self.cfg.memory_units
         c = self.cfg
@@ -174,7 +176,25 @@ class ReferenceSimulation:
         mate = 3 + d if c.mate_sense else 0
         queue = c.reaction_queue * self.n_actions
         return (n + 4 + t + t + d * t + 1 + d + 1 + t + 2
-                + 1 + d + d + 1 + 1 + m + 1 + scent + craving + mate + queue)
+                + 1 + d + d + 1 + 1 + m + 1 + scent + craving + mate + queue + slot_inputs(c))
+
+    def brain_spec(self) -> tuple:
+        """What every brain here must look like: Brain.check's arguments."""
+        return (self.n_inputs, self.cfg.hidden_units, self.n_outputs, memory_net_shape(self.cfg, self.n_inputs))
+
+    def write_memory(self, npc: NPC, slot: int, pos, food=None) -> None:
+        """See Simulation.write_memory."""
+        k, d = self.cfg.memory_slots, self.cfg.dims
+        pos = tuple(int(c) for c in pos)
+        if not (isinstance(slot, (int, np.integer)) and 0 <= slot < k):
+            raise ValueError(f"memory slot {slot!r} is out of range (0-{k - 1})")
+        if len(pos) != d or not all(0 <= c < self.cfg.size for c in pos):
+            raise ValueError(f"{pos} isn't a cell of this {d}D world")
+        food = (self.world.food_at(pos) / self.cfg.food_capacity if food is None
+                else np.asarray(food, dtype=float))
+        if food.shape != (self.cfg.n_food_types,) or not np.isfinite(food).all():
+            raise ValueError("food must be one finite number per food type")
+        write_slot(npc, int(slot), pos, self.tick, food)
 
     def sense(self, npc: NPC, index: dict) -> np.ndarray:
         cfg, w, p = self.cfg, self.world, npc.pos
@@ -240,6 +260,14 @@ class ReferenceSimulation:
             onehot = np.zeros((cfg.reaction_queue, self.n_actions))
             onehot[np.arange(cfg.reaction_queue), npc.queue] = 1.0
             parts.append(onehot.ravel())
+        for k in range(cfg.memory_slots):
+            # Per slot: filled, direction, freshness, remembered food (MR2).
+            if npc.mem_filled[k]:
+                age = max(self.tick - int(npc.mem_tick[k]), 0)
+                parts += [[1.0], wrapped_delta(p, npc.mem_pos[k], cfg.size) / half,
+                          [np.exp(-age / cfg.memory_tau)], npc.mem_food[k]]
+            else:
+                parts.append(np.zeros(2 + cfg.dims + cfg.n_food_types))
         obs = np.concatenate(parts, dtype=float)
         assert obs.size == self.n_inputs, (obs.size, self.n_inputs)
         return obs
@@ -278,8 +306,11 @@ class ReferenceSimulation:
         Batch.decide_all."""
         if not order:
             return []
-        draws = self.keys.uniform(self.tick, [n.id for n in order], keyed.ACTION)
-        return [self._decide(npc, self.sense(npc, index), float(u)) for npc, u in zip(order, draws)]
+        ids = [n.id for n in order]
+        draws = self.keys.uniform(self.tick, ids, keyed.ACTION)
+        mem_draws = self.keys.uniform(self.tick, ids, keyed.MEMORY)
+        return [self._decide(npc, self.sense(npc, index), float(u), float(v))
+                for npc, u, v in zip(order, draws, mem_draws)]
 
     def queued(self, order: list[NPC], chosen: list[int]) -> list[int]:
         """Config.reaction_queue: each NPC appends its decision to its queue and
@@ -303,10 +334,12 @@ class ReferenceSimulation:
                 if self._phase[action] == phase:
                     self._act(npc, action, index, births)
 
-    def _decide(self, npc: NPC, obs: np.ndarray, u: float) -> int:
-        """`u` is this NPC's keyed uniform draw for the tick (keyed.ACTION)."""
+    def _decide(self, npc: NPC, obs: np.ndarray, u: float, v: float = 0.0) -> int:
+        """`u`, `v`: this NPC's keyed uniform draws for the tick (keyed.ACTION, keyed.MEMORY)."""
         out = npc.brain.forward(obs)
         npc.memory = np.tanh(out[self.n_actions:])          # under a controller too
+        if self.cfg.memory_slots:
+            self._memory_net(npc, obs, v)
         controller = self.overrides.get(npc.id)
         if controller is not None:
             choice = controller.decide(self, npc, obs)
@@ -322,6 +355,23 @@ class ReferenceSimulation:
         cdf = probs.cumsum()
         cdf /= cdf[-1]
         return int(cdf.searchsorted(u, side="right"))
+
+    def _memory_net(self, npc: NPC, obs: np.ndarray, v: float) -> None:
+        """See Batch._memory_net."""
+        K = self.cfg.memory_slots
+        logits = npc.brain.memory.forward(obs) / self.cfg.action_temperature
+        logits -= logits.max()
+        probs = np.exp(logits)
+        probs /= probs.sum()
+        cdf = probs.cumsum()
+        cdf /= cdf[-1]
+        choice = int(cdf.searchsorted(v, side="right"))
+        if choice < K:
+            write_slot(npc, choice, npc.pos, self.tick, self.world.food_at(npc.pos) / self.cfg.food_capacity)
+            self.stats.count("memory_writes")
+        elif choice < 2 * K:
+            clear_slot(npc, choice - K)
+            self.stats.count("memory_forgets")
 
     # =============================================================== actions
     def _act(self, npc: NPC, action: int, index: dict | None, births: list[NPC]) -> None:
@@ -620,8 +670,12 @@ class ReferenceSimulation:
 
     # ========================================================= population
     def _random_brain(self, draw) -> Brain:
-        """`draw`: a keyed stream (keyed.Stream) or anything with NumPy's normal()."""
-        return Brain.random(self.n_inputs, self.cfg.hidden_units, self.n_outputs, draw)
+        """`draw`: a keyed stream (keyed.Stream) or anything with NumPy's normal().
+        The memory net (if any) is drawn after the forager."""
+        brain = Brain.random(self.n_inputs, self.cfg.hidden_units, self.n_outputs, draw)
+        if self.cfg.memory_slots:
+            brain = brain.with_memory(random_memory_net(self.cfg, self.n_inputs, draw))
+        return brain
 
     def _make_npc(self, brain: Brain, pos, body: float, generation: int) -> NPC:
         cfg = self.cfg
@@ -632,6 +686,10 @@ class ReferenceSimulation:
             inventory=np.zeros(cfg.n_food_types),
             memory=np.zeros(cfg.memory_units),
             queue=np.full(cfg.reaction_queue, self._stay, dtype=np.int64),
+            mem_pos=np.zeros((cfg.memory_slots, cfg.dims), dtype=np.int64),
+            mem_tick=np.zeros(cfg.memory_slots, dtype=np.int64),
+            mem_food=np.zeros((cfg.memory_slots, cfg.n_food_types)),
+            mem_filled=np.zeros(cfg.memory_slots, dtype=bool),
         )
         self.next_id += 1
         return npc

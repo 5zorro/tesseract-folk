@@ -31,6 +31,8 @@ SCALARS = {
 }
 VECTORS = ("nutrients", "satiation", "inventory", "memory", "eaten")   # float rows
 INT_VECTORS = ("queue",)                                               # whole-number rows
+SLOTS = ("mem_pos", "mem_tick", "mem_food", "mem_filled")             # memory slots (MR2)
+MBRAIN = ("mw1", "mb1", "mw2", "mb2")                                  # the memory net's arrays
 BRAIN = ("w1", "b1", "w2", "b2")
 ORIGINS = ["", "birth", "copy", "cross", "trial"]
 CAUSE = {c: i for i, c in enumerate(DAMAGE_CAUSES)}
@@ -42,13 +44,17 @@ _CAUSE_RANK = {"smite": 0, "nutrient_starve": 1, "body_starve": 2, "stink": 3, "
 
 class Population:
     def __init__(self, capacity: int, dims: int, sizes: dict, brain_shape: tuple, patches: int,
-                 dtype=np.float64, world_size: int | None = None, n_actions: int | None = None):
+                 dtype=np.float64, world_size: int | None = None, n_actions: int | None = None,
+                 memory_shape: tuple | None = None):
         """sizes: row length of each VECTORS and INT_VECTORS column (a missing
-        INT_VECTORS size is 0); brain_shape: (n_in, hidden, n_out); dtype: the width
-        of every float column; n_actions: to check queued actions (None: unchecked)."""
+        INT_VECTORS size is 0) and "slots", the memory slots (default 0);
+        brain_shape: (n_in, hidden, n_out); memory_shape: the memory net's, or None
+        without slots; dtype: the width of every float column; n_actions: to check
+        queued actions (None: unchecked)."""
         self.dims, self.sizes, self.brain_shape, self.patches = dims, dict(sizes), brain_shape, patches
-        for name in INT_VECTORS:
+        for name in INT_VECTORS + ("slots",):
             self.sizes.setdefault(name, 0)
+        self.memory_shape = memory_shape
         self.n_actions = n_actions
         self.float = np.dtype(dtype).type
         self.world_size = world_size            # cells per axis, to check records (None: unchecked)
@@ -63,6 +69,12 @@ class Population:
         shapes = {name: ((), f if dtype is np.float64 else dtype) for name, dtype in SCALARS.items()}
         shapes.update({name: ((self.sizes[name],), f) for name in VECTORS})
         shapes.update({name: ((self.sizes[name],), np.int64) for name in INT_VECTORS})
+        k = self.sizes["slots"]
+        shapes.update(mem_pos=((k, self.dims), np.int64), mem_tick=((k,), np.int64),
+                      mem_food=((k, types), f), mem_filled=((k,), np.bool_))
+        m_in, m_hidden, m_out = self.memory_shape or (0, 0, 0)
+        shapes.update(mw1=((m_hidden, m_in), f), mb1=((m_hidden,), f),
+                      mw2=((m_out, Brain.w2_width(m_in, m_hidden)), f), mb2=((m_out,), f))
         shapes.update(pos=((self.dims,), np.int64), known_secret=((), np.int64),
                       last_zone=((2,), np.int64), origin=((), np.int64),
                       damage=((len(DAMAGE_CAUSES),), f),
@@ -112,6 +124,13 @@ class Population:
         queue = np.asarray(npc.queue)
         if self.n_actions is not None and queue.size and not ((queue >= 0) & (queue < self.n_actions)).all():
             bad(f"a queued action is out of range (this world has {self.n_actions} actions)")
+        k, types = self.sizes["slots"], self.sizes["inventory"]
+        expected = {"mem_pos": (k, self.dims), "mem_tick": (k,), "mem_food": (k, types), "mem_filled": (k,)}
+        for name, shape in expected.items():
+            if np.shape(getattr(npc, name)) != shape:
+                bad(f"{name} has shape {np.shape(getattr(npc, name))}, expected {shape}")
+        if k and self.world_size is not None and not ((npc.mem_pos >= 0) & (npc.mem_pos < self.world_size)).all():
+            bad(f"a remembered cell isn't a cell of this {self.dims}D world")
         types = self.sizes["inventory"]
         zones = list(npc.zones_eaten) + ([npc.last_zone] if npc.last_zone is not None else [])
         if not all(0 <= int(t) < types and 0 <= int(z) < self.patches for t, z in zones):
@@ -132,7 +151,7 @@ class Population:
         slot = int(free[0])
         for name in SCALARS:
             getattr(self, name)[slot] = getattr(npc, name)
-        for name in VECTORS + INT_VECTORS:
+        for name in VECTORS + INT_VECTORS + SLOTS:
             getattr(self, name)[slot] = getattr(npc, name)
         self.pos[slot] = npc.pos
         self.known_secret[slot] = -1 if npc.known_secret is None else npc.known_secret
@@ -151,17 +170,24 @@ class Population:
         """A detached NPC record with this slot's state (copies, not views)."""
         v = NPCView(self, slot)
         data = {name: getattr(v, name) for name in SCALARS}
-        data.update({name: getattr(self, name)[slot].copy() for name in VECTORS + INT_VECTORS})
+        data.update({name: getattr(self, name)[slot].copy() for name in VECTORS + INT_VECTORS + SLOTS})
         data.update(pos=v.pos, brain=v.brain, known_secret=v.known_secret, last_zone=v.last_zone,
                     origin=v.origin, damage=v.damage, zones_eaten=v.zones_eaten)
         return NPC(**data)
 
     def brain(self, slot: int) -> Brain:
-        return Brain(*(getattr(self, k)[slot].copy() for k in BRAIN))
+        memory = Brain(*(getattr(self, k)[slot].copy() for k in MBRAIN)) if self.memory_shape else None
+        return Brain(*(getattr(self, k)[slot].copy() for k in BRAIN), memory)
 
     def set_brain(self, slot: int, brain: Brain) -> None:
+        if (brain.memory is None) != (self.memory_shape is None):
+            raise ValueError("this world's brains need a memory net" if self.memory_shape
+                             else "this world has no memory slots for a memory net")
         for k, a in zip(BRAIN, brain._arrays()):
             getattr(self, k)[slot] = a
+        if brain.memory is not None:
+            for k, a in zip(MBRAIN, brain.memory._arrays()):
+                getattr(self, k)[slot] = a
 
     def damage_dict(self, slot: int) -> dict:
         seq = self.damage_seq[slot]
@@ -219,7 +245,7 @@ class NPCView:
         pop, s = self._check()
         if name in SCALARS:
             return getattr(pop, name)[s].item()
-        if name in VECTORS or name in INT_VECTORS:
+        if name in VECTORS or name in INT_VECTORS or name in SLOTS:
             return getattr(pop, name)[s]
         if name == "pos":
             return tuple(int(v) for v in pop.pos[s])
@@ -241,7 +267,7 @@ class NPCView:
 
     def __setattr__(self, name, value):
         pop, s = self._check()
-        if name in SCALARS or name in VECTORS or name in INT_VECTORS or name == "pos":
+        if name in SCALARS or name in VECTORS or name in INT_VECTORS or name in SLOTS or name == "pos":
             getattr(pop, name)[s] = value
         elif name == "known_secret":
             pop.known_secret[s] = -1 if value is None else value

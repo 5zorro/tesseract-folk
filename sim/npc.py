@@ -47,6 +47,36 @@ def queue_fill(actions: list[str], queue_len: int) -> int:
     return actions.index("stay") if "stay" in actions else 0
 
 
+def slot_inputs(cfg) -> int:
+    """Senses per NPC for Config.memory_slots: per slot, filled, direction (dims),
+    freshness and the remembered food per type."""
+    return cfg.memory_slots * (2 + cfg.dims + cfg.n_food_types)
+
+
+def memory_net_shape(cfg, n_inputs: int) -> tuple | None:
+    """The memory net's (inputs, hidden, outputs): the forager's senses in, one
+    output per choice (remember in slot k, forget slot k, nothing); None if off."""
+    k = cfg.memory_slots
+    return (n_inputs, cfg.memory_net_hidden, 2 * k + 1) if k else None
+
+
+def check_memory_settings(cfg) -> None:
+    if not (np.isfinite(cfg.memory_tau) and cfg.memory_tau > 0):
+        raise ValueError(f"memory_tau must be a number > 0, got {cfg.memory_tau!r}")
+    if not 0 < cfg.memory_write_start < 1:
+        raise ValueError(f"memory_write_start must be within 0-1 (exclusive), got {cfg.memory_write_start!r}")
+
+
+def random_memory_net(cfg, n_inputs: int, draw) -> Brain:
+    """A new memory net whose "nothing" output starts biased so it writes or
+    forgets on about memory_write_start of its ticks."""
+    net = Brain.random(*memory_net_shape(cfg, n_inputs), draw)
+    r, choices = cfg.memory_write_start, 2 * cfg.memory_slots
+    # Choices are sampled from logits / action_temperature, so the bias is scaled by it.
+    net.b2[-1] = cfg.action_temperature * np.log((1 - r) / r * choices)
+    return net
+
+
 def checked_action(choice, n_actions: int) -> int:
     """A controller's choice as an action index, or ValueError (a bad index would
     fail mid-tick or, if negative, silently wrap)."""
@@ -61,6 +91,32 @@ def check_queue(queue: np.ndarray, n_actions: int, who) -> None:
     """A queue a controller may have rewritten: every entry a valid action index."""
     if queue.size and not ((queue >= 0) & (queue < n_actions)).all():
         raise ValueError(f"NPC {who}: a queued action is out of range (0-{n_actions - 1})")
+
+
+def _whole(values, ndim: int, who, name: str) -> np.ndarray:
+    a = np.asarray(values, dtype=float)
+    if a.ndim != ndim and not (a.size == 0 and ndim == 2):
+        raise ValueError(f"NPC {who}: {name} has the wrong shape")
+    if not (np.isfinite(a).all() and (a == np.round(a)).all()):
+        raise ValueError(f"NPC {who}: {name} must hold whole numbers")
+    return a.astype(np.int64).reshape(a.shape if a.ndim == ndim else (0, 0))
+
+
+def write_slot(npc, k: int, pos, tick: int, food) -> None:
+    """Fill memory slot k of an NPC (a record or a view): a cell, the tick, and the
+    food there per type (/ food_capacity). Used by the memory net and by
+    controllers (the LLM pawn, later occupations) through write_memory."""
+    npc.mem_pos[k] = pos
+    npc.mem_tick[k] = tick
+    npc.mem_food[k] = food
+    npc.mem_filled[k] = True
+
+
+def clear_slot(npc, k: int) -> None:
+    npc.mem_pos[k] = 0
+    npc.mem_tick[k] = 0
+    npc.mem_food[k] = 0.0
+    npc.mem_filled[k] = False
 
 
 @dataclass
@@ -134,12 +190,23 @@ class NPC:
     # Config.reaction_queue: actions decided but not yet resolved, oldest first
     # (indices into the world's actions). Empty when the queue is off.
     queue: np.ndarray = field(default=None)
+    # Config.memory_slots (MR2): per slot, the remembered cell, the tick it was
+    # written, the food there (per type, / food_capacity) and whether it's in use.
+    mem_pos: np.ndarray = field(default=None)
+    mem_tick: np.ndarray = field(default=None)
+    mem_food: np.ndarray = field(default=None)
+    mem_filled: np.ndarray = field(default=None)
 
     def __post_init__(self):
         if self.eaten is None:
             self.eaten = np.zeros_like(self.inventory)
         if self.queue is None:
             self.queue = np.zeros(0, dtype=np.int64)
+        if self.mem_pos is None:
+            self.mem_pos = np.zeros((0, len(self.pos)), dtype=np.int64)
+            self.mem_tick = np.zeros(0, dtype=np.int64)
+            self.mem_food = np.zeros((0, len(self.inventory)))
+            self.mem_filled = np.zeros(0, dtype=bool)
 
     def take_damage(self, cause: str, amount: float) -> None:
         self.health -= amount
@@ -194,6 +261,17 @@ class NPC:
         if queue.ndim != 1 or not (np.isfinite(queue).all() and (queue == np.round(queue)).all()):
             raise ValueError(f"NPC {d.get('id')}: queue must be a list of whole numbers")
         d["queue"] = queue.astype(np.int64)
+        if "mem_pos" in d:                                     # absent before MR2 (2026-11-10)
+            d["mem_pos"] = _whole(d["mem_pos"], 2, d.get("id"), "mem_pos")
+            d["mem_tick"] = _whole(d["mem_tick"], 1, d.get("id"), "mem_tick")
+            d["mem_food"] = np.asarray(d["mem_food"], dtype=float)
+            d["mem_filled"] = np.asarray(d["mem_filled"], dtype=bool)
+            if d["mem_pos"].size == 0:                         # JSON's [] loses the row width
+                d["mem_pos"] = d["mem_pos"].reshape(0, len(d["pos"]))
+            if d["mem_food"].size == 0:
+                d["mem_food"] = d["mem_food"].reshape(0, len(d["inventory"]))
+            if d["mem_food"].ndim != 2 or d["mem_filled"].ndim != 1:
+                raise ValueError(f"NPC {d.get('id')}: memory slots have the wrong shape")
         d["zones_eaten"] = {tuple(z) for z in d.get("zones_eaten", [])}   # absent before M2
         if d.get("last_zone") is not None:
             d["last_zone"] = tuple(d["last_zone"])

@@ -50,6 +50,7 @@ LEGACY = {
     "poop_diffusion": 0.0,                # 2026-11-08 (plan-m3 S3b)
     "soil_diffusion": 0.0,                # 2026-11-08: default 0.1 since; older worlds mined their soil
     "reaction_queue": 0,                  # 2026-11-10 (plan-memory-reaction MR1)
+    "memory_slots": 0,                    # 2026-11-10 (plan-memory-reaction MR2)
 }
 
 
@@ -128,6 +129,6 @@ def load_snapshot(path: str | Path, log_every: int = 100) -> Simulation:
         raise ValueError(f"{len(saved)} hall-of-fame candidates is more than this world allows")
     candidates = [trial_candidate(c) for c in saved]
     for brain in [n.brain for n in npcs] + [e["brain"] for e in hall_of_fame + candidates]:
-        brain.check(sim.n_inputs, sim.cfg.hidden_units, sim.n_outputs)   # before they're stored
+        brain.check(*sim.brain_spec())                                    # before they're stored
     sim.npcs, sim.hall_of_fame, sim.trials = npcs, hall_of_fame, candidates
     return sim

@@ -32,6 +32,8 @@ COLLAPSE = 7     # where a collapsed NPC wakes up
 SPAWN = 8        # a top-up: which hall-of-fame entries compete, a random brain, where
 SECRET = 9       # where a new secret appears and its food type (keyed by secret id)
 INIT = 10        # starting NPCs' brains and cells (tick 0)
+MEMORY = 11      # sampling the memory net's choice (plan-memory-reaction MR2)
+MEMORY_NET = 12  # a new memory net for a seeded pool brain that has none (keyed by pool index)
 SCRIPT = 100     # measurement scripts' own draws (scripts/, never sim/)
 
 _GOLDEN = np.uint64(0x9E3779B97F4A7C15)
