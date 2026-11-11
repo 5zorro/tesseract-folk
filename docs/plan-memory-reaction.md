@@ -344,7 +344,7 @@ unchanged with slots off):
   2D 2.47 -> 3.90 ms, 4D 3.00 -> 4.55 ms (~180 NPCs). Genome 2D 1,040 ->
   3,929 weights, 4D 1,396 -> 5,101.
 
-**MR2 experiment (running 2026-11-10, `scripts/mr2_experiment.py`).** MR1
+**MR2 experiment (run 2026-11-10, `scripts/mr2_experiment.py`, 25 min).** MR1
 showed one nursery per cell is swamped by evolution noise, so:
 - Two arms, both warm-started from the M2 pools at Q = 3: *control* (K = 0)
   and *memory* (K = 8). Three nursery seeds per pool per arm, paired by
@@ -371,6 +371,58 @@ showed one nursery per cell is swamped by evolution noise, so:
   - Scores: memory vs control within noise in 2D; in 4D at most +0.1 food
     types per life, not consistent across nurseries. 60,000 ticks from a
     random memory net is short for two nets to co-evolve a use.
+
+**MR2 results (2026-11-10).** Read with `--report-only`. Means over pools x
+nurseries x scoring seeds; "n/N" counts paired cells where the second arm is
+higher (ties count as not higher, which matters in 4D, see below).
+
+| | 2D control | 2D memory | 2D blind | 4D control | 4D memory | 4D blind |
+|---|---|---|---|---|---|---|
+| collapses | 0.39 | 0.64 (22/30 up) | 0.75 | 0.003 | 0.000 | 0.000 |
+| diet | 0.960 | 0.958 | 0.956 | 0.827 | 0.838 (42/60) | 0.839 |
+| food types per life | 2.99 | 2.96 | 2.95 | 2.70 | 2.74 (33/60) | 2.75 |
+| births | 203 | 260 | 300 | 108 | 39 (13/60) | 39 |
+| ops per 1,000 NPC-ticks | | 96 | 95 | | 94 | 87 |
+| slots in use / memory age | | 43% / 142 | 44% / 120 | | 45% / 144 | 46% / 141 |
+| follow excess | | -0.056 | -0.053 | | +0.030 | +0.030 |
+
+- **The memory isn't used.** Follow excess, memory minus blind: 2D -0.003
+  (3/6 nurseries positive), 4D +0.000 (per nursery between -0.004 and
+  +0.004). In 4D, zeroing every slot sense changes nothing (blind minus
+  memory: births -0.2, food types +0.017). The forager ignores its slots.
+- **Writing didn't change:** ~95 ops per 1,000 NPC-ticks, the same as the
+  untrained start (~10% of ticks); memories live ~140 ticks, half the slots
+  in use. Nothing selected for or against writing.
+- **The score gaps are bistability, not memory** (by nursery, not by cell):
+  - 4D births 108 -> 39 is one nursery: n100 seed 201's control boomed (1,120
+    births, population 250); its memory twin didn't (103). 9 of 12 4D
+    nurseries sit at the top-up floor of 30 NPCs with about 0 births in both
+    arms. The 13/60 count was ties at 0, not a consistent drop.
+  - 2D births swing both ways by nursery (11 -> 645, 531 -> 47); collapses
+    follow births (boom and bust), up in 5 of 6 nurseries. Same pattern as
+    MR1: 6 nurseries can't separate an arm effect from which state a nursery
+    lands in.
+  - 4D food types +0.04 and diet +0.01 are within noise, and blind gets them
+    too, so they aren't from reading memories.
+- **Prediction check:** writing rates and memory ages right (no selection on
+  churn); 2D follow about 0, right; 4D follow +0.01 to +0.03, **missed**
+  (exactly 0); 4D scores at most +0.1 types and inconsistent, right; 2D
+  scores within noise, missed on its face (collapses +0.25) but the
+  by-nursery view says it's bistability noise.
+- **Side finding:** at Q = 3, 4D pools barely breed in the score worlds (9
+  of 12 nurseries ~0 births, held at the top-up floor). Compare M2's 4D
+  births before reading 4D results as population results.
+- **Reporting gap:** the per-cell sign counts treat seeds of one nursery as
+  independent and ties as negative. Report by nursery (n = 6 in 2D, 12 in
+  4D) with ties shown.
+- **What it means:** 60,000 ticks of co-evolution found no use for a written
+  memory where scent already leads to food. Two readings, not yet told
+  apart: (a) the worlds give memory no job (patches are within scent range,
+  food regrows in place); (b) the search is too slow (a random memory net
+  must write useful cells *and* the forager must learn to read them, a
+  two-step change with no reward for either half alone). The ladders
+  (hidden 16 vs 32, K = 4 vs 8) can't show anything until one of these is
+  fixed, so they wait.
 
 - Build slots, the slot senses, the memory net (one genome, two nets:
   mutation, crossover, hall of fame, JSON), `write_memory`, both engines.

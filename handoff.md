@@ -73,13 +73,14 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
 - **MR1 done:** `Config.reaction_queue` built (both engines, LLM pawn seams,
   warm start by widening brains). A delay of 1-5 ticks costs today's brains
   nothing measurable.
-- **MR2 built:** `Config.memory_slots` + a memory net carried in the genome
-  (`Brain.memory`), `write_memory` for controllers. **Experiment running or
-  finished:** `scripts/mr2_experiment.py` (control K = 0 vs memory K = 8 vs
-  blind, Q = 3, 3 nurseries per pool x 60k ticks). Read it with
-  `python scripts/mr2_experiment.py --report-only` (`runs/mr2-experiment.json`,
-  log `runs/mr2-experiment.log`); compare to the prediction in the plan.
-  Then fix the plan's "Known gaps" (mutation budget split first).
+- **MR2 done:** `Config.memory_slots` + a memory net carried in the genome
+  (`Brain.memory`), `write_memory` for controllers. Experiment
+  (`scripts/mr2_experiment.py --report-only`): after 60k ticks the forager
+  ignores its slots (memory minus blind follow = 0 in 2D and 4D); writing
+  stays at the random start; score gaps are nursery bistability. Next:
+  5zorro picks between giving memory a job (worlds where scent doesn't
+  reach) and helping the search; fix the plan's "Known gaps" (mutation
+  budget split first) before any rerun.
 - Next after MR2: MR3 (hall of fame), MR4 (one brain vs two). M3 history below.
 
 **Now (2026-11-08): M3, stable population from real births.** Plan:
