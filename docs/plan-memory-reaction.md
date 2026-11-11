@@ -162,28 +162,74 @@ and rank how much each sense group sways the action choice (a "which senses
 matter" table). ~10 minutes. Prediction: barely; the senses already point the
 way each tick.
 
-**MR0b. A clock sense (5zorro, 2026-11-10).** The MR0 smoke test (2D, 600
-ticks) found the 2 recurrent units flip sign every tick: within an NPC, r is
-about -0.6 at lag 1 and +0.8 at lag 2. They evolved into a 2-tick clock, not
-a memory. 5zorro: "humans have a circadian rhythem, so maybe having a
-'rythem' that is a simple modulo 'clock' in each npc based on tick alone."
-- **Sense:** sin and cos of 2pi x tick / P for each period P in
-  `Config.clock_periods` (empty = off, LEGACY empty). The tick's phase, a
-  pure function of the tick, so it's deterministic and order-free (rule 7).
-  P = 2 is the alternator brains built for themselves (a central pattern
-  generator, like the spinal circuits that pace walking; Grillner, from
-  memory); a long P is a day.
-- **Shared phase for the day, per-NPC for fast rhythms?** A circadian clock
-  is set by the sun, so a day period uses the world's tick for everyone;
-  shifts and occupations need that shared day. A fast alternator could use a
-  per-NPC offset (a keyed draw) so neighbors don't step in lockstep.
-- **Only if MR0 says the clock matters:** if holding memory at 0 doesn't
-  hurt, brains don't need a clock either and MR0b waits for occupations
-  (shift times). If it does hurt, test paired nurseries: 2 units vs clock
-  (P = 2) with 0 units vs both. If the clock does the units' job, the units
-  are free for real memory, or dropped (open decision 2).
-- **Day length:** no value until a sim tick has a game-time length (the
-  same wait as think rate). Minecraft's day is 24,000 game ticks.
+**MR0 result (2026-11-10; `scripts/probe_memory.py`, 5 seeds x 10k ticks,
+M2 top-up worlds at each dimension's M2 hunger, soil 0.1; `runs/mr0-memory*.txt`,
+~7 min).** Paired: memory held at 0 minus trained (seeds agreeing out of 5):
+| Nurseries | Collapses | Diet | Food types / life | Lowest nutrient | Births |
+|---|---|---|---|---|---|
+| 2D n100 | +0.007 (3) | -0.006 (4) | -0.002 (3) | -0.009 (3) | +9 (4) |
+| 2D n101 | -0.054 (5) | +0.007 (4) | -0.004 (2) | +0.017 (4) | -53 of 123 (5) |
+| 4D M2 n100 | +0.014 (5) | -0.042 (5) | -0.17 (4) | -0.091 (5) | +620 of 254 (5); pop 73 -> 203 |
+| 4D M2 n101, n103 | ~0 | -0.006 to -0.008 | -0.02 to -0.03 | ~0 | 0 |
+| 4D M2 n102 | ~0 | -0.016 (5) | -0.18 (5) | -0.015 (5) | 0 |
+| 4D births n100-103 | +0.001 to +0.011 | -0.001 to -0.010 | -0.03 to +0.05 | ~0 | ~0 of ~1,200 |
+- **Used, but little and briefly.** Holding memory at 0 changes foraging by
+  less than seed noise in 2D and in 6 of 8 4D nurseries. Two 4D M2 nurseries
+  lose ~0.17 food types per life (5/5 and 4/5 seeds). One (n100) uses memory
+  to *hold back mating*: cut it and births rise from 254 to ~870 while diet
+  and nutrients drop. In 2D n101 it does the opposite (births halve).
+- **What memory holds:** mostly a per-NPC set-point (spread between NPCs
+  0.19-0.51 vs within an NPC 0.08-0.22, over 30-tick windows) plus a short
+  echo of recent senses: within-NPC r 0.3-0.8 at lag 1, ~0.1-0.2 at lag 5,
+  gone by 10. Nothing that could hold a place or a heading for long.
+- **Senses that sway the choice** (permutation importance, mean change in
+  action probabilities): memory ranks 2nd-8th of 20 (0.04-0.16). The
+  **shrine sense ranks 1st in 8 of 10 nurseries** (0.10-0.23), then scent
+  gradient, body, satiation and moved. Why the shrine matters isn't known:
+  a landmark for moving, or just pray/worship near shrines (split the change
+  by action to tell; not done).
+- **Prediction check:** right for 2D and most of 4D; missed the one 4D
+  nursery that uses memory for mating.
+- **A probe bug found on the way:** NPC ids repeat across a batch's worlds,
+  so following NPCs by id interleaved worlds and faked a 2-tick clock in the
+  first readout. Fixed (followed by world and id, with a test); the ablation
+  numbers were never affected.
+- **Open decision 2 (keep the 2 units?):** ablating them hurts in 2 of 4 4D M2
+  nurseries, so by the rule above they stay. The 0/2/8-unit retraining ladder
+  was not run: the units hold a few ticks at most, so their count won't change
+  the memory net's design. Run it only if 5zorro wants the law.
+
+**MR0b. Clocks and rhythms (5zorro, 2026-11-10).** 5zorro: "humans have a
+circadian rhythem, so maybe having a 'rythem' that is a simple modulo 'clock'
+in each npc based on tick alone", and "there is two rythems in a human:
+circidaian rythem and ultradian rythem. ultradian is like 90 mins".
+- **Correction:** the idea first came with a smoke-test finding that the
+  2 recurrent units had become a 2-tick clock. That was a probe bug (NPCs
+  followed by id, and ids repeat across a batch's worlds, so two worlds'
+  values interleaved). Followed correctly, memory decays smoothly (4D: r 0.81
+  at lag 1, ~0 by lag 7; 2D slower). No clock evolved. The ideas stand on
+  their own merits.
+- **Circadian = an outside clock, shared.** Sin and cos of 2pi x tick / day
+  (`Config.clock_periods`, empty = off), one phase for the whole world (set by
+  the sun). Its job comes with occupations: shifts ("start at hour 9"). Day
+  length waits for the sim tick's game-time length (Minecraft's day is
+  24,000 game ticks).
+- **Ultradian = rhythms the body makes itself.** The ~90-minute
+  rest-activity cycle (Kleitman's BRAC; sleep cycles; from memory) comes
+  from internal feedback, not a clock. Our NPCs already have such loops:
+  hunger, nutrients and the bowel rise and reset, and in 4D the bowel sense
+  swings with a period of roughly 15-25 ticks (its correlation turns negative
+  by lag 7). The rule-6 way to add one: a *need* (fatigue that builds; rest
+  resets it), and the rhythm emerges, rather than a clock input.
+- **In net terms: memory on several timescales.** Today's units forget within
+  a few ticks. Leaky units with fixed time constants (e.g. 5, 50 and 500
+  ticks) give a brain fast and slow memory: the fast ones for steps, the slow
+  ones for "where am I in my foraging round". In robots, fast and slow units
+  divided the work into motor primitives and their sequencing (Yamashita &
+  Tani 2008, multiple-timescale recurrent nets; leaky-integrator nets, Jaeger
+  2007; both from memory). A candidate to test against the memory net (MR2).
+- **When:** the day clock comes with occupations. Multi-timescale units are
+  a cheap MR2 variant (no new action, just different decay per unit).
 
 **MR1. Reaction queue.**
 - Build Q in both engines, the queue sense, snapshots, LEGACY, and the
@@ -227,6 +273,5 @@ the world writes (occupation posts, shift times, gifts via `share`).
 
 ## Open decisions (5zorro)
 1. ~~LLM pawn plans~~: settled 2026-11-10, occupations (above).
-2. Keep today's 2 recurrent units alongside the slots? Claude's default
-   unless 5zorro says otherwise: let MR0 decide (drop them if unused, which
-   saves inputs; keep them if ablating them hurts).
+2. ~~Keep today's 2 recurrent units?~~ MR0 (2026-11-10): keep; ablating
+   them hurts in 2 of 4 4D M2 nurseries.

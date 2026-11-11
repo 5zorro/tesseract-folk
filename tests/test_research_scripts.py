@@ -167,3 +167,21 @@ def test_probe_memory_state_tells_a_fixed_bias_from_a_held_state():
     walk = [np.cumsum(np.random.default_rng(s).normal(0, 0.1, (40, 2)), axis=0) for s in range(5)]
     held = probe.memory_state(walk)
     assert held["within"] > 0 and held["lag1"] > 0.5
+
+
+def test_probe_memory_follows_npcs_by_world_and_id():
+    """Ids repeat across a batch's worlds; following by id alone interleaved
+    worlds and faked a 2-tick clock (MR0, 2026-11-10)."""
+    import scripts.probe_memory as probe
+    from sim import Config, Simulation
+    from sim.simulation import Batch
+    sims = [Simulation(Config(dims=2, size=12, seed=s, initial_npcs=5)) for s in (1, 2)]
+    batch = Batch(sims)
+    P, live = batch.pop, batch.pop.live()
+    keys = probe.npc_keys(P, live)
+    assert len(set(keys)) == len(keys) == 10 and len({k[1] for k in keys}) == 5   # ids repeat
+    follow = {k: [] for k in keys}
+    for _ in range(4):
+        batch.step()
+        probe.record(follow, batch.pop, batch.pop.live())
+    assert all(len(v) <= 4 for v in follow.values()) and max(len(v) for v in follow.values()) == 4

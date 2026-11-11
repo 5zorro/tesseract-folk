@@ -19,8 +19,7 @@ agree in sign. From the trained arm, every SAMPLE ticks over the second half:
   (mean per-NPC std), "between" how much NPCs differ (std of their means); a
   unit that sits at one value per NPC is a fixed bias, not a memory. The lag
   correlations are of the within-NPC part (each NPC's mean removed): how much
-  of a change persists 1, 2, 10 and 11 ticks later (negative at odd
-  lags and positive at even ones = it flips sign each tick).
+  of a change persists 1, 2, 5 and 10 ticks later.
 
     python scripts/probe_memory.py                       # 2D and 4D, 5 seeds x 10,000 ticks
     python scripts/probe_memory.py --dims 4 --source "snapshots/s3/births-n10*-r35"
@@ -47,7 +46,7 @@ from sweep import Run  # noqa: E402
 
 ARMS = ("trained", "memory0")
 SAMPLE = 100                 # ticks between sense samples (second half only)
-LAGS = (1, 2, 10, 11)        # odd and even: a unit that flips sign each tick is a clock
+LAGS = (1, 2, 5, 10)
 WINDOW = 30                  # ticks each sampled NPC's memory is followed
 LOG_EVERY = 250
 METRICS = (("collapses", "collapse_rate"), ("diet", "diet_diversity"), ("types", "zone_types_per_life"),
@@ -127,6 +126,19 @@ def memory_state(series: list[np.ndarray]) -> dict:
     return out
 
 
+def npc_keys(P, slots: np.ndarray) -> list[tuple[int, int]]:
+    """(world, id) per NPC: ids repeat across the worlds of a batch, so an id alone
+    mixes NPCs of different worlds (MR0's first run did: 2026-11-10)."""
+    return list(zip(P.world[slots].tolist(), P.id[slots].tolist()))
+
+
+def record(follow: dict, P, live: np.ndarray) -> None:
+    """Append each followed NPC's memory this tick."""
+    for key, slot in zip(npc_keys(P, live), live.tolist()):
+        if key in follow:
+            follow[key].append(P.memory[slot].copy())
+
+
 def job(task: tuple) -> dict:
     """One source and arm: every seed in one batch."""
     dims, source, arm, seeds, ticks, extra = task
@@ -137,7 +149,7 @@ def job(task: tuple) -> dict:
     layout = runs[0].sim.sense_layout()
     rng = np.random.default_rng(seeds[0])
     sens: dict[str, list[float]] = {}
-    follow: dict[int, list] = {}                     # NPC id -> memory each tick of its window
+    follow: dict[tuple, list] = {}                   # (world, id) -> memory each tick of its window
     until = 0
     series: list[np.ndarray] = []
     late = ticks // 2
@@ -156,11 +168,9 @@ def job(task: tuple) -> dict:
                 for name, v in sensitivity(batch, live, batch.sense_slots(live), layout, rng).items():
                     sens.setdefault(name, []).append(v)
                 series += [np.array(v) for v in follow.values()]
-                follow, until = {int(i): [] for i in P.id[live]}, batch.tick + WINDOW
+                follow, until = {key: [] for key in npc_keys(P, live)}, batch.tick + WINDOW
             if batch.tick < until:
-                for i, s in zip(P.id[live], live):
-                    if int(i) in follow:
-                        follow[int(i)].append(P.memory[s].copy())
+                record(follow, P, live)
     series += [np.array(v) for v in follow.values()]
     return {"dims": dims, "source": source, "arm": arm, "rows": [r.result() for r in runs],
             "sens": {k: float(np.mean(v)) for k, v in sens.items()}, "state": memory_state(series)}

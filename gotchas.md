@@ -295,3 +295,7 @@ Traps that already bit us, by area. Add to this when something surprises you.
   mining is `soil_diffusion=0`. Its S3b table's "off" row predates the default.
 - **Cap-2,000 worlds are slow:** a 4D world of ~1,500 NPCs is ~10x a floor
   world per tick (the 4D capacity scan took 67 of its 73 minutes).
+- **NPC ids repeat across the worlds of a batch.** Each world numbers its NPCs
+  from 0, so anything that tracks NPCs over time in a batched run must key on
+  (world, id) (`probe_memory.npc_keys`). Keying on id alone interleaved worlds
+  and faked a 2-tick memory clock (MR0, 2026-11-10).
