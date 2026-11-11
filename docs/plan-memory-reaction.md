@@ -339,8 +339,8 @@ unchanged with slots off):
   2D 2.47 -> 3.90 ms, 4D 3.00 -> 4.55 ms (~180 NPCs). Genome 2D 1,040 ->
   3,929 weights, 4D 1,396 -> 5,101.
 
-**MR2 experiment (proposed, not run).** MR1 showed one nursery per cell is
-swamped by evolution noise, so:
+**MR2 experiment (running 2026-11-10, `scripts/mr2_experiment.py`).** MR1
+showed one nursery per cell is swamped by evolution noise, so:
 - Two arms, both warm-started from the M2 pools at Q = 3: *control* (K = 0)
   and *memory* (K = 8). Three nursery seeds per pool per arm, paired by
   (pool, seed): 2D 2 pools, 4D 4 pools = 18 pairs.
@@ -350,7 +350,22 @@ swamped by evolution noise, so:
   lives, the follow rate (moves toward a remembered cell holding the needed
   food, against 1 in 2·dims), and the score with slots held empty
   (ablation, like MR0).
+- **Ablation is "blind",** not emptied slots: slots are still written, but
+  every net reads their senses as zeros. Remembered food cells are food
+  patches NPCs head for by scent anyway, so the blind arm's follow excess is
+  the baseline and memory minus blind is the real use. Untrained (smoke run,
+  4D): +0.029 vs +0.029, difference +0.000.
 - Then the ladders: hidden 16 vs 32, K = 4 vs 8.
+- **Prediction (Claude, before results):**
+  - Writing is free, so nothing selects against churn until memories are
+    used: operations stay near the starting ~60-90 per 1,000 NPC-ticks, and
+    memories live ~100-200 ticks.
+  - Follow excess, memory minus blind: about 0 in 2D (patches are close and
+    scent suffices) and small but positive in 4D (+0.01 to +0.03, most
+    nurseries positive).
+  - Scores: memory vs control within noise in 2D; in 4D at most +0.1 food
+    types per life, not consistent across nurseries. 60,000 ticks from a
+    random memory net is short for two nets to co-evolve a use.
 
 - Build slots, the slot senses, the memory net (one genome, two nets:
   mutation, crossover, hall of fame, JSON), `write_memory`, both engines.
