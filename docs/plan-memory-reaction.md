@@ -162,6 +162,29 @@ and rank how much each sense group sways the action choice (a "which senses
 matter" table). ~10 minutes. Prediction: barely; the senses already point the
 way each tick.
 
+**MR0b. A clock sense (5zorro, 2026-11-10).** The MR0 smoke test (2D, 600
+ticks) found the 2 recurrent units flip sign every tick: within an NPC, r is
+about -0.6 at lag 1 and +0.8 at lag 2. They evolved into a 2-tick clock, not
+a memory. 5zorro: "humans have a circadian rhythem, so maybe having a
+'rythem' that is a simple modulo 'clock' in each npc based on tick alone."
+- **Sense:** sin and cos of 2pi x tick / P for each period P in
+  `Config.clock_periods` (empty = off, LEGACY empty). The tick's phase, a
+  pure function of the tick, so it's deterministic and order-free (rule 7).
+  P = 2 is the alternator brains built for themselves (a central pattern
+  generator, like the spinal circuits that pace walking; Grillner, from
+  memory); a long P is a day.
+- **Shared phase for the day, per-NPC for fast rhythms?** A circadian clock
+  is set by the sun, so a day period uses the world's tick for everyone;
+  shifts and occupations need that shared day. A fast alternator could use a
+  per-NPC offset (a keyed draw) so neighbors don't step in lockstep.
+- **Only if MR0 says the clock matters:** if holding memory at 0 doesn't
+  hurt, brains don't need a clock either and MR0b waits for occupations
+  (shift times). If it does hurt, test paired nurseries: 2 units vs clock
+  (P = 2) with 0 units vs both. If the clock does the units' job, the units
+  are free for real memory, or dropped (open decision 2).
+- **Day length:** no value until a sim tick has a game-time length (the
+  same wait as think rate). Minecraft's day is 24,000 game ticks.
+
 **MR1. Reaction queue.**
 - Build Q in both engines, the queue sense, snapshots, LEGACY, and the
   controller seams (1-3 above).
