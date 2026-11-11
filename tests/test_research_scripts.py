@@ -198,7 +198,8 @@ def test_mr1_ladder_trains_under_nursery_rules_and_refuses_other_runs(tmp_path):
     assert path.name.startswith("persist-n101-r35-q3-t500")
     assert not mr1.reusable(path, rules, "src", 500)               # nothing there yet
     path.mkdir()
-    (path / "state.json").write_text(json.dumps({"config": rules, "tick": 500}))
+    from sim import Config
+    (path / "state.json").write_text(json.dumps({"config": Config(**rules).to_dict(), "tick": 500}))
     (path / "mr1.json").write_text(json.dumps({"source": "src"}))
     assert mr1.reusable(path, rules, "src", 500)
     with pytest.raises(ValueError):
