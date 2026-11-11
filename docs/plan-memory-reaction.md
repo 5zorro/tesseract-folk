@@ -254,18 +254,25 @@ fingerprints unchanged with the queue off):
   test depends on it.
 
 Still to do in MR1:
-- Build Q in both engines, the queue sense, snapshots, LEGACY, and the
-  controller seams (1-3 above).
-- Train: warm-start the forager from today's hall of fame at Q = 3, anneal to
-  a new hall of fame.
-- Delay ladder Q = 0, 1, 3, 5 (paired). Relationship: score against Q ÷ the
-  ticks to cross a food patch.
-- Prediction: Q = 1-3 costs little; the score bends down near Q ~ 8. Warm
-  starts recover most of the loss within one anneal.
-- Tests: Q = 0 equals today (fingerprints); queue order; newborn queue;
-  snapshot round trip; order independence (rule 7); engines match; a
-  controller returning no action falls back to the brain; a controller
-  replacing the queue.
+- ~~Build Q in both engines, the queue sense, snapshots, LEGACY, seams;
+  tests~~ (above).
+- **Delay ladder, running 2026-11-10** (`scripts/mr1_ladder.py`): M2
+  nurseries (2D n100/101 at 1x, 4D persist n100-103 at 0.36x), Q = 0, 1, 3, 5,
+  each scored *as is* (widened brains, so only the delay differs) and
+  *trained* (a 20,000-tick warm-start nursery at that Q; trained at Q = 0 is
+  the more-training control), 5 seeds x 10,000 ticks in M2's top-up worlds.
+- **Prediction (Claude, written before the results):**
+  - As is, Q = 1 costs almost nothing. Q = 3 costs a little: 2D collapses
+    up ~20-40%, 4D diet down ~0.02 and food types per life down ~0.1 (4D
+    hardly collapses at 0.36x, so diet carries the signal). Q = 5 costs about
+    twice Q = 3. No cliff before Q ~ 8 (crossing a food core).
+  - Why small: a food core is ~8 cells across and food scent points the same
+    way for many ticks, so a stale step is usually still a good step. Eating
+    is the risk: an eat queued on a food cell lands after the NPC has moved
+    on, unless it stays.
+  - Trained (20k ticks) wins back about half the as-is loss at Q = 3,
+    mostly by learning to stay on food (more "stay" queued after an eat).
+- Then: the long anneal to a Q = 3 hall of fame (MR3 uses it).
 
 **MR2. Memory net.**
 - Build slots, the slot senses, the memory net (one genome, two nets:
