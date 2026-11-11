@@ -123,9 +123,26 @@ steers an NPC without the model choosing every step. Built now: a world-side
 `write_memory(npc, slot, pos, food)` that controllers (and later occupations)
 can call.
 
-Still open: whether model plans are raw actions (move+0, eat) or goals that
-code turns into steps ("go to cell X and eat"). Raw actions work from day 1;
-goals come with the game layer.
+**Settled (5zorro, 2026-11-10): the LLM pawn's main lever is assigning
+occupations,** not queuing raw actions. "the llm pawn has most power for
+higher level goals when assigning an 'occupation'." An occupation overrides
+most of what the forager does: the manager net may switch the forager off and
+switch on a net that works through the occupation's sandbox queues while the
+NPC is on the clock. Occupations the LLM pawn assigns carry no frazzled
+debuff. Raw-action plans (seam 1) stay as the low-level fallback.
+What this means for MR1-MR4:
+- `write_memory` is the occupation's first interface: a post's location (and
+  later its shift time) lands in a memory slot the forager already follows.
+- **A switch of the net in charge drains the queue.** The Q actions already
+  queued still play out after a switch; that Q-tick window is the natural
+  place for the reaction audio and reaction animation 5zorro wants at each
+  switch ("the interactions and switches between the neural nets in charge
+  are great locations to queue up 'reaction audio' and 'reaction
+  animations'").
+- **Later (game layer, not MR1-MR4):** the manager net, the occupation duty
+  net, the frazzled debuff, and an event emitted on every switch of who is
+  in charge (brain, occupation net, LLM pawn, player), which the game turns
+  into barks and animations. The examples are in `openitems.md`.
 
 ## Measuring (removing the noise)
 5zorro (2026-11-09): "If we test, we have to test in a manner that removes the
@@ -186,6 +203,7 @@ drops while memory is learned, and compute.
 the world writes (occupation posts, shift times, gifts via `share`).
 
 ## Open decisions (5zorro)
-1. LLM pawn plans: raw actions now, goals later (as above)?
-2. Keep today's 2 recurrent units alongside the slots, or drop them if MR0
-   shows they're unused?
+1. ~~LLM pawn plans~~: settled 2026-11-10, occupations (above).
+2. Keep today's 2 recurrent units alongside the slots? Claude's default
+   unless 5zorro says otherwise: let MR0 decide (drop them if unused, which
+   saves inputs; keep them if ablating them hurts).
