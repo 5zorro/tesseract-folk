@@ -272,7 +272,43 @@ Still to do in MR1:
     on, unless it stays.
   - Trained (20k ticks) wins back about half the as-is loss at Q = 3,
     mostly by learning to stay on food (more "stay" queued after an eat).
-- Then: the long anneal to a Q = 3 hall of fame (MR3 uses it).
+
+**Delay ladder result (2026-11-10; `runs/mr1-ladder.log`, `.json`; 12 min on
+16 cores).** Means over nurseries x 5 seeds; change from Q = 0 (pairs
+agreeing in sign):
+| Arm, Q | 2D collapses | 2D diet | 2D types | 4D diet | 4D types | 4D lowest nutrient |
+|---|---|---|---|---|---|---|
+| As is, 0 | 0.41 | 0.960 | 2.98 | 0.834 | 2.74 | 0.895 |
+| As is, 1 | -0.035 (7/10) | +0.002 | -0.005 | +0.007 (16/20) | -0.011 | +0.008 |
+| As is, 3 | -0.011 (5/10) | -0.002 | -0.003 | +0.005 (13/20) | -0.008 | +0.005 |
+| As is, 5 | -0.061 (8/10) | +0.000 | +0.006 | +0.001 | -0.021 | -0.002 |
+- **A delay of up to 5 ticks costs nothing measurable** for today's brains:
+  every foraging change is within seed noise, and collapses even dip
+  slightly in 2D. 4D's approach excess is a hair higher at every Q (15-18 of
+  20 pairs). Delay is far below the time to cross a food core (~8 ticks),
+  which control theory says is the safe zone; the cliff, if any, is past 5.
+- **Prediction missed:** Claude expected 2D collapses up 20-40% and 4D
+  types down ~0.1 at Q = 3. Measured: nothing. Likely reason (not measured):
+  the brains' choices change slowly (keep heading up the scent), so an
+  action chosen 5 ticks ago is usually still the right one. Checkable as
+  how often an NPC's action equals its action Q ticks earlier.
+- **Births and population swing, but not with Q.** They come from the two
+  breeding nurseries only, and jump between a floor state and a boom state
+  (M3's bistability): as-is 4D n100 has 254, 109, 84, 256 births at
+  Q = 0, 1, 3, 5; trained 4D n100 at Q = 0 boomed to the cap (1,288 births,
+  pop 250, types 2.00) and trained 2D n101 at Q = 3 boomed (652 births,
+  collapses 1.33).
+- **The trained arm says nothing yet:** each cell is one 20k-tick nursery,
+  so one nursery's evolution (a boom) dominates its cell. The non-breeding
+  4D nurseries (n101-n103) score the same at every Q, trained or not.
+  Separating training from evolution noise needs several nursery seeds per
+  cell.
+- **For the game:** a reaction lag of 3 (and up to 5) is free, so the queue
+  can be the LLM pawn's and the occupations' handoff point, with its Q-tick
+  window for barks and animations, at no cost to survival.
+- **Next:** no separate long anneal for Q = 3. The warm-started brains
+  already play at Q = 3 as well as at 0, so MR2 starts from today's pools
+  with the queue on (widened at load).
 
 **MR2. Memory net.**
 - Build slots, the slot senses, the memory net (one genome, two nets:
