@@ -65,6 +65,12 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
     every food, and foraging is trivial (`gotchas.md`).
 
 ## Where to pick up
+**Next (2026-11-10, 5zorro's pick): memory and reaction time.** Plan:
+`docs/plan-memory-reaction.md` (draft, open decisions 1-4). MR0 measures
+whether brains use today's 2 recurrent memory units (never measured), MR1
+builds the memory stack (plan-m2 4a, plus a "meal" write variant), MR2 adds
+reaction delay and think interval on the decide/resolve seam. M3 history below.
+
 **Now (2026-11-08): M3, stable population from real births.** Plan:
 `docs/plan-m3-births.md` (goal rewritten with 5zorro: births 10x top-ups, off
 the floor and the cap, cv < 0.15, in 2D/3D/4D at each dimension's M2 hunger).
