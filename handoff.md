@@ -65,12 +65,22 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
     every food, and foraging is trivial (`gotchas.md`).
 
 ## Where to pick up
-**Next (2026-11-10, 5zorro's design): reaction queue and memory net.** Plan:
-`docs/plan-memory-reaction.md`. MR0 baseline (are today's 2 recurrent units
-used?), MR1 a 3-action reaction queue the forager senses (plus seams so the
-LLM pawn can feed long plans and hand back to the brain), MR2 a separate
-memory net (8 slots, 17 outputs) co-evolved with the forager, MR3 hall of
-fame, MR4 one brain vs two. M3 history below.
+**Now (2026-11-10, 5zorro's design): reaction queue and memory net.** Plan:
+`docs/plan-memory-reaction.md` (results, predictions, known gaps).
+- **MR0 done:** today's 2 recurrent units are a few-tick echo plus a per-NPC
+  offset; holding them at 0 hurts 2 of 8 4D nurseries (kept). The shrine
+  sense sways choices most (why: open).
+- **MR1 done:** `Config.reaction_queue` built (both engines, LLM pawn seams,
+  warm start by widening brains). A delay of 1-5 ticks costs today's brains
+  nothing measurable.
+- **MR2 built:** `Config.memory_slots` + a memory net carried in the genome
+  (`Brain.memory`), `write_memory` for controllers. **Experiment running or
+  finished:** `scripts/mr2_experiment.py` (control K = 0 vs memory K = 8 vs
+  blind, Q = 3, 3 nurseries per pool x 60k ticks). Read it with
+  `python scripts/mr2_experiment.py --report-only` (`runs/mr2-experiment.json`,
+  log `runs/mr2-experiment.log`); compare to the prediction in the plan.
+  Then fix the plan's "Known gaps" (mutation budget split first).
+- Next after MR2: MR3 (hall of fame), MR4 (one brain vs two). M3 history below.
 
 **Now (2026-11-08): M3, stable population from real births.** Plan:
 `docs/plan-m3-births.md` (goal rewritten with 5zorro: births 10x top-ups, off

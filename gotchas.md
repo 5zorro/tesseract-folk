@@ -299,3 +299,19 @@ Traps that already bit us, by area. Add to this when something surprises you.
   from 0, so anything that tracks NPCs over time in a batched run must key on
   (world, id) (`probe_memory.npc_keys`). Keying on id alone interleaved worlds
   and faked a 2-tick memory clock (MR0, 2026-11-10).
+- **A memory net shares the mutation budget.** `mutations_per_birth` is per
+  genome, and `Brain.n_params` counts the memory net, so turning on
+  `memory_slots` lowers the forager's own mutations per child (4D Q = 3:
+  ~30 -> ~20). Compare memory and no-memory arms with that in mind.
+- **New senses go last, in order: queue, then memory slots.** Warm starts
+  (`seed_brains`) widen old brains by appending zero-weight inputs, which only
+  works because these groups are at the end. A future sense group that old
+  brains should keep using must go after them.
+- **Memory "follow" needs a blind baseline.** Remembered food cells are food
+  patches NPCs walk to by scent anyway; untrained memory already "follows"
+  above chance in 4D (+0.03). Compare against the same brains with slot
+  senses zeroed (`mr2_experiment.slots_blind`).
+- **Controllers now keep the brain running** (MR1): an NPC under a
+  controller updates its recurrent memory and memory net every tick, and a
+  controller may return None to let the brain decide.
+

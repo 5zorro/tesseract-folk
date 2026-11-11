@@ -230,6 +230,11 @@ circidaian rythem and ultradian rythem. ultradian is like 90 mins".
   2007; both from memory). A candidate to test against the memory net (MR2).
 - **When:** the day clock comes with occupations. Multi-timescale units are
   a cheap MR2 variant (no new action, just different decay per unit).
+- **Two systems, not one** (5zorro asked, 2026-11-10): the memory net's
+  slots are explicit memories it writes *and* forgets on purpose; nothing
+  fades out of a slot (the forager just senses its age). Multi-timescale
+  units would be the forager's own recurrent memory, fading at fixed rates
+  that nobody manages: a scratchpad that wipes itself, beside a notebook.
 
 **MR1. Reaction queue.** **Engine built 2026-11-10** (both engines;
 `tests/test_reaction_queue.py`, 3 `test_engines.py` cases; all six
@@ -391,6 +396,44 @@ drops while memory is learned, and compute.
 
 **Later:** queues for slower think rates; goal-level model plans; memories
 the world writes (occupation posts, shift times, gifts via `share`).
+
+## Known gaps (pre-compaction review, 2026-11-10)
+Found while the MR2 experiment ran, so not fixed yet (the run imports `sim/`
+and the ladder scripts). Fix after it finishes:
+- **Mutation budget is shared by both nets (confound for MR2).**
+  `mutations_per_birth` (30) is spread over the whole genome, so adding a
+  memory net cuts the forager's own mutations per child: 4D at Q = 3, the
+  control forager (2,260 weights) gets ~30, the memory arm's forager (3,412
+  of 5,101 weights) ~20. Both are inside R's 10-100 plateau, so probably
+  harmless, but a memory-arm forager evolves a bit slower. Option: a
+  separate budget per net (`memory_mutations_per_birth`).
+- **`write_memory` is duplicated** in both engines (same body); move it to
+  `sim/npc.py` next to `write_slot`.
+- **Controllers writing `npc.mem_*` directly aren't checked** (only
+  `write_memory` is). Positions aren't used as indices (only through
+  `wrapped_delta`), so a bad one gives a wrong sense, not a crash, but a NaN
+  `mem_food` would reach the brain. Controllers are trusted code; check after
+  `decide` like `check_queue` does if that changes.
+- **Untested:** the memory net acting *before* a controller (so the
+  controller's `write_memory` wins); a memory net under `memory_net_hidden =
+  0` with the queue on in 4D is only covered by the engine cases.
+- **Script naming:** `mr2_experiment.py` saves its metadata as `mr1.json`
+  (it reuses `mr1_ladder.reusable`); rename to `meta.json` in both.
+- **Probe monkeypatches:** `probe_memory.memory_held_at_zero` (decide_all) and
+  `mr2_experiment.slots_blind` (sense_slots) patch `Batch` for a job's life
+  and restore it; `slots_blind` calls `sense_layout()` on every sense call
+  (probe-only cost). Never import them into a long-lived process.
+- **The reference engine's queue** uses `np.append` per NPC per tick (slow,
+  but it's only the test oracle).
+- **Performance:** Q = 3 with 8 slots is +50-60% per tick, most of it the
+  memory net's forward pass on 191 inputs (4D). If it pays, cheaper options:
+  the memory net thinks every k ticks, or reads a smaller input set.
+- **`memory_write_start` is approximate:** 0.05 gives ~10% writes/forgets
+  (random logits' spread); documented in `config.py`.
+- **Snapshots:** `snapshots/mr1` (24 warm-start nurseries, 51 MB) aren't
+  needed again (results recorded; rerun the script to rebuild);
+  `snapshots/mr2` (36) is pending the experiment. Standing rule: keep
+  snapshots only if they pass M2.
 
 ## Open decisions (5zorro)
 1. ~~LLM pawn plans~~: settled 2026-11-10, occupations (above).
