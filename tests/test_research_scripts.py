@@ -116,3 +116,54 @@ def test_result_names_carry_physics_changed_since_older_runs(monkeypatch):
     assert hunger_search.csv_path(4, 0.36).name == "hdist-4d-soil0.1-h0.36.csv"
     monkeypatch.setattr(ladder, "PHYSICS", {"soil_diffusion": 0.1})      # as if nothing changed
     assert ladder.physics_tag() == "" and ladder.physics_changes() == {}
+
+
+def test_probe_memory_holds_memory_at_zero_and_restores():
+    import numpy as np
+    import scripts.probe_memory as probe
+    from sim import Config, Simulation
+    from sim.simulation import Batch
+    original = Batch.decide_all
+    sim = Simulation(Config(dims=2, size=12, seed=3, initial_npcs=6))
+    with probe.memory_held_at_zero():
+        for _ in range(3):
+            sim.step()
+        assert sim.npcs and np.all(sim.pop.memory[sim.pop.live()] == 0)
+    assert Batch.decide_all is original
+    sim.step()
+    assert np.any(sim.pop.memory[sim.pop.live()] != 0)          # trained feedback is back
+
+
+def test_probe_memory_sensitivity_is_zero_for_an_ignored_sense():
+    import numpy as np
+    import scripts.probe_memory as probe
+    from sim import Config, Simulation
+    sim = Simulation(Config(dims=2, size=12, seed=4, initial_npcs=8))
+    layout, P = sim.sense_layout(), sim.pop
+    live = P.live()
+    P.w1[live, :, layout["memory"]] = 0.0                     # nobody reads memory
+    obs = sim.batch.sense_slots(live)
+    got = probe.sensitivity(sim.batch, live, obs, layout, np.random.default_rng(0))
+    assert got["memory"] == 0.0 and "bias" not in got
+    assert max(got.values()) > 0
+    assert np.allclose(probe.action_probs(sim.batch, live, obs).sum(axis=1), 1.0)
+
+
+def test_probe_memory_lag_correlation():
+    import math
+    import numpy as np
+    import scripts.probe_memory as probe
+    a = np.arange(10.0)
+    assert probe.lag_correlation([(a, a * 2)]) == pytest.approx(1.0)
+    assert math.isnan(probe.lag_correlation([]))
+
+
+def test_probe_memory_state_tells_a_fixed_bias_from_a_held_state():
+    import numpy as np
+    import scripts.probe_memory as probe
+    fixed = [np.full((40, 2), v) for v in (-0.9, 0.1, 0.8)]   # one value per NPC
+    got = probe.memory_state(fixed)
+    assert got["within"] < 1e-9 and got["between"] > 0.5
+    walk = [np.cumsum(np.random.default_rng(s).normal(0, 0.1, (40, 2)), axis=0) for s in range(5)]
+    held = probe.memory_state(walk)
+    assert held["within"] > 0 and held["lag1"] > 0.5
