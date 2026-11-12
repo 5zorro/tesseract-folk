@@ -271,3 +271,12 @@ def test_scent_probe_zeroes_both_scent_senses_and_restores():
     assert Batch.sense_slots is original
     obs = sim.batch.sense_slots(live)
     assert obs[:, layout["scent_here"]].any() and obs[:, layout["scent_grad"]].any()
+
+
+def test_sparse_layout_measure_finds_meals_and_walk_times():
+    import numpy as np
+    import scripts.sparse_food_layouts as layouts
+    sim = layouts.world(2, 2.0, 1, 8.0, 1)
+    sim.run(30)
+    share, d50, d90, w50, wmean, total = layouts.measure(sim, np.random.default_rng(0))
+    assert 0 < share < 1 and 0 <= d50 <= d90 and 0 <= w50 <= wmean and total > 0

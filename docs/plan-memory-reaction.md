@@ -607,6 +607,66 @@ floor 0, mean over nurseries (down/up counts by nursery):
   out of reach of the local senses: sparser, richer patches farther apart.
   That's a world change (5zorro's call), and the M2 diet goals would need
   re-checking in it.
+
+## MR2c: a sparse-food world where information pays (design, 2026-11-11)
+5zorro: "Yes, design it." Not run yet; needs 5zorro's go-ahead.
+
+**Why the M2 worlds give long-range information no job.** A forager with only
+local senses roughly random-walks until it lands on a meal. Information
+(scent, memory) can only pay when that search is long compared with the
+nutrient slack, the ticks from full to empty (1 / nutrient_decay).
+Measured with `scripts/sparse_food_layouts.py` (world-only runs to the food
+steady state, 3 seeds; total capacity held at the baseline's by raising
+`food_capacity`; random walkers from random cells to the nearest meal of a
+type, meal = food > a bite):
+
+| dims | radius | patches per type | food_capacity | meal cells | nearest meal p50 / p90 | random walk mean | / slack |
+|---|---|---|---|---|---|---|---|
+| 2D | 4.0 (M2) | 3 | 2.0 | 63% | 0 / 4 | 17 | 0.05 |
+| 2D | 2.0 | 3 | 7.9 | 28% | 3 / 9 | 71 | 0.21 |
+| 2D | 2.0 | 1 | 23.6 | 12% | 8 / 17 | 320 | 0.96 |
+| 2D | 1.5 | 1 | 42.0 | 7% | 10 / 19 | 497 | 1.49 |
+| 4D | 1.23 (M2) | 3 | 2.0 | 7.5% | 3 / 6 | 77 | 0.08 |
+| 4D | 0.9 | 3 | 6.9 | 4.1% | 4 / 6 | 116 | 0.13 |
+| 4D | 0.9 | 1 | 20.7 | 3.0% | 5 / 9 | 231 | 0.25 |
+| 4D | 0.7 | 1 | 56.7 | 1.4% | 6 / 10 | 371 | 0.40 |
+
+(Slack: 2D 333 ticks, 4D 926. Total food at steady state stays ~540-580 in
+every layout, so soil doesn't limit the rich cores.)
+
+- **Relationship:** the random search time scales like 1 / meal density
+  (times a log factor in 2D, where walks revisit cells): about 5-6 / rho
+  in 4D and ~15 (1/rho) ln(1/rho) in 2D for these clustered patches. In
+  today's worlds a blind search costs 5-8% of the slack, which is why
+  removing scent cost nothing. Information starts to matter somewhere
+  around a quarter of the slack and up.
+- **Proposed layouts:** 2D radius 2.0, 1 patch per type, food_capacity
+  23.6 (search ~ the slack); 4D radius 0.7, 1 patch per type, food_capacity
+  56.7 (0.4 of the slack; NPCs eating thin it further). Everything else as
+  M2 (hunger, Q = 3, soil diffusion 0.1). No code change: all existing
+  settings; mass is untouched (capacity only shapes growth).
+- **Guards and side effects:**
+  - One patch per type is a fixed map per world. A nursery could hard-code
+    "head +x" for its own layout; scoring worlds use other seeds (other
+    layouts), so only senses or memory carry over.
+  - Crowding: three meeting points per world means poop and stink pile up
+    at the patches (M3's boom and bust). Watch collapses by cause.
+  - Zones (M2 travel metrics) use `zone_core` x food_capacity, so cores
+    shrink to a cell or two; compare travel measures within MR2c only.
+  - M2's diet goals and hunger were tuned for the dense worlds; check
+    survival before training.
+- **Steps (each needs a prediction written first):**
+  1. **World check (scoring only, minutes):** today's M2 pools at Q = 3 in
+     the proposed worlds: population, births, collapses by cause, diet.
+     If they can't hold the top-up floor's food needs, ease hunger first.
+  2. **Does information pay? (training):** control nurseries (no memory)
+     trained in the sparse worlds, scored with scent and with no scent (the
+     scent probe's zeroing). Pass: no scent costs food types or diet in
+     most nurseries. If it doesn't, go sparser before testing memory.
+  3. **Memory (training):** MR2's arms (control, memory, blind) in the
+     sparse worlds with scent off for everyone (zeroed in training and
+     scoring, so memory is the only long-range information), compared by
+     nursery.
 - Memory pays only where senses miss something (partial observability): a
   view cone, short scent, or senses that blink. Not yet chosen.
 - World-written memory first candidate: a death mark (a field like the mate
