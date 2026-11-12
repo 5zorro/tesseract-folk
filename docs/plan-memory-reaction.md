@@ -487,6 +487,16 @@ and the ladder scripts). Fix after it finishes:
   `snapshots/mr2` (36) is pending the experiment. Standing rule: keep
   snapshots only if they pass M2.
 
+## After MR2: 5zorro's direction (2026-11-11)
+- Memory pays only where senses miss something (partial observability): a
+  view cone, short scent, or senses that blink. Not yet chosen.
+- World-written memory first candidate: a death mark (a field like the mate
+  pheromone, left where an NPC dies) with heritable sensitivity; it means
+  something once a danger stays put (territorial beasts). Details in
+  openitems.
+- Occupations use senses, not memory: frazzled debuff, a smell toward the
+  post, and a ticks-until-late sense.
+
 ## Open decisions (5zorro)
 1. ~~LLM pawn plans~~: settled 2026-11-10, occupations (above).
 2. ~~Keep today's 2 recurrent units?~~ MR0 (2026-11-10): keep; ablating
