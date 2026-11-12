@@ -93,6 +93,8 @@ class World:
         cfg = self.cfg
         if not (np.isfinite(cfg.scent_min_food) and cfg.scent_min_food >= 0):
             raise ValueError(f"scent_min_food must be a number >= 0, got {cfg.scent_min_food!r}")
+        if not (np.isfinite(cfg.scent_floor) and cfg.scent_floor >= 0):
+            raise ValueError(f"scent_floor must be a number >= 0, got {cfg.scent_floor!r}")
         for name in ("scent_diffusion", "stink_diffusion", "pheromone_diffusion",
                      "poop_diffusion", "soil_diffusion"):
             value = getattr(cfg, name)

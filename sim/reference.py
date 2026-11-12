@@ -238,7 +238,7 @@ class ReferenceSimulation:
             scent_n = w.scent.reshape(types, -1)[:, nbr]
             s_plus, s_minus = scent_n[:, 0::2], scent_n[:, 1::2]
             # Relative difference: points uphill at any distance, like a nose.
-            scent_grad = (s_plus - s_minus) / (s_plus + s_minus + 1e-12)     # (types, d)
+            scent_grad = (s_plus - s_minus) / (s_plus + s_minus + (1e-12 + cfg.scent_floor))  # (types, d)
             parts += [here / (here + cfg.scent_half), scent_grad.T.ravel()]
         if cfg.craving_sense:
             # The gradient of the foods rich in the lowest nutrient, per axis.

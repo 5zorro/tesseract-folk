@@ -934,8 +934,10 @@ class Batch:
             here = scent[wn, :, flat]
             scent_n = scent[wn[:, None], :, nbr]
             s_plus, s_minus = scent_n[:, 0::2], scent_n[:, 1::2]
-            # Relative difference: points uphill at any distance, like a nose.
-            scent_grad = (s_plus - s_minus) / (s_plus + s_minus + 1e-12)         # (n, d, types)
+            # Relative difference: points uphill at any distance, like a nose, down
+            # to the nose's floor (scent_floor).
+            floor = 1e-12 + self._p("scent_floor", wn)[:, None, None]
+            scent_grad = (s_plus - s_minus) / (s_plus + s_minus + floor)          # (n, d, types)
             parts += [here / (here + self._p("scent_half", wn)[:, None]), scent_grad.reshape(n, d * T)]
         if self.craving:
             grad = scent_grad if self.food_scent else food_grad.reshape(n, d, T)

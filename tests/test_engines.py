@@ -46,6 +46,7 @@ CASES = {
     "memory slots and queue, 4d": dict(dims=4, size=5, food_growth_rate=0.005, old_age=120,
                                        memory_slots=3, reaction_queue=2, memory_write_start=0.3),
     "memory slots, linear memory net": dict(memory_slots=2, memory_net_hidden=0, memory_write_start=0.5),
+    "scent floor": dict(scent_floor=1.0, memory_slots=2, memory_write_start=0.3),
     "trials, absolute": dict(hall_of_fame_trials=1, hall_of_fame_trial_passes=1,
                              hall_of_fame_trial_max_collapses=1, hall_of_fame_trial_parents=1),
 }

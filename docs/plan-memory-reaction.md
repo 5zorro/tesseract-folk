@@ -490,6 +490,41 @@ and the ladder scripts). Fix after it finishes:
   snapshots only if they pass M2.
 
 ## After MR2: 5zorro's direction (2026-11-11)
+
+**MR2b, short scent (2026-11-11).** Built: each net has its own mutation
+budget (MR2's confound, fixed), and `Config.scent_floor`, the nose's noise
+floor: the sensed gradient is (s+ - s-) / (s+ + s- + floor). Before it, the
+relative gradient pointed uphill at any distance (only 1e-12 was added), so
+raising `scent_decay` alone could never hide a patch.
+- **Measured reach (MR2 play worlds, 3,000 ticks, "smelled" = |gradient|
+  >= 0.1 on the best axis):** meal-sized food (> a bite) covers 42% of 2D
+  cells and 8% of 4D cells; the nearest meal of a type is at most 6 cells
+  away (4D median 3).
+
+  | floor | 0 | 0.1 | 0.3 | 1 | 3 | 10 |
+  |---|---|---|---|---|---|---|
+  | 2D cells smelled | 78% | 76% | 72% | 58% | 30% | 0% |
+  | 4D cells smelled | 89% | 79% | 62% | 35% | 9% | 0% |
+
+  The floor is soft: a net can scale up a faded gradient, but it falls off
+  exponentially with distance, so that buys a cell or two.
+- **Chosen: floor 1.0 in both dims** (4D smells on a third of cells, the
+  median 4D NPC is 3 cells from a meal it can't smell; 2D stays mostly
+  smelled, a weaker test). Same design as MR2 otherwise (Q = 3, control vs
+  memory vs blind, 3 nursery seeds per pool, 60k ticks, 5 x 10k scoring),
+  `--set scent_floor=1.0 --out snapshots/mr2b --csv runs/mr2b-experiment.json`.
+  Report by nursery, not cell (MR2's lesson).
+- **Prediction (Claude, before results):**
+  - Both arms forage worse than in MR2 (fewer food types per life, lower
+    diet), more in 4D.
+  - Use (follow excess, memory minus blind): 2D still about 0. 4D: about a
+    60% chance it stays within +-0.005 (the search problem, reading (b),
+    is still there); if it isn't, it's positive in at most half the 12
+    nurseries, +0.01 to +0.02.
+  - Writing stays near the random start (~90-100 per 1,000 NPC-ticks)
+    unless memory is used; if used, writes fall and memories live longer.
+  - Scores memory vs control: within nursery bistability noise in 2D; in
+    4D a small gain only in nurseries that use memory.
 - Memory pays only where senses miss something (partial observability): a
   view cone, short scent, or senses that blink. Not yet chosen.
 - World-written memory first candidate: a death mark (a field like the mate

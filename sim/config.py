@@ -88,6 +88,12 @@ class Config:
     # so crumbs at patch edges are silent and the smell leads to meals. 0 = all
     # food smells (before 2026-11-04); bite_size (0.2) = only more than a bite.
     scent_min_food: float = 0.0
+    # Scent floor (MR2b, 2026-11-11): the nose's noise floor. The sensed gradient
+    # is (s+ - s-) / (s+ + s- + floor), so it points uphill at any distance when
+    # the floor is ~0 (the default: 1e-12 is always added) and fades out where the
+    # scent is weaker than the floor, so far patches can't be smelled and memory
+    # has a job. Perception only; the scent field itself is unchanged.
+    scent_floor: float = 0.0
 
     # Two eat actions (5zorro, M2 slice 3f; built 2026-11-05): `eat_most` takes the
     # biggest pile here (most mass), `eat_need` the food that best fixes deficits

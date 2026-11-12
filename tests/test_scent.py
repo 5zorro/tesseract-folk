@@ -133,3 +133,31 @@ def test_pre_scent_pools_need_scent_off(tmp_path):
     with pytest.raises(ValueError, match="food_scent"):
         seed_brains(Simulation(Config(**SMALL), log_every=1000), pool)
     seed_brains(Simulation(Config(**SMALL, food_scent=False), log_every=1000), pool)
+
+
+@pytest.mark.parametrize("engine", ["array", "reference"])
+def test_scent_floor_fades_weak_smells(engine):
+    """MR2b: the gradient is (s+ - s-) / (s+ + s- + floor), so a strong smell
+    still points uphill and a smell far weaker than the floor fades out."""
+    from sim.reference import ReferenceSimulation
+    make = Simulation if engine == "array" else ReferenceSimulation
+    got = {}
+    for floor in (0.0, 1.0):
+        for level in (1.0, 0.01):
+            sim = make(Config(**SMALL, scent_floor=floor), log_every=1000)
+            sim.world.scent[:] = 0.0
+            sim.world.scent[1, 5, 8] = level
+            npc = min(sim.npcs, key=lambda n: n.id)
+            npc.pos = (4, 8)
+            t, d = sim.cfg.n_food_types, sim.cfg.dims
+            obs = sim.sense(npc) if make is Simulation else sim.sense(npc, sim._spatial_index())
+            got[floor, level] = obs[-d * t:].reshape(d, t)[0, 1]
+    assert got[0.0, 1.0] == pytest.approx(1.0) and got[0.0, 0.01] == pytest.approx(1.0)
+    assert got[1.0, 1.0] == pytest.approx(0.5)
+    assert got[1.0, 0.01] == pytest.approx(0.01 / 1.01)
+
+
+@pytest.mark.parametrize("bad", [-0.1, float("nan"), float("inf")])
+def test_bad_scent_floor_is_refused(bad):
+    with pytest.raises(ValueError, match="scent_floor"):
+        Simulation(Config(**SMALL, scent_floor=bad))
