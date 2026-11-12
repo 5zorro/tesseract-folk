@@ -169,6 +169,7 @@ class Config:
     # same number of mutated weights per child (the textbook "1/L rule" uses 1,
     # which lost here). 0 = use mutation_rate per weight (~100 per child in 2D at
     # 16 hidden units; the default before 2026-11-04, kept for old snapshots).
+    # Per net: a memory net (memory_slots) gets its own budget (2026-11-11).
     mutations_per_birth: float = 30.0
     # Lineage-adaptive mutation (5zorro, slice R4; default since 2026-11-04): scale
     # mutations_per_birth by the ancestors' collapse rate relative to the

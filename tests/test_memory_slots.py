@@ -149,6 +149,25 @@ def test_the_genome_mutates_crosses_and_saves_both_nets():
                           a.mutate(0.3, 0.1, np.random.default_rng(5)).w1)
 
 
+@pytest.mark.parametrize("engine", ENGINES)
+def test_each_net_has_its_own_mutation_budget(engine):
+    """A memory net doesn't thin the forager's mutations: each gets
+    mutations_per_birth expected mutated weights per child (2026-11-11)."""
+    cfg = dict(**{**SMALL, "seed": 3}, mutation_lineage=False, mutations_per_birth=12.0)
+    plain, sim = engine(Config(**cfg)), engine(Config(**cfg, memory_slots=4))
+    b = first(sim).brain
+    assert b.memory.n_params != b.own_params
+    rate = sim.mutation_rate(b, -1.0)
+    assert rate * b.own_params == pytest.approx(12.0)
+    assert b.memory_rate(rate, 12.0) * b.memory.n_params == pytest.approx(12.0)
+    _, expected, _ = sim.mutate_child(b, -1.0)
+    assert expected == pytest.approx(24.0)
+    _, expected, _ = plain.mutate_child(first(plain).brain, -1.0)
+    assert expected == pytest.approx(12.0)
+    # Per-weight mode (old snapshots): both nets at the same rate.
+    assert b.memory_rate(0.1, 0.0) == 0.1
+
+
 @pytest.mark.parametrize("queue", [0, 3])
 def test_pools_without_slots_warm_start_with_a_new_memory_net(queue):
     old = Simulation(Config(**SMALL))

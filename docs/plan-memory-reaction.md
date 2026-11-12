@@ -452,7 +452,9 @@ the world writes (occupation posts, shift times, gifts via `share`).
 ## Known gaps (pre-compaction review, 2026-11-10)
 Found while the MR2 experiment ran, so not fixed yet (the run imports `sim/`
 and the ladder scripts). Fix after it finishes:
-- **Mutation budget is shared by both nets (confound for MR2).**
+- **Fixed 2026-11-11: each net now has its own budget** (`Brain.memory_rate`;
+  fingerprints unchanged). What MR2 ran with:
+  **Mutation budget is shared by both nets (confound for MR2).**
   `mutations_per_birth` (30) is spread over the whole genome, so adding a
   memory net cuts the forager's own mutations per child: 4D at Q = 3, the
   control forager (2,260 weights) gets ~30, the memory arm's forager (3,412

@@ -43,7 +43,12 @@ class Brain:
     @property
     def n_params(self) -> int:
         """Weights in the genome (the memory net's too)."""
-        return sum(a.size for a in self._arrays()) + (self.memory.n_params if self.memory else 0)
+        return self.own_params + (self.memory.n_params if self.memory else 0)
+
+    @property
+    def own_params(self) -> int:
+        """Weights in this net alone (a forager without its memory net)."""
+        return sum(a.size for a in self._arrays())
 
     def _arrays(self):
         return (self.w1, self.b1, self.w2, self.b2)
@@ -99,20 +104,43 @@ class Brain:
         return self.w2 @ hidden + self.b2
 
     def mutation_rate(self, rate: float, per_birth: float) -> float:
-        """Chance per weight: `rate`, or `per_birth` / weight count when per_birth > 0
-        (the same number of mutated weights per child at any brain size)."""
+        """This net's chance per weight: `rate`, or `per_birth` / its own weight count
+        when per_birth > 0 (the same number of mutated weights per child at any
+        brain size). Each net has its own budget: a memory net doesn't thin the
+        forager's mutations (see `memory_rate`)."""
         if not (np.isfinite(per_birth) and per_birth >= 0):
             raise ValueError(f"mutations_per_birth must be a number >= 0, got {per_birth!r}")
-        return min(1.0, per_birth / self.n_params) if per_birth > 0 else rate
+        return min(1.0, per_birth / self.own_params) if per_birth > 0 else rate
 
-    def mutate(self, rate: float, scale: float, rng: np.random.Generator) -> "Brain":
-        """The memory net mutates at the same rate, after the forager (its draws
-        come last, so a forager's mutations are the same with or without one)."""
+    def memory_rate(self, rate: float, per_birth: float) -> float | None:
+        """The memory net's chance per weight for a child whose forager mutates at
+        `rate` (lineage factor included): the same expected number of mutated
+        weights as the forager when per_birth > 0, else the same rate. None
+        without a memory net."""
+        if self.memory is None:
+            return None
+        return min(1.0, rate * self.own_params / self.memory.n_params) if per_birth > 0 else rate
+
+    def expected_mutations(self, rate: float, memory_rate: float | None = None) -> float:
+        """Expected mutated weights per child at these rates, both nets."""
+        mine = rate * self.own_params
+        if self.memory is None:
+            return mine
+        return mine + (rate if memory_rate is None else memory_rate) * self.memory.n_params
+
+    def mutate(self, rate: float, scale: float, rng: np.random.Generator,
+               memory_rate: float | None = None) -> "Brain":
+        """The memory net mutates at `memory_rate` (default: `rate`), after the
+        forager (its draws come last, so a forager's mutations are the same with
+        or without one)."""
         new = []
         for a in self._arrays():
             mask = rng.random(a.shape) < rate
             new.append(a + mask * rng.normal(0.0, scale, a.shape))
-        return Brain(*new, self.memory.mutate(rate, scale, rng) if self.memory else None)
+        memory = None
+        if self.memory is not None:
+            memory = self.memory.mutate(rate if memory_rate is None else memory_rate, scale, rng)
+        return Brain(*new, memory)
 
     @staticmethod
     def crossover(a: "Brain", b: "Brain", rng: np.random.Generator) -> "Brain":

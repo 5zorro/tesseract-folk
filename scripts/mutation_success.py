@@ -50,7 +50,7 @@ class RandomMutations(Simulation):
     def mutation_rate(self, brain, lineage, key_id=-1):
         draw = self.keys.stream(self.tick, key_id, keyed.SCRIPT)
         k = math.exp(draw.uniform(math.log(self.low), math.log(self.high)))
-        return min(1.0, k / brain.n_params)
+        return min(1.0, k / brain.own_params)
 
 
 def run(job: tuple) -> list[dict]:

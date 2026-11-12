@@ -737,7 +737,9 @@ class ReferenceSimulation:
             lineage = 0.5 * parent_rate + 0.5 * (parent_lineage if parent_lineage >= 0 else parent_rate)
         rate = self.mutation_rate(brain, lineage, key_id)
         draw = self.keys.stream(self.tick, key_id, keyed.MUTATE)
-        return brain.mutate(rate, self.cfg.mutation_scale, draw), rate * brain.n_params, lineage
+        memory_rate = brain.memory_rate(rate, self.cfg.mutations_per_birth)   # its own budget
+        return (brain.mutate(rate, self.cfg.mutation_scale, draw, memory_rate),
+                brain.expected_mutations(rate, memory_rate), lineage)
 
     def _record_hall_of_fame(self, npc: NPC) -> None:
         """A finished life: add it to the entry its brain was copied from (track

@@ -299,10 +299,11 @@ Traps that already bit us, by area. Add to this when something surprises you.
   from 0, so anything that tracks NPCs over time in a batched run must key on
   (world, id) (`probe_memory.npc_keys`). Keying on id alone interleaved worlds
   and faked a 2-tick memory clock (MR0, 2026-11-10).
-- **A memory net shares the mutation budget.** `mutations_per_birth` is per
-  genome, and `Brain.n_params` counts the memory net, so turning on
-  `memory_slots` lowers the forager's own mutations per child (4D Q = 3:
-  ~30 -> ~20). Compare memory and no-memory arms with that in mind.
+- **Each net has its own mutation budget (since 2026-11-11).** The forager
+  and the memory net each get `mutations_per_birth` expected mutated weights
+  per child (`Brain.own_params`, `memory_rate`); the child's `mutations`
+  counts both. MR2 (2026-11-10) ran before this, with one shared budget
+  (4D forager ~20 instead of 30).
 - **New senses go last, in order: queue, then memory slots.** Warm starts
   (`seed_brains`) widen old brains by appending zero-weight inputs, which only
   works because these groups are at the end. A future sense group that old
