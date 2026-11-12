@@ -525,6 +525,46 @@ raising `scent_decay` alone could never hide a patch.
     unless memory is used; if used, writes fall and memories live longer.
   - Scores memory vs control: within nursery bistability noise in 2D; in
     4D a small gain only in nurseries that use memory.
+
+**MR2b results (2026-11-11, 26 min;** `scripts/mr2_experiment.py
+--report-only --set scent_floor=1.0 --out snapshots/mr2b --csv
+runs/mr2b-experiment.json`**).**
+
+| | 2D control | 2D memory | 2D blind | 4D control | 4D memory | 4D blind |
+|---|---|---|---|---|---|---|
+| diet | 0.955 | 0.956 | 0.957 | 0.833 | 0.837 | 0.841 |
+| food types per life | 2.98 | 2.99 | 2.99 | 2.71 | 2.72 | 2.73 |
+| births | 329 | 236 | 275 | 59 | 103 | 106 |
+| writes + forgets per 1,000 NPC-ticks | | 76 + 57 | 78 + 56 | | 55 + 52 | 49 + 48 |
+| follow excess | | -0.071 | -0.074 | | +0.028 | +0.029 |
+
+- **Hiding far scent didn't hurt foraging at all.** Control food types per
+  life 2.98 (2D) and 2.71 (4D) vs MR2's 2.99 and 2.70; diet the same. With
+  scent smelled on a third of 4D cells, the warm-started foragers (and 60k
+  ticks of training) forage as before. So far scent was never what they
+  relied on: in worlds this dense (a meal within 6 cells, median 3 in 4D)
+  the local food senses and short moves are enough.
+- **Memory still unused.** Memory minus blind follow: 4D -0.001 (2 of 12
+  nurseries positive, all within +-0.003); 2D +0.003 (5 of 6 positive, but
+  +0.002 to +0.014 and one -0.030), too small and mixed to call.
+- **Writing:** 4D unchanged (~100 per 1,000). 2D shifted to more writes than
+  forgets (76 vs 57; MR2 46 vs 50), the same in blind, so it's from
+  training, not from use; its cause is open.
+- **Scores:** bistability again. 4D births 59 -> 103 is one nursery (n100
+  seed 200's memory twin boomed to 1,090 births; it was the control side in
+  MR2); 9 of 12 4D nurseries sit at the floor of 30 with ~0 births. 2D
+  births swing both ways by nursery (697 -> 263, 193 -> 347).
+- **Prediction check:** "both arms forage worse" **missed** (no change);
+  4D use within +-0.005, right (the 60% branch); 2D about 0, right;
+  writing near the start, right in 4D, 2D shifted; scores within noise,
+  right.
+- **What it means:** the short-scent test didn't test memory, because
+  scent at range wasn't doing any work. Memory needs food out of reach of
+  every sense, which these dense worlds don't have. Next probe (cheap,
+  scoring only): score the same trained foragers at floors 0, 1, 3 and 10
+  (10 = no scent anywhere) to see whether scent matters at all; if not,
+  memory needs sparser food (fewer, richer patches farther apart), not a
+  weaker nose.
 - Memory pays only where senses miss something (partial observability): a
   view cone, short scent, or senses that blink. Not yet chosen.
 - World-written memory first candidate: a death mark (a field like the mate

@@ -81,6 +81,11 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
   5zorro picks between giving memory a job (worlds where scent doesn't
   reach) and helping the search; fix the plan's "Known gaps" (mutation
   budget split first) before any rerun.
+- **MR2b done (2026-11-11):** memory net now has its own mutation budget;
+  `Config.scent_floor` hides weak scent. At floor 1.0 foraging didn't change
+  at all and memory stayed unused: in these dense worlds far scent isn't
+  what NPCs rely on. Next: a scoring-only probe at floors 0-10, then
+  probably sparser food for memory (plan, MR2b results).
 - Next after MR2: MR3 (hall of fame), MR4 (one brain vs two). M3 history below.
 
 **Now (2026-11-08): M3, stable population from real births.** Plan:
