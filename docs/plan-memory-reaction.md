@@ -373,8 +373,8 @@ showed one nursery per cell is swamped by evolution noise, so:
     random memory net is short for two nets to co-evolve a use.
 
 **MR2 results (2026-11-10).** Read with `--report-only`. Means over pools x
-nurseries x scoring seeds; "n/N" counts paired cells where the second arm is
-higher (ties count as not higher, which matters in 4D, see below).
+nurseries x scoring seeds; "n/N" is how many paired cells moved in the
+majority direction (ties count in neither, which matters in 4D, see below).
 
 | | 2D control | 2D memory | 2D blind | 4D control | 4D memory | 4D blind |
 |---|---|---|---|---|---|---|
@@ -565,6 +565,19 @@ runs/mr2b-experiment.json`**).**
   (10 = no scent anywhere) to see whether scent matters at all; if not,
   memory needs sparser food (fewer, richer patches farther apart), not a
   weaker nose.
+
+**Scent probe (2026-11-11, `scripts/scent_floor_probe.py`).** Scoring only:
+MR2's control nurseries (Q = 3, no memory, trained with full scent; 6 in 2D,
+12 in 4D) scored at scent floors 0, 1, 3 and 10, plus **no scent** (both
+scent senses read as zeros: the level here and the gradient; the floor
+leaves the level here alone). 3 seeds x 10k ticks each, compared with floor
+0 by nursery.
+- **Prediction (Claude, before results):** floor 1: no change (MR2b). Floor
+  3 and 10: 4D food types per life fall a little (-0.05 to -0.15), 2D about
+  unchanged. No scent: 4D falls clearly (-0.2 or more, diet down, most
+  nurseries), 2D falls less (patches are 42% of cells; the local food
+  senses still work). If no scent hurts 4D but floor 10 doesn't, the level
+  here is carrying it.
 - Memory pays only where senses miss something (partial observability): a
   view cone, short scent, or senses that blink. Not yet chosen.
 - World-written memory first candidate: a death mark (a field like the mate

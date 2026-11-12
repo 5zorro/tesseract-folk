@@ -254,3 +254,20 @@ def test_mr2_blind_zeroes_slot_senses_and_restores():
         assert not sim.batch.sense_slots(live)[:, part].any()
     assert Batch.sense_slots is original
     assert sim.batch.sense_slots(sim.pop.live())[:, part].any()
+
+
+def test_scent_probe_zeroes_both_scent_senses_and_restores():
+    import scripts.scent_floor_probe as probe
+    from sim import Config, Simulation
+    from sim.simulation import Batch
+    original = Batch.sense_slots
+    sim = Simulation(Config(size=12, initial_npcs=6, min_population=0, seed=5))
+    sim.run(20)                                              # let the scent spread
+    layout = sim.sense_layout()
+    live = sim.pop.live()
+    with probe.scent_blind():
+        obs = sim.batch.sense_slots(live)
+        assert not obs[:, layout["scent_here"]].any() and not obs[:, layout["scent_grad"]].any()
+    assert Batch.sense_slots is original
+    obs = sim.batch.sense_slots(live)
+    assert obs[:, layout["scent_here"]].any() and obs[:, layout["scent_grad"]].any()
