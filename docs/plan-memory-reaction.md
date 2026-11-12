@@ -496,6 +496,18 @@ and the ladder scripts). Fix after it finishes:
   openitems.
 - Occupations use senses, not memory: frazzled debuff, a smell toward the
   post, and a ticks-until-late sense.
+- **Suggested slices (not scheduled unless named):**
+  - **MR2b, short scent (chosen 2026-11-11):** rerun MR2 where food scent
+    can't be sensed far from patches, after splitting the mutation budget.
+    Tests "memory needs hidden information" with the existing memory net.
+  - **MR5, death marks:** a world field left where an NPC dies, sensed like
+    the mate pheromone, with heritable sensitivity; needs a danger that
+    stays put (territorial beasts) to mean "stay away".
+  - **Partial senses beyond scent:** a view cone along the last move, or
+    senses that blink; each needs retrained pools.
+  - **Off-screen "good enough" updates** (5zorro): a per-region aggregate
+    stepped every few minutes with keyed randomness; belongs to the game
+    layer (openitems, LOD note 2026-11-09 and 2026-11-11), not MR.
 
 ## Open decisions (5zorro)
 1. ~~LLM pawn plans~~: settled 2026-11-10, occupations (above).
