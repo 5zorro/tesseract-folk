@@ -578,6 +578,35 @@ leaves the level here alone). 3 seeds x 10k ticks each, compared with floor
   nurseries), 2D falls less (patches are 42% of cells; the local food
   senses still work). If no scent hurts 4D but floor 10 doesn't, the level
   here is carrying it.
+
+**Scent probe results (2026-11-11, 12 min;** `--report-only`**).** Change vs
+floor 0, mean over nurseries (down/up counts by nursery):
+
+| | 2D types | 2D diet | 4D types | 4D diet | 4D approach+ |
+|---|---|---|---|---|---|
+| floor 0 | 2.99 | 0.960 | 2.66 | 0.827 | 0.0276 |
+| floor 1 | -0.002 (3/2) | +0.005 (1/5) | -0.000 (7/5) | +0.003 (5/7) | +0.0015 (3/9) |
+| floor 3 | +0.001 (3/2) | +0.000 (4/2) | +0.019 (5/7) | +0.005 (3/9) | +0.0013 (3/9) |
+| floor 10 | -0.001 (4/2) | +0.001 (2/4) | +0.022 (3/9) | +0.006 (3/9) | +0.0019 (1/11) |
+| no scent | -0.005 (4/1) | +0.000 (2/4) | +0.019 (8/4) | +0.008 (2/10) | +0.0028 (0/12) |
+
+- **Today's foragers don't use food scent.** Taking it away entirely
+  changes nothing in 2D, and in 4D diet and approach get slightly *better*
+  (approach excess up in all 12 nurseries, diet in 10). Collapses, births
+  and population don't move beyond nursery noise.
+- **Prediction check: missed.** Claude expected no scent to cost 4D -0.2
+  food types or more; it gained +0.02.
+- **Why (not yet tested):** in these dense worlds (a meal within 6 cells,
+  median 3 in 4D; 42% of 2D cells hold one) the local food senses find food
+  in a few moves, so a long-range sense adds nothing, and its weights only
+  add noise (removing it helps a little). Scent was added in M1 slice 6
+  when it helped; the worlds or brains have changed since. Old pools may
+  also never have learned it (warm starts carry whatever they had).
+- **What it means for memory:** MR2 and MR2b asked memory to beat senses
+  that were already enough. Memory (and scent) can only pay where food is
+  out of reach of the local senses: sparser, richer patches farther apart.
+  That's a world change (5zorro's call), and the M2 diet goals would need
+  re-checking in it.
 - Memory pays only where senses miss something (partial observability): a
   view cone, short scent, or senses that blink. Not yet chosen.
 - World-written memory first candidate: a death mark (a field like the mate

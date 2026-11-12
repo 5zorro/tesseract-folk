@@ -86,6 +86,10 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
   at all and memory stayed unused: in these dense worlds far scent isn't
   what NPCs rely on. Next: a scoring-only probe at floors 0-10, then
   probably sparser food for memory (plan, MR2b results).
+- **Scent probe done (2026-11-11, `scripts/scent_floor_probe.py`):** today's
+  foragers don't use food scent at all (no scent: 4D diet slightly better).
+  The worlds are dense enough for local senses. Memory (and scent) need
+  sparser food; 5zorro decides the world change.
 - Next after MR2: MR3 (hall of fame), MR4 (one brain vs two). M3 history below.
 
 **Now (2026-11-08): M3, stable population from real births.** Plan:
