@@ -120,7 +120,7 @@ script) overrides both nets, as today.
 Needs an occupation area of several cells with timed sandbox tiles (O4
 moves up), a worker-nursery score (area ticks + tasks), and 5zorro's call
 on rule 6 (a designed job's task score vs a reward for emergent behavior).
-Details and Claude's notes in openitems (2026-11-18).
+Details and the AI-LLM's notes in openitems (2026-11-18).
 
 ## Known gaps (pre-compaction review, 2026-11-18)
 - **`set_rule` skips the work checks:** changing `day_length` or
@@ -194,7 +194,7 @@ Details and Claude's notes in openitems (2026-11-18).
     (10 per world), Q = 3, no memory, 3 nursery seeds per M2 pool, 60k
     ticks; scored 5 x 10k: control, **naive** (control brains with posts on,
     work senses at zero weight) and posts. By nursery.
-  - **Prediction (Claude, before results):**
+  - **Prediction (AI-LLM, before results):**
     - Naive: on time ~0-5%, leaves several times per shift, paid ~0.
     - Leaving falls most: "stay while on shift and within reach" is one
       conditional, and every leave costs 100 frazzled ticks. Posts arm

@@ -8,7 +8,8 @@ plan. Feature plans live in `docs/plan-*.md` (current:
 `docs/plan-occupations.md` (draft), `docs/plan-memory-reaction.md`, `docs/plan-m3-births.md` (closed), and `docs/plan-gpu-backend.md` for speed).
 
 - The maintainer (5zorro) does all git pushes. Agents may commit locally.
-- No Co-Authored-By or other AI attribution lines in commits or PRs.
+- No Co-Authored-By or other AI attribution lines in commits or PRs. In public
+  files, call the assistant "the AI-LLM", never a product or model name.
 
 ## What this is
 A Python prototype of an artificial-life society (tiny neural-net NPCs,

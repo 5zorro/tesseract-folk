@@ -2,7 +2,7 @@
 
 5zorro (2026-11-10): "i think the next steps is some kind of expansion of both
 the memory stack and the reaction time stack and to see how training uses
-these." Then 5zorro's design (same day, replacing Claude's first draft):
+these." Then 5zorro's design (same day, replacing the AI-LLM's first draft):
 1. "create the reaction time stack (maybe 3 actions). the stack itself from
    last tick is the inputs to this tick"
 2. "create a memory net that manages maybe 8 memories in it. it does not have
@@ -28,7 +28,7 @@ occupation takes over; see "The LLM pawn").
 - **Think rate: every tick for now.** Slower thinking for far NPCs waits until
   the sim tick's length in game time is known.
 - **Numbers:** 3 queued actions and 8 memory slots. 5zorro called them
-  arbitrary; Claude's check:
+  arbitrary; the AI-LLM's check:
   - 8 slots is close to the 9 places worth returning to (3 food types x 3
     patches; the rule is enough slots for the distinct targets). Human
     working memory, ~4 items (Cowan 2001), is a different thing: these are
@@ -266,7 +266,7 @@ Still to do in MR1:
   each scored *as is* (widened brains, so only the delay differs) and
   *trained* (a 20,000-tick warm-start nursery at that Q; trained at Q = 0 is
   the more-training control), 5 seeds x 10,000 ticks in M2's top-up worlds.
-- **Prediction (Claude, written before the results):**
+- **Prediction (AI-LLM, written before the results):**
   - As is, Q = 1 costs almost nothing. Q = 3 costs a little: 2D collapses
     up ~20-40%, 4D diet down ~0.02 and food types per life down ~0.1 (4D
     hardly collapses at 0.36x, so diet carries the signal). Q = 5 costs about
@@ -292,7 +292,7 @@ agreeing in sign):
   slightly in 2D. 4D's approach excess is a hair higher at every Q (15-18 of
   20 pairs). Delay is far below the time to cross a food core (~8 ticks),
   which control theory says is the safe zone; the cliff, if any, is past 5.
-- **Prediction missed:** Claude expected 2D collapses up 20-40% and 4D
+- **Prediction missed:** the AI-LLM expected 2D collapses up 20-40% and 4D
   types down ~0.1 at Q = 3. Measured: nothing. Likely reason (not measured):
   the brains' choices change slowly (keep heading up the scent), so an
   action chosen 5 ticks ago is usually still the right one. Checkable as
@@ -361,7 +361,7 @@ showed one nursery per cell is swamped by evolution noise, so:
   the baseline and memory minus blind is the real use. Untrained (smoke run,
   4D): +0.029 vs +0.029, difference +0.000.
 - Then the ladders: hidden 16 vs 32, K = 4 vs 8.
-- **Prediction (Claude, before results):**
+- **Prediction (AI-LLM, before results):**
   - Writing is free, so nothing selects against churn until memories are
     used: operations stay near the starting ~60-90 per 1,000 NPC-ticks, and
     memories live ~100-200 ticks.
@@ -514,7 +514,7 @@ raising `scent_decay` alone could never hide a patch.
   memory vs blind, 3 nursery seeds per pool, 60k ticks, 5 x 10k scoring),
   `--set scent_floor=1.0 --out snapshots/mr2b --csv runs/mr2b-experiment.json`.
   Report by nursery, not cell (MR2's lesson).
-- **Prediction (Claude, before results):**
+- **Prediction (AI-LLM, before results):**
   - Both arms forage worse than in MR2 (fewer food types per life, lower
     diet), more in 4D.
   - Use (follow excess, memory minus blind): 2D still about 0. 4D: about a
@@ -572,7 +572,7 @@ MR2's control nurseries (Q = 3, no memory, trained with full scent; 6 in 2D,
 scent senses read as zeros: the level here and the gradient; the floor
 leaves the level here alone). 3 seeds x 10k ticks each, compared with floor
 0 by nursery.
-- **Prediction (Claude, before results):** floor 1: no change (MR2b). Floor
+- **Prediction (AI-LLM, before results):** floor 1: no change (MR2b). Floor
   3 and 10: 4D food types per life fall a little (-0.05 to -0.15), 2D about
   unchanged. No scent: 4D falls clearly (-0.2 or more, diet down, most
   nurseries), 2D falls less (patches are 42% of cells; the local food
@@ -594,7 +594,7 @@ floor 0, mean over nurseries (down/up counts by nursery):
   changes nothing in 2D, and in 4D diet and approach get slightly *better*
   (approach excess up in all 12 nurseries, diet in 10). Collapses, births
   and population don't move beyond nursery noise.
-- **Prediction check: missed.** Claude expected no scent to cost 4D -0.2
+- **Prediction check: missed.** the AI-LLM expected no scent to cost 4D -0.2
   food types or more; it gained +0.02.
 - **Why (not yet tested):** in these dense worlds (a meal within 6 cells,
   median 3 in 4D; 42% of 2D cells hold one) the local food senses find food

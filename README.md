@@ -46,12 +46,17 @@ sim/            engine-agnostic simulation core (no rendering)
   world.py      N-d soil, food, poop, stink fields
   brain.py      tiny neural nets (plain arrays, JSON-serializable)
   npc.py        NPC state and the action list
-  simulation.py tick loop: sense -> think -> act -> metabolize
+  simulation.py tick loop: sense -> think -> act -> metabolize (array engine)
+  reference.py  the same rules one NPC at a time (the spec and the test oracle)
+  population.py every NPC's state as arrays
+  keyed.py      keyed randomness: every draw follows from (seed, tick, id, purpose)
   deity.py      prayer, piety, smiting, stale secrets
   clock.py      activity-gated aging
+  trials.py     hall-of-fame trials (clone lives before a brain is admitted)
+  work.py       occupations: posts, shifts, the fallback walk, wages
   snapshot.py   save/load baseline worlds
   nursery.py    start fresh worlds from a snapshot's best brains
-  controllers.py scripted / Claude-controlled NPC hooks
+  controllers.py scripted / LLM-controlled NPC hooks
   stats.py      metrics for the roadmap pass criteria (incl. collapse causes)
 scripts/        headless runner, multi-seed sweep, dimensions ladder, probes, pygame viewer
 tests/          pytest suite (includes the mass-conservation invariant)
@@ -63,15 +68,19 @@ handoff.md      current status; gotchas.md: traps to know before measuring
 
 ## Status
 
-Milestones 0 (plumbing) and 1 (survival) are done. M2 (diet drives travel) is
-in progress: it passes in 2D; 3D passes with an optional second eat action
-(`two_eat_actions`, off by default); 4D does not pass yet. Details in
-`docs/plan-m2-diet-travel.md`; `docs/ROADMAP.md` says what "proof of concept
-passes" means.
+Milestones 0 to 3 are done: plumbing, survival, diet drives travel (2D, 3D
+and 4D), and populations that hold on their own births in 2D, 3D and 4D (they cycle,
+boom and bust on stink, rather than settle). `docs/ROADMAP.md` says what
+"proof of concept passes" means; the plans in `docs/plan-*.md` have the
+results.
 
-`--until-stable` does not succeed yet: the population is still propped up
-by hall-of-fame top-ups rather than births, and the stability check now says
-so (that is milestone M3).
+Experimental, off by default, and not yet learned by evolution:
+- a reaction queue (actions take effect a few ticks after they're chosen) and
+  memory slots written by a memory net (`docs/plan-memory-reaction.md`);
+- occupations: posts with shifts, a fallback walk for late workers, wages
+  (`docs/plan-occupations.md`). Next is training a worker net on its own.
+
+`handoff.md` has the current status.
 
 ## License
 

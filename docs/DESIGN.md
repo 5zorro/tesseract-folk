@@ -171,19 +171,19 @@ mate, pray, worship, share (a secret).
 - **[idea]** The smite trigger is effectively the society's moral code. Choose it
   deliberately.
 
-## 8. Claude-powered NPCs and deity (bring your own API key)
+## 8. LLM-powered NPCs and deity (bring your own API key)
 
 Safety rules for everything in this section (no tools beyond in-game actions,
 validated replies, key handling, spending caps): `docs/SAFETY.md` §5.
 
-- **[partial]** `ClaudeController` stub and `describe_observation()` in
+- **[partial]** `LLMController` stub and `describe_observation()` in
   `sim/controllers.py`; `sim.overrides[npc_id]` lets any controller drive one NPC.
-- The Claude pawn gets the same senses and actions as everyone else (fair
+- The LLM pawn gets the same senses and actions as everyone else (fair
   comparison with tiny brains), replies with one action as JSON.
 - Call the API at decision points and cache a plan; don't call every tick.
 - Key lives in an environment variable or local config; never in snapshots.
 - In C++, make HTTP calls on a background thread.
-- **[idea]** A Claude-powered deity that answers prayers in character, hints at
+- **[idea]** A LLM-powered deity that answers prayers in character, hints at
   secrets, and decides smitings. Speaks rarely, so cost stays low.
 
 ## 9. Emergent communication and the universal translator

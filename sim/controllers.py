@@ -2,10 +2,10 @@
 
 By default every NPC uses its own tiny brain. A controller registered in
 `sim.overrides[npc_id]` takes over that one NPC instead. This is the hook
-for the "bring your own API key" Claude pawn and, later, a Claude-powered
+for the "bring your own API key" LLM pawn and, later, an LLM-powered
 deity or a player-possessed NPC.
 
-Design notes for the Claude pawn (not implemented yet, see docs/DESIGN.md):
+Design notes for the LLM pawn (not implemented yet, see docs/DESIGN.md):
   * Same senses and actions as everyone else, for a fair comparison.
     Use describe_observation() to turn the sensor vector into text and ask
     for exactly one action name back, as JSON.
@@ -116,8 +116,8 @@ class StillController:
         return A["stay"] if "stay" in A else A["poop"]
 
 
-class ClaudeController:
-    """Placeholder for an NPC driven by Claude through the player's own API key."""
+class LLMController:
+    """Placeholder for an NPC driven by an LLM through the player's own API key."""
 
     def __init__(self, decide_every: int = 50):
         self.decide_every = decide_every

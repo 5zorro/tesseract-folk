@@ -4,7 +4,7 @@ A secret is a hidden cache of food. Its mass is pulled out of the soil when
 it appears and returns to the soil if nobody claims it before it goes stale,
 so secrets never create or destroy mass.
 
-Later, this is the natural place for the player (or a Claude-powered god)
+Later, this is the natural place for the player (or an LLM-powered god)
 to sit. See controllers.py.
 """
 from __future__ import annotations

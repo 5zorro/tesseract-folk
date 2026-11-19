@@ -26,14 +26,14 @@ code gives nobody new capability.
 
 The real risks are at the edges, where the project touches other things:
 players' machines (mods are native code), shared files (snapshots), AI-model
-APIs (the planned Claude pawn and deity), and real people (voices).
+APIs (the planned LLM pawn and deity), and real people (voices).
 
 ## 2. Threat model
 
 | Asset | Who could be hurt | Entry point | Section |
 |---|---|---|---|
 | The player's computer | Players | The mod DLL; loading snapshot files from others | 3, 4, 6 |
-| The player's API key and money | Players who enable Claude features | AI-model integration, logs, snapshots | 5 |
+| The player's API key and money | Players who enable LLM features | AI-model integration, logs, snapshots | 5 |
 | Other systems the AI model could reach | Anyone | An AI model given tools beyond the game | 5 |
 | Players' wellbeing | Players | Dialogue written by an AI model | 5 |
 | Voice actors' likeness | Real people | Cloned voices | 7 |
@@ -82,9 +82,9 @@ Players may share snapshots, so treat every snapshot as untrusted input.
 - **Rule:** never switch to pickle, `eval`, or any format that can carry code.
   The C++ port loads the same JSON and needs the same checks.
 
-## 5. AI-model features (M8: Claude pawn and Claude deity)
+## 5. AI-model features (M8: LLM pawn and LLM deity)
 
-None of this is built yet (`ClaudeController` is a stub). It has to be in place
+None of this is built yet (`LLMController` is a stub). It has to be in place
 before M8 ships.
 
 **What the model can do:**
@@ -102,7 +102,7 @@ before M8 ships.
   as instructions.
 
 **Keys and money:**
-- **[planned]** Claude features are opt-in and off by default.
+- **[planned]** LLM features are opt-in and off by default.
 - **[planned]** The player's API key comes from an environment variable or a local
   config file outside the game folder. It never goes into snapshots, logs, stats,
   crash reports, or anything else that gets shared.
@@ -115,7 +115,7 @@ before M8 ships.
 - **[planned]** The deity and any speaking NPC get a system prompt that keeps
   them in character and within content limits. They never impersonate real
   people.
-- **[decision]** Whether the Claude deity ships at all, or only the pawn.
+- **[decision]** Whether the LLM deity ships at all, or only the pawn.
 
 ## 6. Distributing the mod (M11: 4D Miner, or any other game)
 

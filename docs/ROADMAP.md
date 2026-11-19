@@ -65,8 +65,8 @@ can find secrets). See whether populations settle on a mix.
 ## M7: Emergent signals and the universal translator
 Add signal outputs/inputs, then a translator view (with the comedy patches).
 
-## M8: Claude pawn and Claude deity
-Implement `ClaudeController` with a bring-your-own key, plan caching, and
+## M8: LLM pawn and LLM deity
+Implement `LLMController` with a bring-your-own key, plan caching, and
 cost limits. Then a deity that answers prayers.
 
 ## M9: Finite resources with land memory
@@ -79,6 +79,6 @@ Same rules, nicer visuals, playable deity.
 ## M11: 4D Miner port
 1. C++ brain forward pass + JSON loader, verified against Python outputs.
 2. World fields and NPC loop in a 4DModLoader mod, NPCs as simple shapes.
-3. Background-thread API calls for Claude features.
+3. Background-thread API calls for LLM features.
 4. The 4D body (six eyes, six arms, sign language, rhino head) and directional sound.
 5. Ship a baseline snapshot with the mod.

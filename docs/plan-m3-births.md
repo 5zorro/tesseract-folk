@@ -539,7 +539,7 @@ nurseries, cap 2,000, against size 10 (done). Stink law predicts K ~0.15 x
 cells at 0.6x (~195 at size 6); food law predicts K ~1,500 at every size.
 
 **Size ladder result (2026-11-09; `runs/m3-size{6,7,8}-4d.log`, births
-nurseries, cap 2,000, 3 seeds x 30k, ~14 min).** Claude's prediction, written
+nurseries, cap 2,000, 3 seeds x 30k, ~14 min).** The AI-LLM's prediction, written
 before the results: ~0.15 NPCs per cell at 0.6x (size 6: 150-250), more per
 cell than size 10 at 0.75x, steady. Measured, means of 12 worlds:
 | Size (cells) | Hunger | Pop (range) | Per cell | cv | At floor | M3 passes | Deaths |
