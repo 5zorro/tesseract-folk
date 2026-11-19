@@ -145,6 +145,27 @@ script) overrides both nets, as today.
   engines, snapshots, tests (mass with wages; 4D; old snapshots load with
   posts off; engines match). Train nurseries from the M2 pools (Q = 3, no
   memory) with posts on. Prediction to be written before the run.
+  - **Built (2026-11-18):** `sim/work.py` (shared rules), both engines,
+    `Config.n_posts` and friends, work senses last (after queue and slots),
+    warm starts widen old brains, 30 tests plus engine cases (2D, 4D with
+    queue, mixed batches); fingerprints unchanged. Untrained brains in a
+    smoke run leave their post 5-9 times per shift (they wander off as soon
+    as they're walked in).
+  - **Experiment** (`scripts/o1_occupations.py`): control (no posts) vs posts
+    (10 per world), Q = 3, no memory, 3 nursery seeds per M2 pool, 60k
+    ticks; scored 5 x 10k: control, **naive** (control brains with posts on,
+    work senses at zero weight) and posts. By nursery.
+  - **Prediction (Claude, before results):**
+    - Naive: on time ~0-5%, leaves several times per shift, paid ~0.
+    - Leaving falls most: "stay while on shift and within reach" is one
+      conditional, and every leave costs 100 frazzled ticks. Posts arm
+      left per shift at most half of naive's in most nurseries.
+    - On time rises less (it needs heading out *before* the shift, from the
+      time-to-shift sense): 2D 10-30%, 4D 5-15%; paid follows on time.
+    - Selection is weak (frazzled costs ~50 ticks of hunger; a wage is two
+      bites; 10 of ~40-60 NPCs work), so foraging barely moves: posts vs
+      control diet and food types within noise, collapses a little higher
+      in most nurseries; births follow bistability as usual.
 - **O2. Two nets.** Add the worker net and the shift switch; same training
   and scoring as O1, paired by nursery. Prediction first.
 - **O3. Switch events and controller assignment.** The event stream for

@@ -280,3 +280,13 @@ def test_sparse_layout_measure_finds_meals_and_walk_times():
     sim.run(30)
     share, d50, d90, w50, wmean, total = layouts.measure(sim, np.random.default_rng(0))
     assert 0 < share < 1 and 0 <= d50 <= d90 and 0 <= w50 <= wmean and total > 0
+
+
+def test_o1_work_measures_are_per_shift_start():
+    import scripts.o1_occupations as o1
+    rows = [{"tick": 100, "work_on_time": 9, "work_late": 9},
+            {"tick": 600, "work_on_time": 1, "work_late": 3, "work_left": 2, "work_walk_ticks": 40, "work_paid": 1}]
+    m = o1.work_measures(rows, since=500)
+    assert m == {"shifts": 4, "on_time_share": 0.25, "left_per_shift": 0.5, "walk_per_shift": 10.0,
+                 "paid_share": 0.25}
+    assert o1.work_measures(rows[:1], since=500)["shifts"] == 0
