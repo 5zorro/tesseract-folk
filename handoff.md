@@ -65,7 +65,16 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
     every food, and foraging is trivial (`gotchas.md`).
 
 ## Where to pick up
-**Now (2026-11-10, 5zorro's design): reaction queue and memory net.** Plan:
+**Now (2026-11-18): occupations plan drafted.** `docs/plan-occupations.md`:
+posts with shifts, senses for ticks-until-late and the post's direction, a
+fallback walk that leaves late workers frazzled, then a second (worker) net
+switched on by the shift, against one brain (5zorro's MR4 question on a
+real second job). Waiting on 5zorro's O0 decisions (wages, direction vs
+smell, day and shift length, who works). Memory work is parked: "not all
+nets need memory" (5zorro); MR2c design kept. Social kin-sense idea in
+openitems (2026-11-18).
+
+**Before that (2026-11-10, 5zorro's design): reaction queue and memory net.** Plan:
 `docs/plan-memory-reaction.md` (results, predictions, known gaps).
 - **MR0 done:** today's 2 recurrent units are a few-tick echo plus a per-NPC
   offset; holding them at 0 hurts 2 of 8 4D nurseries (kept). The shrine
