@@ -609,6 +609,11 @@ floor 0, mean over nurseries (down/up counts by nursery):
   re-checking in it.
 
 ## MR2c: a sparse-food world where information pays (design, 2026-11-11)
+
+**Parked 2026-11-18 (5zorro):** "not all nets need memory ... we are trying
+to make a square peg match a round hole" with memory in foraging. The
+design stays here for when a sparse world is wanted for its own sake; memory
+moves to whichever net's task needs it (openitems, 2026-11-18).
 5zorro: "Yes, design it." Not run yet; needs 5zorro's go-ahead.
 
 **Why the M2 worlds give long-range information no job.** A forager with only
