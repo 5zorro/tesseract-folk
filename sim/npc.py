@@ -196,6 +196,14 @@ class NPC:
     mem_tick: np.ndarray = field(default=None)
     mem_food: np.ndarray = field(default=None)
     mem_filled: np.ndarray = field(default=None)
+    # Config.n_posts (occupations, O1): the post held (-1 = none), being walked
+    # there by the fallback, ticks of the frazzled debuff left, reached the post
+    # this shift, and this shift worked cleanly so far (on time, never walked).
+    post: int = -1
+    walking: bool = False
+    frazzled: int = 0
+    on_post: bool = False
+    shift_clean: bool = False
 
     def __post_init__(self):
         if self.eaten is None:

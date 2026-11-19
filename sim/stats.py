@@ -6,6 +6,7 @@ from collections import defaultdict
 import numpy as np
 
 from .npc import DAMAGE_CAUSES
+from .work import WORK_COUNTERS
 
 # "unknown" covers health set to zero directly (tests, future mechanics).
 CAUSES = DAMAGE_CAUSES + ["unknown"]
@@ -17,6 +18,7 @@ COUNTERS = [
     "hall_of_fame_credit_lost", "eats_most", "eats_need",
     "trial_admit", "trial_reject", "trial_expired", "child_credit_lost",
     "memory_writes", "memory_forgets",            # the memory net (plan-memory-reaction MR2)
+    *WORK_COUNTERS,                               # occupations (plan-occupations O1)
 ] + [f"collapse_{c}" for c in CAUSES] + [f"death_{c}" for c in CAUSES]
 
 

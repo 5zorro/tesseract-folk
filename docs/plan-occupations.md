@@ -117,6 +117,25 @@ script) overrides both nets, as today.
 - Compared by nursery, not by scoring seed (MR2's lesson), against a
   no-occupation control trained the same way.
 
+## O0 decisions (5zorro, 2026-11-18: "Use the defaults")
+- **Wages: yes, small.** `wage` 0.4 (two bites) of the food rich in the
+  worker's lowest nutrient, paid into its hands (up to carry room) at the
+  first tick after a clean shift (on time, never walked back), taken from
+  the soil like a top-up's body (mass conserved).
+- **Direction, not smell:** the post's direction is sensed exactly, at any
+  distance.
+- **Day 300, shift 100, frazzled 100 ticks;** frazzled = nutrient decay x 1.5
+  and action temperature x 2.
+- **Who works:** posts are the limit. `n_posts` per world (10 in the O1
+  experiment); adults take free posts lowest id first; everyone else is a
+  free forager.
+- **Built details (O1):** shift starts are spread evenly over the day (post
+  i starts at i x day / n_posts); posts are placed by keyed draws (keyed.POST),
+  so a world's posts follow from its seed and needn't be saved. The fallback
+  walk overrides everything, controllers included (the script takes over), and
+  holds the reaction queue at "stay", so nothing stale fires on arrival. A
+  worker that collapses mid-shift wakes elsewhere and is walked back.
+
 ## Slices
 - **O0. Decisions (5zorro):** wages yes or no; direct direction or smell;
   day length, shift length and frazzled effects as proposed or changed;

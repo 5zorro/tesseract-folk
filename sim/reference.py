@@ -26,6 +26,7 @@ from .brain import Brain
 from .clock import SimClock
 from .config import Config
 from . import keyed
+from . import work
 from .deity import Deity
 from .npc import (NPC, build_actions, check_memory_settings, check_queue, checked_action, clear_slot,
                   memory_net_shape, queue_fill, random_memory_net, slot_inputs, write_slot)
@@ -60,6 +61,9 @@ class ReferenceSimulation:
         self._phase = [action_phase(a) for a in self.actions]
         self._stay = queue_fill(self.actions, self.cfg.reaction_queue)
         check_memory_settings(self.cfg)
+        work.check_work_settings(self.cfg)
+        self.posts = work.place_posts(self.cfg, self.world, self.keys) if self.cfg.n_posts else []
+        self._act_index = {name: i for i, name in enumerate(self.actions)}
         self.n_inputs = self.sensor_size()
         self.n_outputs = self.n_actions + self.cfg.memory_units
         c = self.cfg
@@ -107,6 +111,8 @@ class ReferenceSimulation:
                     self.world.pheromone[npc.pos] += self.cfg.pheromone_emission
         self.world.step()
         self.deity.step(self.tick, self.world, self.keys, self.stats)
+        if cfg.n_posts:
+            self._work()
 
         order = self._priority_order()
         chosen = self.queued(order, self.decide_all(order, self._spatial_index()))
@@ -176,7 +182,8 @@ class ReferenceSimulation:
         mate = 3 + d if c.mate_sense else 0
         queue = c.reaction_queue * self.n_actions
         return (n + 4 + t + t + d * t + 1 + d + 1 + t + 2
-                + 1 + d + d + 1 + 1 + m + 1 + scent + craving + mate + queue + slot_inputs(c))
+                + 1 + d + d + 1 + 1 + m + 1 + scent + craving + mate + queue + slot_inputs(c)
+                + work.work_inputs(c))
 
     def brain_spec(self) -> tuple:
         """What every brain here must look like: Brain.check's arguments."""
@@ -268,6 +275,9 @@ class ReferenceSimulation:
                           [np.exp(-age / cfg.memory_tau)], npc.mem_food[k]]
             else:
                 parts.append(np.zeros(2 + cfg.dims + cfg.n_food_types))
+        if cfg.n_posts:
+            # Occupations (O1): post, shift, time to the shift, reach, frazzled, direction.
+            parts.append(work.sense(cfg, self.tick, npc, self.posts))
         obs = np.concatenate(parts, dtype=float)
         assert obs.size == self.n_inputs, (obs.size, self.n_inputs)
         return obs
@@ -314,13 +324,24 @@ class ReferenceSimulation:
 
     def queued(self, order: list[NPC], chosen: list[int]) -> list[int]:
         """Config.reaction_queue: each NPC appends its decision to its queue and
-        resolves the oldest entry (with the queue off, the decisions themselves)."""
-        if not self.cfg.reaction_queue:
-            return chosen
-        out = []
-        for npc, action in zip(order, chosen):
-            out.append(int(npc.queue[0]))
-            npc.queue = np.append(npc.queue[1:], action).astype(np.int64)
+        resolves the oldest entry (with the queue off, the decisions themselves).
+        Occupations: a worker on the fallback walk takes a step toward its post
+        instead, and its queue is held at "stay" (the script has taken over)."""
+        cfg = self.cfg
+        if not cfg.reaction_queue:
+            out = list(chosen)
+        else:
+            out = []
+            for npc, action in zip(order, chosen):
+                out.append(int(npc.queue[0]))
+                npc.queue = np.append(npc.queue[1:], action).astype(np.int64)
+        if cfg.n_posts:
+            for i, npc in enumerate(order):
+                if npc.walking:
+                    out[i] = work.walk_action(self._act_index, npc.pos, self.posts[npc.post][0], cfg.size)
+                    if cfg.reaction_queue:
+                        npc.queue = np.full(cfg.reaction_queue, self._stay, dtype=np.int64)
+                    self.stats.count("work_walk_ticks")
         return out
 
     def resolve(self, order: list[NPC], chosen: list[int], births: list[NPC]) -> None:
@@ -346,7 +367,10 @@ class ReferenceSimulation:
             check_queue(npc.queue, self.n_actions, npc.id)
             if choice is not None:
                 return checked_action(choice, self.n_actions)
-        logits = out[: self.n_actions] / self.cfg.action_temperature
+        temperature = self.cfg.action_temperature
+        if npc.frazzled > 0:                                # occupations: frazzled choices are noisier
+            temperature = temperature * self.cfg.frazzled_temperature
+        logits = out[: self.n_actions] / temperature
         logits -= logits.max()
         probs = np.exp(logits)
         probs /= probs.sum()
@@ -597,6 +621,9 @@ class ReferenceSimulation:
 
         idle = npc.idle_streak > cfg.idle_grace_ticks
         decay = cfg.nutrient_decay * (cfg.idle_hunger_multiplier if idle else 1.0)
+        if npc.frazzled > 0:                     # occupations: frazzled burns hunger faster
+            decay = decay * cfg.frazzled_hunger_multiplier
+            npc.frazzled -= 1
         # np.minimum/maximum: same values as np.clip, much less overhead on tiny arrays.
         npc.nutrients = np.minimum(np.maximum(npc.nutrients - decay, 0.0), 1.0)
         npc.satiation = np.minimum(np.maximum(npc.satiation - cfg.satiation_decay, 0.0), 1.0)
@@ -921,6 +948,20 @@ class ReferenceSimulation:
             npc.lineage, npc.source, npc.source2 = lineage, source, source2
             npc.trial_of = trial_of
             self.stats.count("spawns")
+
+    # ========================================================== occupations
+    def _work(self) -> None:
+        """Start of tick (O1): free posts go to adults without one (lowest id
+        first), then every worker is tended in id order (work.tend)."""
+        cfg = self.cfg
+        alive = sorted((n for n in self.npcs if n.alive), key=lambda n: n.id)
+        taken = {n.post for n in alive if n.post >= 0}
+        free = [k for k in range(cfg.n_posts) if k not in taken]
+        if free:
+            work.assign(self, free, [n for n in alive if n.post < 0 and n.age >= cfg.adult_age])
+        for npc in alive:
+            if npc.post >= 0:
+                work.tend(self, npc, self.posts)
 
     # ============================================================== helpers
     def _spatial_index(self) -> dict:

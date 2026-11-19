@@ -37,6 +37,7 @@ from dataclasses import fields
 import numpy as np
 
 from . import keyed
+from . import work
 from . import trials
 from .brain import Brain
 from .clock import SimClock
@@ -55,7 +56,7 @@ _PHASES = {"eat": 1, "eat_need": 1, "eat_most": 1, "pick_up": 1,
            "give": SOCIAL_PHASE, "mate": SOCIAL_PHASE, "share": SOCIAL_PHASE}
 
 # Settings that shape arrays, actions or senses: equal within a batch.
-STRUCTURAL = ("dims", "size", "n_food_types", "n_nutrients", "hidden_units", "memory_units", "reaction_queue", "memory_slots", "memory_net_hidden",
+STRUCTURAL = ("dims", "size", "n_food_types", "n_nutrients", "hidden_units", "memory_units", "reaction_queue", "memory_slots", "memory_net_hidden", "n_posts",
               "food_scent", "craving_sense", "mate_sense", "two_eat_actions", "actions_off", "extra_stay_actions", "food_patches_per_type", "precision")
 PRECISIONS = {"float64": np.float64, "float32": np.float32}
 # World arrays stacked by a batch (each World keeps a view of its row).
@@ -84,6 +85,8 @@ class Simulation:
         self.n_actions = len(self.actions)
         self._stay = queue_fill(self.actions, self.cfg.reaction_queue)
         check_memory_settings(self.cfg)
+        work.check_work_settings(self.cfg)
+        self.posts = work.place_posts(self.cfg, self.world, self.keys) if self.cfg.n_posts else []
         self.n_inputs = self.sensor_size()
         self.n_outputs = self.n_actions + self.cfg.memory_units
         c = self.cfg
@@ -240,7 +243,8 @@ class Simulation:
         mate = 3 + d if c.mate_sense else 0
         queue = c.reaction_queue * self.n_actions
         return (n + 4 + t + t + d * t + 1 + d + 1 + t + 2
-                + 1 + d + d + 1 + 1 + m + 1 + scent + craving + mate + queue + slot_inputs(c))
+                + 1 + d + d + 1 + 1 + m + 1 + scent + craving + mate + queue + slot_inputs(c)
+                + work.work_inputs(c))
 
     def brain_spec(self) -> tuple:
         """What every brain here must look like: Brain.check's arguments."""
@@ -281,6 +285,8 @@ class Simulation:
             parts += [("queue", c.reaction_queue * self.n_actions)]
         if c.memory_slots:            # after the queue, for the same reason (MR2)
             parts += [("slots", slot_inputs(c))]
+        if c.n_posts:                 # after the slots (occupations, O1)
+            parts += [("work", work.work_inputs(c))]
         out, at = {}, 0
         for name, size in parts:
             out[name] = slice(at, at + size)
@@ -675,6 +681,7 @@ class Batch:
         self.mate_sense = cfg.mate_sense
         self.queue_len = cfg.reaction_queue
         self.n_slots = cfg.memory_slots
+        self.n_posts = cfg.n_posts
         self.cells = cfg.size ** cfg.dims
         self.float = PRECISIONS[cfg.precision]
         records = [[s.pop.record(slot) for slot in s._by_id(s.pop.live(s.index))] if s.batch else []
@@ -702,7 +709,7 @@ class Batch:
              "slots": cfg.memory_slots},
             (first.n_inputs, cfg.hidden_units, first.n_outputs), cfg.food_patches_per_type, self.float,
             world_size=cfg.size, n_actions=first.n_actions,
-            memory_shape=memory_net_shape(cfg, first.n_inputs))
+            memory_shape=memory_net_shape(cfg, first.n_inputs), n_posts=cfg.n_posts)
         for i, (s, recs) in enumerate(zip(sims, records)):
             for r in recs:
                 self.pop.add(r, i)
@@ -711,6 +718,11 @@ class Batch:
         self.n_actions = first.n_actions
         self._phase = np.array([action_phase(a) for a in self.actions])
         self._act_index = {name: i for i, name in enumerate(self.actions)}
+        self._stay = first._stay
+        # Occupations: each world's post cells (worlds, posts, dims) and shift starts.
+        self._post_cell = np.array([[c for c, _ in s.posts] for s in sims], dtype=np.int64).reshape(
+            W, cfg.n_posts, cfg.dims)
+        self._post_start = np.array([[t for _, t in s.posts] for s in sims], dtype=np.int64).reshape(W, cfg.n_posts)
         self._nbr = first.world.neighbor_table()                   # (cells, 2 * dims), same for all
         self._serves = np.stack([s.world.serves_table().reshape(cfg.n_nutrients, -1) for s in sims])
         self._rich = np.stack([s.world.rich for s in sims])        # (worlds, types): rich nutrient
@@ -779,6 +791,8 @@ class Batch:
         self._world_step()
         for s in self.sims:
             s.deity.step(self.tick, s.world, s.keys, s.stats)
+        if self.n_posts:
+            self._work()
 
         order = self._priority_order()
         self.present = order
@@ -797,6 +811,21 @@ class Batch:
                 s.plug_mass()
             s.clock.consume_tick()
             s.stats.maybe_sample(s)
+
+    def _work(self) -> None:
+        """Occupations at the start of a tick (see reference._work): free posts
+        to adults without one, lowest id first; then each worker, in id order."""
+        P = self.pop
+        for i, s in enumerate(self.sims):
+            live = s._by_id(P.live(i))
+            posts = P.post[live]
+            taken = set(posts[posts >= 0].tolist())
+            free = [k for k in range(self.n_posts) if k not in taken]
+            if free:
+                adults = live[(posts < 0) & (P.age[live] >= s.cfg.adult_age)]
+                work.assign(s, free, [NPCView(P, slot) for slot in adults[:len(free)].tolist()])
+            for slot in live[P.post[live] >= 0].tolist():
+                work.tend(s, NPCView(P, slot), s.posts)
 
     # Cells per pass of the world step: about one 4D map (10,000 cells) at a time
     # stays in the CPU's cache even with 16 processes sharing it. Measured
@@ -959,9 +988,31 @@ class Batch:
             parts.append(np.concatenate([filled[:, :, None], delta * filled[:, :, None],
                                          (fresh * filled)[:, :, None], P.mem_food[slots] * filled[:, :, None]],
                                         axis=2).reshape(n, -1))
+        if self.n_posts:              # occupations (O1): see work.sense
+            parts.append(self._work_senses(slots, wn, half))
         obs = np.concatenate(parts, axis=1, dtype=self.float)
         assert obs.shape == (n, self.sims[0].n_inputs), obs.shape
         return obs
+
+    def _work_senses(self, slots: np.ndarray, wn: np.ndarray, half: float) -> np.ndarray:
+        """work.sense for many: has a post, on shift, time to the next shift (/ day),
+        within reach, frazzled (/ frazzled_ticks), direction to the post."""
+        P, d = self.pop, self.dims
+        out = np.zeros((slots.size, 5 + d))
+        ft = self._p("frazzled_ticks", wn)
+        out[:, 4] = np.where(ft > 0, P.frazzled[slots] / np.maximum(ft, 1), 0.0)
+        has = P.post[slots] >= 0
+        if has.any():
+            s, w = slots[has], wn[has]
+            post = P.post[s]
+            start, day = self._post_start[w, post], self._p("day_length", w)
+            delta = wrapped_delta(P.pos[s], self._post_cell[w, post], self.size)
+            out[has, 0] = 1.0
+            out[has, 1] = ((self.tick - start) % day < self._p("shift_length", w)).astype(float)
+            out[has, 2] = ((start - self.tick) % day) / day
+            out[has, 3] = (np.abs(delta).sum(axis=1) <= 1).astype(float)
+            out[has, 5:] = delta / half
+        return out
 
     def _able(self, live: np.ndarray) -> np.ndarray:
         """Which slots can mate now (_can_mate for many; False outside `live`)."""
@@ -1051,7 +1102,11 @@ class Batch:
         hidden = (np.tanh(np.matmul(P.w1[order], obs[:, :, None])[:, :, 0] + P.b1[order])
                   if P.w1.shape[1] else obs)                 # 0 hidden units: linear brain
         out = np.matmul(P.w2[order], hidden[:, :, None])[:, :, 0] + P.b2[order]
-        logits = out[:, :A] / self._p("action_temperature", wn)[:, None]
+        temperature = self._p("action_temperature", wn)
+        if self.n_posts:                     # occupations: frazzled choices are noisier
+            frazzled = P.frazzled[order] > 0
+            temperature = np.where(frazzled, temperature * self._p("frazzled_temperature", wn), temperature)
+        logits = out[:, :A] / temperature[:, None]
         logits -= logits.max(axis=1, keepdims=True)
         probs = np.exp(logits)
         probs /= probs.sum(axis=1, keepdims=True)
@@ -1108,12 +1163,25 @@ class Batch:
     def queued(self, order: np.ndarray, decided: np.ndarray) -> np.ndarray:
         """Config.reaction_queue: each NPC appends its decision to its queue and
         resolves the oldest entry (with the queue off, the decisions themselves)."""
-        if not self.queue_len or not order.size:
+        if not order.size:
             return decided
         P = self.pop
-        pending = P.queue[order]
-        P.queue[order] = np.concatenate([pending[:, 1:], decided[:, None]], axis=1)
-        return pending[:, 0].copy()
+        if self.queue_len:
+            pending = P.queue[order]
+            P.queue[order] = np.concatenate([pending[:, 1:], decided[:, None]], axis=1)
+            actions = pending[:, 0].copy()
+        else:
+            actions = decided
+        if self.n_posts:              # the fallback walk overrides (see reference.queued)
+            walkers = np.flatnonzero(P.walking[order])
+            for i in walkers.tolist():
+                slot = order[i]
+                cell = self._post_cell[int(P.world[slot]), P.post[slot]]
+                actions[i] = work.walk_action(self._act_index, P.pos[slot], cell, self.size)
+                if self.queue_len:
+                    P.queue[slot] = self._stay
+            self._count("work_walk_ticks", P.world[order[walkers]])
+        return actions
 
     # =============================================================== actions
     def resolve(self, order: np.ndarray, actions: np.ndarray, births: list[list[NPC]]) -> None:
@@ -1463,6 +1531,10 @@ class Batch:
         idle = P.idle_streak[s] > p("idle_grace_ticks")
         decay = p("nutrient_decay")
         decay = np.where(idle, decay * p("idle_hunger_multiplier"), decay * 1.0)
+        if self.n_posts:                     # occupations: frazzled burns hunger faster
+            frazzled = P.frazzled[s] > 0
+            decay = np.where(frazzled, decay * p("frazzled_hunger_multiplier"), decay)
+            P.frazzled[s[frazzled]] -= 1
         # np.minimum/maximum: the same values as np.clip.
         P.nutrients[s] = np.minimum(np.maximum(P.nutrients[s] - decay[:, None], 0.0), 1.0)
         P.satiation[s] = np.minimum(np.maximum(P.satiation[s] - p("satiation_decay")[:, None], 0.0), 1.0)

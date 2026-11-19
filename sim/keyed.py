@@ -34,6 +34,7 @@ SECRET = 9       # where a new secret appears and its food type (keyed by secret
 INIT = 10        # starting NPCs' brains and cells (tick 0)
 MEMORY = 11      # sampling the memory net's choice (plan-memory-reaction MR2)
 MEMORY_NET = 12  # a new memory net for a seeded pool brain that has none (keyed by pool index)
+POST = 13        # where each occupation post is (tick 0, keyed by post index)
 SCRIPT = 100     # measurement scripts' own draws (scripts/, never sim/)
 
 _GOLDEN = np.uint64(0x9E3779B97F4A7C15)

@@ -14,6 +14,7 @@ import numpy as np
 
 from .brain import Brain
 from .npc import DAMAGE_CAUSES, NPC
+from .work import check_worker
 
 # Scalar columns: name -> dtype. Every NPC field that's a plain number or bool.
 SCALARS = {
@@ -28,6 +29,8 @@ SCALARS = {
     "parent_rate": np.float64, "lineage": np.float64, "source": np.int64, "source2": np.int64,
     "parent1": np.int64, "parent2": np.int64, "kids_alive": np.int64, "kid_lives": np.float64,
     "kid_excess_sum": np.float64, "trial_of": np.int64,
+    "post": np.int64, "walking": np.bool_, "frazzled": np.int64, "on_post": np.bool_,
+    "shift_clean": np.bool_,
 }
 VECTORS = ("nutrients", "satiation", "inventory", "memory", "eaten")   # float rows
 INT_VECTORS = ("queue",)                                               # whole-number rows
@@ -45,7 +48,7 @@ _CAUSE_RANK = {"smite": 0, "nutrient_starve": 1, "body_starve": 2, "stink": 3, "
 class Population:
     def __init__(self, capacity: int, dims: int, sizes: dict, brain_shape: tuple, patches: int,
                  dtype=np.float64, world_size: int | None = None, n_actions: int | None = None,
-                 memory_shape: tuple | None = None):
+                 memory_shape: tuple | None = None, n_posts: int | None = None):
         """sizes: row length of each VECTORS and INT_VECTORS column (a missing
         INT_VECTORS size is 0) and "slots", the memory slots (default 0);
         brain_shape: (n_in, hidden, n_out); memory_shape: the memory net's, or None
@@ -56,6 +59,7 @@ class Population:
             self.sizes.setdefault(name, 0)
         self.memory_shape = memory_shape
         self.n_actions = n_actions
+        self.n_posts = n_posts                  # to check records' posts (None: unchecked)
         self.float = np.dtype(dtype).type
         self.world_size = world_size            # cells per axis, to check records (None: unchecked)
         self.capacity = 0
@@ -140,6 +144,8 @@ class Population:
             bad(f"unknown damage causes {sorted(unknown)}")
         if npc.origin not in ORIGINS:
             bad(f"unknown origin {npc.origin!r}")
+        if self.n_posts is not None:
+            check_worker(npc, self.n_posts)
 
     def add(self, npc: NPC, world: int = 0) -> int:
         """Store a record in the lowest free slot (growing if full); returns the slot."""

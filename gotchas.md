@@ -304,7 +304,7 @@ Traps that already bit us, by area. Add to this when something surprises you.
   per child (`Brain.own_params`, `memory_rate`); the child's `mutations`
   counts both. MR2 (2026-11-10) ran before this, with one shared budget
   (4D forager ~20 instead of 30).
-- **New senses go last, in order: queue, then memory slots.** Warm starts
+- **New senses go last, in order: queue, then memory slots, then work (O1).** Warm starts
   (`seed_brains`) widen old brains by appending zero-weight inputs, which only
   works because these groups are at the end. A future sense group that old
   brains should keep using must go after them.
@@ -315,4 +315,11 @@ Traps that already bit us, by area. Add to this when something surprises you.
 - **Controllers now keep the brain running** (MR1): an NPC under a
   controller updates its recurrent memory and memory net every tick, and a
   controller may return None to let the brain decide.
+- **The occupations fallback walk overrides controllers** (O1). A worker on
+  the walk resolves a step toward its post whatever its brain or controller
+  chose, and its reaction queue is held at "stay". A controller that wants
+  control back must clear `npc.walking` (and expect the next lateness check).
+- **Work counters count events, not workers.** `work_late` includes adults
+  assigned mid-shift; a worker that wanders off after being walked in is
+  counted again as `work_left` (untrained brains do this constantly).
 

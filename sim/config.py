@@ -247,6 +247,19 @@ class Config:
     smite_damage: float = 0.3
     prayer_cooldown: int = 30
 
+    # --- occupations (docs/plan-occupations.md, O1) --------------------------
+    # Posts with shifts: adults take free posts (lowest id first); a worker not
+    # within reach of its post when its shift starts, or who leaves it, is walked
+    # there by the code and arrives frazzled; a clean shift is paid a wage. 0 =
+    # off. Changes the input size (work senses go last).
+    n_posts: int = 0
+    day_length: int = 300                 # ticks per day (an NPC lives ~1,500)
+    shift_length: int = 100               # ticks per shift; post i starts at i x day / n_posts
+    frazzled_ticks: int = 100             # how long the debuff lasts
+    frazzled_hunger_multiplier: float = 1.5   # nutrient decay while frazzled
+    frazzled_temperature: float = 2.0     # action temperature multiplier while frazzled
+    wage: float = 0.4                     # food mass per clean shift (0 = unpaid), from the soil
+
     # --- stability (run_headless.py --until-stable; ROADMAP M3) ------------
     stable_window: int = 10               # stats samples to judge over
     stable_max_cv: float = 0.15           # population std / mean must stay below this
@@ -299,7 +312,7 @@ class Config:
 # research uses far less. extra_stay_actions is capped in npc.build_actions.
 SIZE_LIMITS = {
     "dims": (1, 6), "size": (2, 4096),
-    "n_food_types": (1, 32), "n_nutrients": (1, 32), "food_patches_per_type": (0, 1024),
+    "n_food_types": (1, 32), "n_nutrients": (1, 32), "food_patches_per_type": (0, 1024), "n_posts": (0, 1024),
     "hidden_units": (0, 1024), "memory_units": (0, 64), "reaction_queue": (0, 64),
     "memory_slots": (0, 64), "memory_net_hidden": (0, 1024),
     "initial_npcs": (0, 100_000), "max_population": (1, 100_000), "min_population": (0, 100_000),

@@ -47,6 +47,9 @@ CASES = {
                                        memory_slots=3, reaction_queue=2, memory_write_start=0.3),
     "memory slots, linear memory net": dict(memory_slots=2, memory_net_hidden=0, memory_write_start=0.5),
     "scent floor": dict(scent_floor=1.0, memory_slots=2, memory_write_start=0.3),
+    "occupations": dict(n_posts=5, day_length=40, shift_length=15, frazzled_ticks=10),
+    "occupations, 4d, queue": dict(dims=4, size=5, food_growth_rate=0.005, old_age=120, n_posts=3,
+                                   reaction_queue=2, day_length=30, shift_length=10, wage=0.6),
     "trials, absolute": dict(hall_of_fame_trials=1, hall_of_fame_trial_passes=1,
                              hall_of_fame_trial_max_collapses=1, hall_of_fame_trial_parents=1),
 }
@@ -124,7 +127,8 @@ MIXED = [dict(seed=1), dict(seed=2), dict(seed=1, metabolism_rate=0.012, bite_si
          dict(seed=5, poop_diffusion=0.3, soil_diffusion=0.3)]       # beside worlds without it
 
 
-@pytest.mark.parametrize("extra", [{}, dict(dims=4, size=5), dict(two_eat_actions=True, food_scent=False)])
+@pytest.mark.parametrize("extra", [{}, dict(dims=4, size=5), dict(two_eat_actions=True, food_scent=False),
+                                   dict(n_posts=4, day_length=30, shift_length=10, reaction_queue=2)])
 def test_a_batch_matches_its_worlds_run_alone(extra):
     cfgs = [Config(**{**BUSY, **extra, **v}) for v in MIXED]
     alone = [Simulation(c, log_every=50) for c in cfgs]

@@ -17,6 +17,7 @@ from pathlib import Path
 from . import keyed
 from .brain import Brain
 from .npc import NPC, random_memory_net, slot_inputs
+from .work import work_inputs
 
 
 # Track-record fields of a hall-of-fame entry (plan-m2 slice R5) and their values
@@ -71,13 +72,16 @@ def seed_brains(sim, pool: list[dict]) -> None:
     """
     if not pool:
         raise ValueError("the brain pool is empty")
-    # Warm start (plan-memory-reaction MR1, MR2): brains from before the reaction
-    # queue or the memory slots lack their inputs, which come last in the sense
-    # vector (queue, then slots), so they gain them with zero weights and behave as
-    # before until mutation uses them. A brain without a memory net gets a new one
-    # (keyed by its pool index) when this world has slots.
-    queue_inputs, memory_inputs = sim.cfg.reaction_queue * sim.n_actions, slot_inputs(sim.cfg)
-    missing = {memory_inputs, queue_inputs + memory_inputs} - {0}
+    # Warm start (plan-memory-reaction MR1, MR2; plan-occupations O1): brains from
+    # before the reaction queue, the memory slots or the work senses lack their
+    # inputs, which come last in the sense vector (queue, then slots, then work),
+    # so they gain them with zero weights and behave as before until mutation
+    # uses them. A brain may lack any trailing run of these groups. A brain
+    # without a memory net gets a new one (keyed by its pool index) when this
+    # world has slots.
+    groups = [g for g in (sim.cfg.reaction_queue * sim.n_actions, slot_inputs(sim.cfg),
+                          work_inputs(sim.cfg)) if g]
+    missing = {sum(groups[i:]) for i in range(len(groups))}
     pool = [{**e, "brain": e["brain"].widen(sim.n_inputs)}
             if sim.n_inputs - e["brain"].n_in in missing else e for e in pool]
     if sim.cfg.memory_slots:
