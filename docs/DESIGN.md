@@ -103,6 +103,16 @@ mate, pray, worship, share (a secret).
   the selection pressure.
 - **[built] Elders die permanently.** Health declines past `old_age`. The body
   becomes poop (stinks, then fertilizes), returning its mass to the loop.
+- **[built, off by default] Occupations (docs/plan-occupations.md, O1).**
+  `n_posts` posts per world with shifts on a `day_length` clock; adults take
+  free posts. Volunteer first, script as the fallback (5zorro, 2026-11-03):
+  a worker not at its post when the shift starts, or who leaves it, is
+  walked there by code (`sim/work.py`) and arrives frazzled (hungrier,
+  noisier choices); a clean shift earns a small wage taken from the soil.
+  Rule 6 holds: the script only guarantees the post is filled. O1 found
+  evolution doesn't learn punctuality under these costs; the next design
+  (graded goal, masked moves, a separately trained worker net) is in the
+  plan.
 
 ## 5. Entropy and the economy
 

@@ -106,6 +106,45 @@ running (like a brain under a controller). Each switch emits an event
 **Controllers stay above everything:** a controller (LLM pawn, player
 script) overrides both nets, as today.
 
+## Next: 5zorro's direction after O1 (2026-11-18, not built)
+1. **Don't train foraging while training occupations:** train the worker
+   net in its own nursery with the forager frozen (O2's second net, trained
+   apart).
+2. **A graded goal, not an all-or-nothing wage:** credit for each tick in
+   the occupation area, extra for sandbox tasks done (forge, then
+   grindstone, then quencher), so training has a ramp.
+3. **Mask moves that leave the area during a shift** (invalid-action
+   masking): only moves back toward work or along the area's edge are
+   available, so being at work is guaranteed and the net learns the
+   sandbox queue.
+Needs an occupation area of several cells with timed sandbox tiles (O4
+moves up), a worker-nursery score (area ticks + tasks), and 5zorro's call
+on rule 6 (a designed job's task score vs a reward for emergent behavior).
+Details and Claude's notes in openitems (2026-11-18).
+
+## Known gaps (pre-compaction review, 2026-11-18)
+- **`set_rule` skips the work checks:** changing `day_length` or
+  `shift_length` mid-run isn't re-validated (shift >= day would mean no
+  pay tick), and post shift starts stay where `day_length` put them at
+  build. Refuse these in `set_rule` or re-check.
+- **No checked way to assign a post from outside:** a controller (the LLM
+  pawn, O3) setting `npc.post` out of range would crash at the next work
+  phase (IndexError), and nothing re-checks it mid-run (only snapshots
+  are checked). Add `assign_post(npc, k)` with checks in O3.
+- **Senses written twice:** `work.sense` (reference) and
+  `Batch._work_senses` (array) must match; only the engine tests guard it.
+- **Per-worker Python loop:** the work phase and the walk build an NPCView
+  per worker per tick (`work.tend`). Fine at 10 posts per world (O1 ran 21
+  min vs MR2's 25); not measured per tick, and it won't scale to hundreds
+  of workers without a vectorized version.
+- **`o1_occupations.py` saves its metadata as `mr1.json`** (copied from
+  MR2, the same naming gap as there); rename to `meta.json` in all three.
+- **Counters are events:** `work_late` includes adults assigned
+  mid-shift; `work_left` repeats every wander (gotchas.md).
+- **Snapshots on disk:** snapshots/mr1 51 MB, mr2 101 MB, mr2b 104 MB, o1
+  67 MB; none pass M2 as saved and all rebuild from their scripts.
+  Deleting them is 5zorro's call (standing rule: keep only M2-passing).
+
 ## Measures
 - Punctuality: share of shifts started on time; fallback walks per shift;
   ticks frazzled per life; leaving the post mid-shift.

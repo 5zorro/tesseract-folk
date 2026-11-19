@@ -76,7 +76,15 @@ was learned (on time ~0.5%, workers leave 7-13 times a shift, never paid),
 working costs 4D foraging, and 2D posts-arm nurseries stopped breeding.
 Reading: lateness is nearly free to selection. Next: measure what a shift
 costs a worker and test a hand-built stay-at-post controller, then 5zorro
-decides whether lateness should cost more. Memory work is parked: "not all
+decides whether lateness should cost more.
+**Pick up here (2026-11-18, after compaction):** 5zorro's new direction for
+training occupations (plan-occupations "Next"): don't train foraging while
+training occupations (worker net in its own nursery, forager frozen); a
+graded goal (ticks in the occupation area plus sandbox tasks) instead of an
+all-or-nothing wage; mask moves that leave the area during a shift so the
+net learns the sandbox queue (forge -> grindstone -> quencher). Discuss the
+design (area size, sandbox tiles, nursery score, rule 6) before building.
+Also open: the plan's "Known gaps" for O1. Memory work is parked: "not all
 nets need memory" (5zorro); MR2c design kept. Social kin-sense idea in
 openitems (2026-11-18).
 
