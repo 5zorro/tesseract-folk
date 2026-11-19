@@ -71,9 +71,12 @@ fallback walk that leaves late workers frazzled, then a second (worker) net
 switched on by the shift, against one brain (5zorro's MR4 question on a
 real second job). O0 settled ("Use the defaults"); **O1 built** (2026-11-18:
 `sim/work.py`, both engines, `Config.n_posts`, fingerprints unchanged) and its
-experiment running or finished: read it with
-`python scripts/o1_occupations.py --report-only` and compare to the plan's
-prediction. Memory work is parked: "not all
+experiment done (`python scripts/o1_occupations.py --report-only`): nothing
+was learned (on time ~0.5%, workers leave 7-13 times a shift, never paid),
+working costs 4D foraging, and 2D posts-arm nurseries stopped breeding.
+Reading: lateness is nearly free to selection. Next: measure what a shift
+costs a worker and test a hand-built stay-at-post controller, then 5zorro
+decides whether lateness should cost more. Memory work is parked: "not all
 nets need memory" (5zorro); MR2c design kept. Social kin-sense idea in
 openitems (2026-11-18).
 

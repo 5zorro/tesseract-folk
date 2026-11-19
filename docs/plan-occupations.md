@@ -166,6 +166,46 @@ script) overrides both nets, as today.
       bites; 10 of ~40-60 NPCs work), so foraging barely moves: posts vs
       control diet and food types within noise, collapses a little higher
       in most nurseries; births follow bistability as usual.
+  - **Results (2026-11-18, 21 min;** `--report-only`**).** Mean over
+    nurseries (2D 6, 4D 12); change vs control with nurseries down/up:
+
+    | | 2D naive | 2D posts | 4D naive | 4D posts |
+    |---|---|---|---|---|
+    | on time (per shift start) | 0.4% | 0.5% | 0.1% | 0.06% |
+    | left per shift | 7.1 | 8.0 | 12.7 | 12.5 |
+    | walk ticks per shift | 22.7 | 23.8 | 21.6 | 21.4 |
+    | paid | 0 | 0 | 0 | 0 |
+    | collapses | +0.23 (0/6) | +0.18 (2/4) | +0.002 (1/11) | +0.001 (1/11) |
+    | food types per life | -0.001 | -0.009 | -0.11 (12/0) | -0.09 (11/1) |
+    | births | -35 (6/0) | -186 (5/1) | -2.5 | -6.7 |
+
+    - **Nothing was learned.** After 60k ticks with posts, workers are as
+      unpunctual as brains that never had a job: almost never on time,
+      walked in, then off again within a few ticks (the queue holds "stay"
+      for Q = 3 ticks after arrival, then the brain wanders), 7-13 times a
+      shift; no wage was ever earned. Posts minus naive on time: 0.00 in
+      every nursery.
+    - **The job costs foraging** (both arms, so from working, not
+      training): 4D food types per life -0.1 in 11-12 of 12 nurseries;
+      2D collapses up in most nurseries.
+    - **2D posts-arm births fell to the top-up floor** (203 -> 17, 5 of 6
+      nurseries; population 30); naive only -35. Training with posts left
+      most 2D nurseries not breeding. Cause open (workers walked and
+      frazzled all shift may rarely mate, so lineages that breed lose out?).
+    - **Prediction check:** naive right (on time ~0, leaves several times a
+      shift, unpaid). "Leaving falls by half" and "on time 5-30%" **missed**:
+      no change at all. "Foraging barely moves" missed in 4D (-0.1 food
+      types) and in 2D births.
+    - **Reading (not yet tested):** lateness is nearly free to selection.
+      The hall of fame ranks lives by collapses (relative to the
+      population) and births; frazzled hunger x 1.5 barely moves
+      collapses in these lenient worlds (4D +0.001), and a wage of two
+      bites never comes. So nothing rewards a punctual brain over a
+      wandering one, while working costs foraging for everyone. Next
+      probe: measure what a shift costs a worker (collapses, births, lowest
+      nutrient, workers vs free foragers in the same worlds), and check a
+      hand-built "stay while on shift" controller earns wages and stays
+      unfrazzled, before changing any rule (5zorro decides).
 - **O2. Two nets.** Add the worker net and the shift switch; same training
   and scoring as O1, paired by nursery. Prediction first.
 - **O3. Switch events and controller assignment.** The event stream for
