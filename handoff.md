@@ -69,8 +69,11 @@ Milestones: `docs/ROADMAP.md`. Rules for working in the code: `AGENT_CONVENTIONS
 posts with shifts, senses for ticks-until-late and the post's direction, a
 fallback walk that leaves late workers frazzled, then a second (worker) net
 switched on by the shift, against one brain (5zorro's MR4 question on a
-real second job). Waiting on 5zorro's O0 decisions (wages, direction vs
-smell, day and shift length, who works). Memory work is parked: "not all
+real second job). O0 settled ("Use the defaults"); **O1 built** (2026-11-18:
+`sim/work.py`, both engines, `Config.n_posts`, fingerprints unchanged) and its
+experiment running or finished: read it with
+`python scripts/o1_occupations.py --report-only` and compare to the plan's
+prediction. Memory work is parked: "not all
 nets need memory" (5zorro); MR2c design kept. Social kin-sense idea in
 openitems (2026-11-18).
 
